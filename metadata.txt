@@ -1,0 +1,9 @@
+; the next section is mandatory
+[general]
+name=qProf
+qgisMinimumVersion=1.0
+description=Calculates topographic profiles using DEM and paths
+category=Raster
+version=version 0.0.1
+; end of mandatory metadata
+

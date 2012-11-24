@@ -1,0 +1,3 @@
+sorgenti:
+nuvola-filesystems
+http://paulirish.com/2010/high-res-browser-icons/

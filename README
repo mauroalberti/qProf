@@ -1,7 +1,7 @@
 A QGis plugin for creating profiles from DEM data. Status: experimental - many functions are still not implemented.
 
 Currently working:
-input from a linear shapefile (path) and a DEM, already loaded in a QGis project
-creating and plotting profile
-saving resulting profile as data (text file) 
+a) input from a linear shapefile (path) and a DEM, already loaded in a QGis project;
+b) creating and plotting profile;
+c) saving resulting profile as data (text file). 
 

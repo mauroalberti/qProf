@@ -1,9 +1,10 @@
-; the next section is mandatory
 [general]
 name=qProf
-qgisMinimumVersion=1.0
-description=Calculates topographic profiles using DEM and paths
+description=Calculates height and slope profiles
+version=0.1.1
+qgisMinimumVersion=1.8
+email=alberti.m65@gmail.com
+author=Mauro Alberti, Marco Zanieri
 category=Raster
-version=version 0.0.1
 ; end of mandatory metadata
 

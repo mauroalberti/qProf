@@ -14,7 +14,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 
-MINIMUM_DISTANCE = 1e-10
+MINIMUM_SEPARATION_THRESHOLD = 1e-10
 
         
 def plane_x_coeff( or_plane_attitude ):
@@ -220,13 +220,15 @@ class Point(object):
         d_x = end_pt.x - self.x
         d_y = end_pt.y - self.y
         d_z = end_pt.z - self.z
-                    
-        length = sqrt( d_x*d_x +  d_y*d_y +  d_z*d_z )
+         
+        length_2d_squared = d_x*d_x +  d_y*d_y  
+        length_2d = sqrt( length_2d_squared )         
+        lenght_3d = sqrt( length_2d_squared +  d_z*d_z )
         
-        if length < MINIMUM_DISTANCE:
-            return 0.0, Vector( 0.0, 0.0, 0.0 )
+        if length_2d < MINIMUM_SEPARATION_THRESHOLD or lenght_3d < MINIMUM_SEPARATION_THRESHOLD:
+            return 0.0, 0.0, Vector( 0.0, 0.0, 0.0 ), Vector( 0.0, 0.0, 0.0 )
         else:
-            return length, Vector( d_x/length, d_y/length, d_z/length )
+            return length_2d, lenght_3d, Vector( d_x/length_2d, d_y/length_2d, 0.0 ), Vector( d_x/lenght_3d, d_y/lenght_3d, d_z/lenght_3d )
         
     
     def displaced_by_deltas( self, sx = 0.0 , sy = 0.0 , sz = 0.0 ):
@@ -255,9 +257,14 @@ class Vector(Point):
     def __init__(self, x = np.nan, y = np.nan, z = 0.0):
         
         super(Vector, self).__init__(x, y, z)
+          
+         
+    def lenght_hor(self):
         
+        return sqrt( self.x * self.x + self.y * self.y )
     
-    def length(self):
+       
+    def lenght_3d(self):
         
         return sqrt( self.x * self.x + self.y * self.y + self.z * self.z )
         
@@ -282,7 +289,20 @@ class Vector(Point):
                       self.y + another.y, 
                       self.z + another.z)
         
+
+    def slope_radians(self):
         
+        return atan( self.z / self.lenght_hor() )
+        
+        
+def vector_from_points( start_point, end_point ):
+    
+    dx = end_point.x - start_point.x
+    dy = end_point.y - start_point.y        
+    dz = end_point.z - start_point.z        
+     
+    return Vector(dx, dy, dz)
+            
 class StructPlane(object):
     """
     Structural plane, following geological conventions.
@@ -684,7 +704,12 @@ class Grid(object):
         currPt_cellcenter_i = curr_Pt_array_coord.i - 0.5
         currPt_cellcenter_j = curr_Pt_array_coord.j - 0.5         
 
-        assert currPt_cellcenter_i > 0,  currPt_cellcenter_j > 0
+        #TODO: verifica correttezza limiti (cf. centro vs. bordo cella)
+        if currPt_cellcenter_i < 0 or \
+           currPt_cellcenter_j < 0 or \
+           currPt_cellcenter_i > self.row_num()-1 or \
+           currPt_cellcenter_j > self.col_num()-1:
+            return np.nan
               
         grid_val_00 = self.data[int(floor(currPt_cellcenter_i)), int(floor(currPt_cellcenter_j))]
         grid_val_01 = self.data[int(floor(currPt_cellcenter_i)), int(ceil(currPt_cellcenter_j))]
@@ -702,127 +727,68 @@ class Grid(object):
         return grid_val_interp  
              
 
-    def intersection_with_surface( self, surf_type, srcPt, srcPlaneAttitude ):
-        """
-        Calculates the intersections (as points) between DEM (self) and analytical surface.
-        Currently it works only with planes as analytical surface cases.
+    def calculate_profile_from_2d_path( self, path, profile_resolution ):
         
-        @param surf_type: type of considered surface (e.g., plane).
-        @type surf_type: String.
-        @param srcPt: point, expressed in geographical coordinates, that the plane must contain.
-        @type srcPt: Point.
-        @param srcPlaneAttitude: orientation of the surface (currently only planes).
-        @type srcPlaneAttitude: class StructPlane.
+        # result: list of [ Point, cumulated_2D_distance, height, cumulated_3D_distance, abs_slope, dir_slope  ]
         
-        @return: tuple of six arrays
-        """
-        
-        if surf_type == 'plane': 
-                        
-            # lambdas to compute the geographic coordinates (in x- and y-) of a cell center 
-            coord_grid2geog_x = lambda j : self.domain.g_llcorner().x + self.cellsize_x() * ( 0.5 + j )
-            coord_grid2geog_y = lambda i : self.domain.g_trcorner().y - self.cellsize_y() * ( 0.5 + i )
-             
-            # arrays storing the geographical coordinates of the cell centers along the x- and y- axes    
-            x_values = self.x()
-            y_values = self.y()      
-
-            ycoords_x, xcoords_y  = np.broadcast_arrays( x_values, y_values )
-                        
-            #### x-axis direction intersections
-            
-            # 2D array of DEM segment parameters                         
-            x_dem_m = self.grad_forward_x()            
-            x_dem_q = self.data - x_values * x_dem_m            
-            
-            # equation for the planar surface that, given (x,y), will be used to derive z  
-            plane_z = plane_from_geo( srcPt, srcPlaneAttitude )
-            
-            # 2D array of plane segment parameters
-            x_plane_m = plane_x_coeff( srcPlaneAttitude )            
-            x_plane_q = array_from_function( self.row_num(), 1, lambda j: 0, coord_grid2geog_y, plane_z )
-
-            # 2D array that defines denominator for intersections between local segments
-            x_inters_denomin =  np.where( x_dem_m != x_plane_m, x_dem_m-x_plane_m, np.NaN )            
-            coincident_x = np.where( x_dem_q != x_plane_q, np.NaN, ycoords_x )            
-            xcoords_x = np.where( x_dem_m != x_plane_m , (x_plane_q - x_dem_q ) / x_inters_denomin, coincident_x )
-            
-            xcoords_x = np.where( xcoords_x < ycoords_x , np.NaN, xcoords_x )           
-            xcoords_x = np.where( xcoords_x >= ycoords_x + self.cellsize_x() , np.NaN, xcoords_x )  
-                        
-            
-            #### y-axis direction intersections
-
-            # 2D array of DEM segment parameters  
-            y_dem_m = self.grad_forward_y()            
-            y_dem_q = self.data - y_values * y_dem_m
- 
-            # 2D array of plane segment parameters
-            y_plane_m = plane_y_coeff( srcPlaneAttitude )            
-            y_plane_q = array_from_function( 1, self.col_num(), coord_grid2geog_x , lambda i: 0, plane_z )
-
-            # 2D array that defines denominator for intersections between local segments
-            y_inters_denomin =  np.where( y_dem_m != y_plane_m, y_dem_m - y_plane_m, np.NaN )
-            coincident_y = np.where( y_dem_q != y_plane_q, np.NaN, xcoords_y )
-                        
-            ycoords_y = np.where( y_dem_m != y_plane_m, (y_plane_q - y_dem_q ) / y_inters_denomin, coincident_y )            
-
-            # filter out cases where intersection is outside cell range
-            ycoords_y = np.where( ycoords_y < xcoords_y , np.NaN, ycoords_y )           
-            ycoords_y = np.where( ycoords_y >= xcoords_y + self.cellsize_y() , np.NaN, ycoords_y )            
-
-            for i in xrange(xcoords_x.shape[0]):
-                for j in xrange(xcoords_x.shape[1]):
-                    if abs(xcoords_x[i,j]-ycoords_x[i,j])<1.0e-5 and abs(ycoords_y[i,j]-xcoords_y[i,j])<1.0e-5:
-                        ycoords_y[i,j] = np.NaN
-                                                         
-        return xcoords_x, xcoords_y, ycoords_x, ycoords_y
-        
-        
-    def calculate_profile_from_path( self, path, profile_resolution ):
-        
-        # result: list of [ Point, height, incremental_distance ]
-        
-        assert len(path) == 1
+        if len(path) != 1:
+            return False, 'Path is not a single line'                
+        single_path = path[ 0 ]        
+        if len( single_path ) < 1:
+            return False, 'Path is not a line'
         
         profile = []
+                
+        # set values for initial point
+        cumulated_2D_distance = cumulated_3D_distance = 0.0              
+        path_first_point = single_path[ 0 ]
+        path_first_point_z = self.interpolate_bilinear( self.geog2array_coord( path_first_point ) )
+        path_first_point_3d = segment_start_point_3d = Point( path_first_point.x, path_first_point.y, path_first_point_z )
+        profile.append( [ path_first_point_3d, cumulated_2D_distance, cumulated_3D_distance, np.nan ] ) 
         
-        single_path = path[0]
-        
-        cumulated_distance = 0.0
-
-        for point_ndx in xrange( len( single_path) - 1 ):
-
-            point_start = single_path[ point_ndx ]
-            point_end = single_path[ point_ndx+1 ]
-            distance, unit_vector = point_start.distance_uvector(point_end)
+        # cycles through inner points         
+        for point_ndx in xrange( 1, len( single_path ) ):
             
-            if distance < MINIMUM_DISTANCE:
-                continue                
+            segment_end_point = single_path[ point_ndx ]
+            segment_end_point_z = self.interpolate_bilinear( self.geog2array_coord( segment_end_point ) )
+            segment_end_point_3d = Point( segment_end_point.x, segment_end_point.y, segment_end_point_z )            
+            segment_2D_length, _, segment_2D_versor, segment_3D_versor = segment_start_point_3d.distance_uvector( segment_end_point_3d ) 
+                      
+            # case for almost coincident points (segment lenght almost 0)          
+            if segment_2D_length < MINIMUM_SEPARATION_THRESHOLD:
+                continue
 
-            point_height = self.interpolate_bilinear( self.geog2array_coord( point_start ) )
-            profile.append( [point_start, cumulated_distance, point_height ] )
-            
-            num_iter = 0
-            potential_displacement = (num_iter+1)*profile_resolution
-                        
-            while potential_displacement < distance:
-
-                displacement_vector = unit_vector.scale(potential_displacement)
-                intermediate_point = point_start.displaced_by_vector(displacement_vector) 
-                intermediate_cumulated_distance = cumulated_distance + potential_displacement
-                point_height = self.interpolate_bilinear( self.geog2array_coord( intermediate_point ) )
-                profile.append( [intermediate_point, intermediate_cumulated_distance, point_height ] )
-                            
-                num_iter += 1
-                potential_displacement = (num_iter+1)*profile_resolution
-
-            cumulated_distance += distance
-            
-        point_height = self.interpolate_bilinear( self.geog2array_coord( single_path[-1] ) )                                      
-        profile.append( [single_path[-1], cumulated_distance, point_height ] )
+            # case for points separated by a distance greater than the maximum allowed profile distance 
+            if segment_2D_length > profile_resolution: 
+                num_iter = 1 
+                intermediate_cumulated_2D_distance = 0.0
+                while num_iter*profile_resolution < segment_2D_length:                
+                    offset_vector_2d = segment_2D_versor.scale( num_iter * profile_resolution )
+                    intermediate_end_point = path_first_point.displaced_by_vector( offset_vector_2d ) 
+                    intermediate_end_point_z = self.interpolate_bilinear( self.geog2array_coord( intermediate_end_point ) ) 
+                    intermediate_end_point_3d = Point( 
+                                                  intermediate_end_point.x, 
+                                                  intermediate_end_point.y, 
+                                                  intermediate_end_point_z
+                                                  )              
+                    intermediate_segment_2D_length, intermediate_segment_3D_length, _, intermediate_segment_3D_vector = segment_start_point_3d.distance_uvector( intermediate_end_point_3d ) 
+                    intermediate_cumulated_2D_distance += intermediate_segment_2D_length
+                    cumulated_3D_distance += intermediate_segment_3D_length 
+                    slope_degrees = degrees( intermediate_segment_3D_vector.slope_radians() )               
+                    profile.append( [ intermediate_end_point_3d, cumulated_2D_distance+intermediate_cumulated_2D_distance, cumulated_3D_distance, slope_degrees ] )
+                    segment_start_point_3d = intermediate_end_point_3d
+                    num_iter += 1
+                _, segment_3D_length, _, segment_3D_versor = segment_start_point_3d.distance_uvector( segment_end_point_3d )                
+                          
+            # general
+            cumulated_2D_distance += segment_2D_length
+            cumulated_3D_distance += segment_3D_length  
+            slope_degrees = degrees( segment_3D_versor.slope_radians() )          
+            profile.append( [ segment_end_point_3d, cumulated_2D_distance, cumulated_3D_distance, slope_degrees ] ) 
+            path_first_point = segment_end_point
+            segment_start_point_3d = segment_end_point_3d
     
-        return profile
+        return True, profile
             
             
             

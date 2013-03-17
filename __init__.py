@@ -5,8 +5,8 @@
  geoProfiles
                               -------------------
         begin                : 2012-11-06
-        version              : 0.0.1. for QuantumGIS
-        copyright            : (C) 2012 M. Alberti (implementation) and M. Zaniero (concept)
+        version              : 0.1.1 for QuantumGIS
+        copyright            : (C) 2012-2013 M. Alberti (implementation) and M. Zaniero (concept)
         email                : alberti.m65@gmail.com
         
  ***************************************************************************/
@@ -32,7 +32,7 @@ def description():
     return "Compute topographic profiles from DEM and paths"
 
 def version():
-    return "0.0.1"
+    return "0.1.1"
 
 def icon():
     return "icon.png"

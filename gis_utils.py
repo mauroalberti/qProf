@@ -12,7 +12,6 @@ except:
 from spatial_utils import Point
 
   
-  
 
 class Raster_Parameters_Errors(Exception):
     """

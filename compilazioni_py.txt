@@ -1,5 +1,0 @@
-
-pyuic4 -o ui_directionalslope.py ui_dirslope_08.ui
-
-pyrcc4 -o resources.py resources.qrc
-

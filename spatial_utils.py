@@ -752,7 +752,7 @@ class Grid(object):
             segment_end_point = single_path[ point_ndx ]
             segment_end_point_z = self.interpolate_bilinear( self.geog2array_coord( segment_end_point ) )
             segment_end_point_3d = Point( segment_end_point.x, segment_end_point.y, segment_end_point_z )            
-            segment_2D_length, _, segment_2D_versor, segment_3D_versor = segment_start_point_3d.distance_uvector( segment_end_point_3d ) 
+            segment_2D_length, segment_3D_length, segment_2D_versor, segment_3D_versor = segment_start_point_3d.distance_uvector( segment_end_point_3d ) 
                       
             # case for almost coincident points (segment lenght almost 0)          
             if segment_2D_length < MINIMUM_SEPARATION_THRESHOLD:

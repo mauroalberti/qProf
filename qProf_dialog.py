@@ -19,6 +19,7 @@ from spatial_utils import *
 
 from qProf_mplwidget import MplWidget
 
+import unicodedata
 
         
 class qProfDialog( QDialog ):
@@ -153,9 +154,10 @@ class qProfDialog( QDialog ):
         aboutLayout = QVBoxLayout( )
         
         htmlText = """
-        <h3>qProf release 0.1 (experimental)</h3>
+        <h3>qProf release 0.1.3 (2013-04-02, experimental)</h3>
         Created by M. Alberti and M. Zanieri.
         <br />Concept: M. Zanieri, implementation: M. Alberti.
+        <br />We thank S. Peduzzi for his vigorous testing.
         <br />Plugin for creating profiles, with slope calculation and 2D-3D output.
         <br /><br />For info see www.malg.eu.        
         """
@@ -189,7 +191,7 @@ class qProfDialog( QDialog ):
             line_shape_fpath = self.linevectLayers[ path_shape_qgis_ndx ][ 1 ].source()  
             lines_points, layer_extent_x, layer_extent_y = read_line_shapefile( line_shape_fpath )
         except ( IOError, TypeError, Vector_Input_Errors ), e:                    
-            QMessageBox.critical( self, "Error while reading input shapefile", str(e) )
+            QMessageBox.critical( self, "Error while reading input shapefile", unicode(e) )
             return
                 
         # checking if any selected DEMs
@@ -210,7 +212,7 @@ class qProfDialog( QDialog ):
                 dem_params, dem_array = read_raster_band( dem_fpath )          
                 dem_params.check_params()
             except ( IOError, TypeError, Raster_Parameters_Errors ), e:                    
-                QMessageBox.critical( self, "Error while reading input DEM", str(e) )
+                QMessageBox.critical( self, "Error while reading input DEM", unicode(e) )
                 return
             
             dem = Grid( dem_params, dem_array ) 
@@ -218,7 +220,7 @@ class qProfDialog( QDialog ):
             profile_result = dem.calculate_profile_from_2d_path( lines_points, self.sample_distance )
             
             if not profile_result[0]:
-                QMessageBox.critical( self, "Error while reading path", str( profile_result[1] ) )
+                QMessageBox.critical( self, "Error while reading path", unicode( profile_result[1] ) )
                 return                
 
             profile_list.append( [ profile_result[1], dem_name ] )
@@ -335,7 +337,7 @@ class qProfDialog( QDialog ):
                 valid_s_2d_values = s_2d_values_array[ np.isfinite( z_values_array ) ]
                 valid_z_values = z_values_array[ np.isfinite( z_values_array ) ]                
                 axes_height.fill_between( valid_s_2d_values, profiles_z_min, valid_z_values, facecolor=color, alpha=0.1 )                       
-                axes_height.plot(s_2d_values, z_values,'-', label = str(dem_name) )
+                axes_height.plot(s_2d_values, z_values,'-', label = unicode(dem_name) )
                 
             axes_height.grid(True)
             axes_height.legend(loc = 'upper left', shadow=True)              
@@ -353,7 +355,7 @@ class qProfDialog( QDialog ):
                 valid_slope_values = slope_values_array[ np.isfinite( slope_values_array ) ]  
                 
                 axes_slope.fill_between( valid_s_2d_values, 0, valid_slope_values, facecolor=color, alpha=0.1 )
-                axes_slope.plot(s_2d_values, slope_values,'-', label = str(dem_name) )
+                axes_slope.plot(s_2d_values, slope_values,'-', label = unicode(dem_name) )
                 
             axes_slope.grid(True)
             axes_slope.legend(loc = 'upper left', shadow=True)              
@@ -375,7 +377,7 @@ class qProfDialog( QDialog ):
             return   
                           
         # definition of field names        
-        dem_names = [ str( dem_name ) for _, dem_name in self.current_profiles ]  
+        dem_names = [ dem_name for _, dem_name in self.current_profiles ]  
         cum3ddist_headers = ['cumulated_3d_distance']*len(dem_names)
         slopes_headers = ['slopes (degr)']*len(dem_names)
         header_list = ['x', 'y', 'cumulated_2d_distance'] + [ name for sublist in zip(dem_names, cum3ddist_headers, slopes_headers) for name in sublist ]              
@@ -388,77 +390,7 @@ class qProfDialog( QDialog ):
         
         QMessageBox.information( self, "Saving profile results", "Results saved" )
         
-    
-    def write_lnshp( self, dem_names ):   
-    
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results as line shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return       
-    
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName( shape_driver_name )
-        if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
-            return             
-            
-        lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
-        if lnshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
-            return         
-        
-        lnshp_layer = lnshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbLineString )
-        if lnshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
-            return     
-    
-        # creates required fields         
-        lnshp_layer.CreateField( ogr.FieldDefn( 'id', ogr.OFTInteger ) )      
-        lnshp_layer.CreateField( ogr.FieldDefn( 'cum2dist', ogr.OFTReal ) )
-        for dem_ndx in range( len( dem_names ) ):            
-            lnshp_layer.CreateField( ogr.FieldDefn( 'cum3dis'+str(dem_ndx+1), ogr.OFTReal ) )        
-            lnshp_layer.CreateField( ogr.FieldDefn( 'slope'+str(dem_ndx+1), ogr.OFTReal ) )     
-    
-        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
-        
-        # loops through output records                       
-        for ndx, rec in enumerate( self.current_results ):
-            
-            if ndx == 0:
-                start_coords = ( rec[0], rec[1] )
-                continue
-            else:
-                end_coords = ( rec[0], rec[1] )                
-            
-            ln_feature = ogr.Feature( lnshp_featureDefn )
-            
-            segment = ogr.Geometry(ogr.wkbLineString)
-            segment.AddPoint_2D( start_coords[0], start_coords[1] )
-            segment.AddPoint_2D( end_coords[0], end_coords[1] )            
-      
-            ln_feature.SetGeometry( segment ) 
-            
-            ln_feature.SetField('id', ndx )
-            ln_feature.SetField('cum2dist', rec[2] )  
-            for dem_ndx in range( len( dem_names ) ):
-                cum3ddist = rec[3+dem_ndx*3+1]
-                if cum3ddist != '': ln_feature.SetField( 'cum3dis'+str(dem_ndx+1), cum3ddist )
-                slope = rec[3+dem_ndx*3+2]
-                if slope != '': ln_feature.SetField( 'slope'+str(dem_ndx+1), slope )   
-                                
-            start_coords = end_coords               
-            
-            lnshp_layer.CreateFeature( ln_feature )
-            
-            ln_feature.Destroy()
-            
-        lnshp_datasource.Destroy()
-        
-                              
+                      
     def write_ptshp( self, dem_names ):
         
         fileName = QFileDialog.getSaveFileName(self, 
@@ -476,7 +408,7 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
             
-        ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+        ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
         if ptshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
@@ -492,7 +424,7 @@ class qProfDialog( QDialog ):
         ptshp_layer.CreateField( ogr.FieldDefn( 'y', ogr.OFTReal ) )       
         ptshp_layer.CreateField( ogr.FieldDefn( 'cum2dis', ogr.OFTReal ) )
         for dem_ndx, dem_name in enumerate( dem_names ):       
-            ptshp_layer.CreateField( ogr.FieldDefn( dem_name[:10], ogr.OFTReal ) )       
+            ptshp_layer.CreateField( ogr.FieldDefn( unicodedata.normalize('NFKD', unicode( dem_name[:10] )).encode('ascii', 'ignore'), ogr.OFTReal ) )       
             ptshp_layer.CreateField( ogr.FieldDefn( 'cum3dis'+str(dem_ndx+1), ogr.OFTReal ) )        
             ptshp_layer.CreateField( ogr.FieldDefn( 'slope'+str(dem_ndx+1), ogr.OFTReal ) )        
         
@@ -513,7 +445,7 @@ class qProfDialog( QDialog ):
             pt_feature.SetField('cum2dis', rec[2] )  
             for dem_ndx, dem_name in enumerate( dem_names ):
                 dem_height = rec[3+dem_ndx*3+0]
-                if dem_height != '': pt_feature.SetField( dem_name[:10], dem_height )
+                if dem_height != '': pt_feature.SetField( unicodedata.normalize('NFKD', unicode( dem_name[:10] )).encode('ascii', 'ignore'), dem_height )
                 cum3ddist = rec[3+dem_ndx*3+1]
                 if cum3ddist != '': pt_feature.SetField( 'cum3dis'+str(dem_ndx+1), cum3ddist )
                 slope = rec[3+dem_ndx*3+2]
@@ -537,7 +469,8 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "No file has been defined" )
             return   
 
-        with open(fileName, 'w') as f:
+        header_list = [ unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
+        with open( unicode( fileName ), 'w') as f:
             f.write( ','.join( header_list )+'\n' )
             for rec in self.current_results:
                 out_rec_string = ''
@@ -563,7 +496,7 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
             
-        lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+        lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
         if lnshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         

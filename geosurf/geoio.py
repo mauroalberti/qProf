@@ -1,4 +1,9 @@
+# -*- coding: utf-8 -*-
 
+
+from __future__  import division
+
+#from math import *
 import numpy as np
 
 from osgeo import gdal
@@ -8,150 +13,9 @@ try:
     from osgeo import ogr
 except: 
     import ogr
-    
-from spatial_utils import Point
 
-  
-
-class Raster_Parameters_Errors(Exception):
-    """
-    Exception for raster parameters.
-    """
-    pass  
-
- 
-class Vector_Input_Errors(Exception):
-    """
-    Exception for vector input parameters.
-    """
-    pass  
-
-    
-def read_line_shapefile( shapefile_path ):            
-
-    if shapefile_path is None or shapefile_path == '':
-        raise Vector_Input_Errors, "No name provided"
-
-    shape_driver = ogr.GetDriverByName( "ESRI Shapefile" )
-
-    try:
-        in_shape = shape_driver.Open( str( shapefile_path ), 0 )
-    except:
-        raise Vector_Input_Errors, "Unable to open shapefile"
-      
-    # get internal layer
-    lnLayer = in_shape.GetLayer(0) 
-     
-    # set vector layer extent   
-    layer_extent_x = lnLayer.GetExtent()[:2]
-    layer_extent_y = lnLayer.GetExtent()[2:]
-                
-    # initialize lists storing line coordinates
-    lines_points = []
-                             
-    # start reading layer features              
-    curr_line = lnLayer.GetNextFeature()
-    
-    # loop in layer features       
-    while curr_line:        
-                
-        line_points = []
-                    
-        line_geom = curr_line.GetGeometryRef()
-        
-        if line_geom is None:
-            in_shape.Destroy()           
-            raise Vector_Input_Errors, "Unable to read line data" 
-
-        if line_geom.GetGeometryType() != ogr.wkbLineString and \
-           line_geom.GetGeometryType() != ogr.wkbMultiLineString:                        
-            in_shape.Destroy()           
-            raise Vector_Input_Errors, "Data are not lines"
-                                
-        for i in range( line_geom.GetPointCount() ):
-                            
-            x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
-                        
-            line_points.append(Point(x,y,z))
-                            
-        lines_points.append(line_points)    
-                    
-        curr_line = lnLayer.GetNextFeature()
-                
-    in_shape.Destroy()
-    
-    return lines_points, layer_extent_x, layer_extent_y
-
-
-
-def read_raster_band( raster_name ):
-    """
-    Read an input raster band, based on GDAL module.
-    
-    @param raster_name: name of the raster to be read.
-    @type raster_name: QString.
-    
-    @return: tuple of a GDALParameters instance and a 2D numpy.array instance. 
-    
-    @raise IOError: unable to open or read data from raster.
-    @raise TypeError: more than one band in raster.    
-    """
-            
-    # GDAL register
-    gdal.AllRegister
-    
-    # open raster file and check operation success 
-    raster_data = gdal.Open( str( raster_name ), GA_ReadOnly )    
-    if raster_data is None:
-        raise IOError, 'Unable to open raster band' 
-
-    # initialize DEM parameters
-    raster_params = GDALParameters()
-    
-    # get driver type for current raster 
-    raster_params.driverShortName = raster_data.GetDriver().ShortName
-
-    # get current raster projection
-    raster_params.projection = raster_data.GetProjection()   
-
-    # get row and column numbers    
-    raster_params.rows = raster_data.RasterYSize
-    raster_params.cols = raster_data.RasterXSize
-    
-    # get and check number of raster bands - it must be one
-    raster_bands = raster_data.RasterCount
-    if raster_bands > 1:
-        raise TypeError, 'More than one raster band in raster' 
-    
-    # set critical grid values from geotransform array
-    raster_params.topLeftX = raster_data.GetGeoTransform()[0]
-    raster_params.pixSizeEW = raster_data.GetGeoTransform()[1]
-    raster_params.rotGT2 = raster_data.GetGeoTransform()[2]
-    raster_params.topLeftY = raster_data.GetGeoTransform()[3]
-    raster_params.rotGT4 = raster_data.GetGeoTransform()[4]
-    raster_params.pixSizeNS = raster_data.GetGeoTransform()[5]
- 
-    # get single band 
-    band = raster_data.GetRasterBand(1)
-    
-    # get no data value for current band
-    try: 
-        raster_params.noDataValue = band.GetNoDataValue()
-    except:
-        pass
-    # read data from band 
-    grid_values = band.ReadAsArray( 0,0, raster_params.cols, raster_params.rows )
-    if grid_values is None:
-        raise IOError, 'Unable to read data from raster'
-     
-    # transform data into numpy array
-    data = np.asarray( grid_values ) 
-
-    # if nodatavalue exists, set null values to NaN in numpy array
-    if raster_params.noDataValue is not None:
-        data = np.where( abs( data - raster_params.noDataValue ) > 1e-05, data, np.NaN ) 
-
-    return raster_params, data
+from .spatial import Grid, Point
+from .errors import Raster_Parameters_Errors
 
 
 class GDALParameters( object ):
@@ -197,7 +61,6 @@ class GDALParameters( object ):
         @return:  no-data value - float.
         """
         return self._nodatavalue
-
 
     # set property for no-data value
     noDataValue = property( g_noDataValue, s_noDataValue )
@@ -466,5 +329,228 @@ class GDALParameters( object ):
             return True            
 
 
+
+class QGisRasterParameters( object ):
+    """
+    Manage GDAL parameters from rasters.
     
+    """
+
+    # class constructor
+    def __init__( self ): 
+        """
+        Class constructor.
+        
+        @return:  generic-case GDAL parameters.
+        """
+        self.nodatavalue = None
+        self.cellsizeEW = None
+        self.cellsizeNS = None
+        self.rows = None
+        self.cols = None
+        self.xMin = None
+        self.xMax = None
+        self.yMin = None
+        self.yMax = None
+
+
+    def point_in_dem_area(self, point):
+        
+        if point.x >= self.xMin and \
+           point.x <= self.xMax and \
+           point.y >= self.yMin and \
+           point.y <= self.yMax:
+            return True
+        else:
+            return False
+        
+          
+    def point_in_interpolation_area(self, point):
+        
+        if point.x >= self.xMin+self.cellsizeEW/2.0 and \
+           point.x <= self.xMax-self.cellsizeEW/2.0 and \
+           point.y >= self.yMin+self.cellsizeNS/2.0 and \
+           point.y <= self.yMax-self.cellsizeNS/2.0:
+            return True
+        else:
+            return False
+        
+                   
+    def geogr2raster(self, point):
+        
+        x = ( point.x - ( self.xMin + self.cellsizeEW/2.0 ) ) / self.cellsizeEW
+        y = ( point.y - ( self.yMin + self.cellsizeNS/2.0 ) ) / self.cellsizeNS
+        
+        return dict(x=x,y=y) 
+      
     
+    def raster2geogr(self, array_dict ):
+        
+        point = Point()
+        point.x = self.xMin + (array_dict['x']+0.5)*self.cellsizeEW
+        point.y = self.yMin + (array_dict['y']+0.5)*self.cellsizeNS
+        
+        return point        
+        
+        
+
+
+def read_raster_band( raster_name ):
+    """
+    Read an input raster band, based on GDAL module.
+    
+    @param raster_name: name of the raster to be read.
+    @type raster_name: QString.
+    
+    @return: tuple of a GDALParameters instance and a 2D numpy.array instance. 
+    
+    @raise IOError: unable to open or read data from raster.
+    @raise TypeError: more than one band in raster.    
+    """
+            
+    # GDAL register
+    gdal.AllRegister
+    
+    # open raster file and check operation success 
+    raster_data = gdal.Open( str( raster_name ), GA_ReadOnly )    
+    if raster_data is None:
+        raise IOError, 'Unable to open raster band' 
+
+    # initialize DEM parameters
+    raster_params = GDALParameters()
+    
+    # get driver type for current raster 
+    raster_params.driverShortName = raster_data.GetDriver().ShortName
+
+    # get current raster projection
+    raster_params.projection = raster_data.GetProjection()   
+
+    # get row and column numbers    
+    raster_params.rows = raster_data.RasterYSize
+    raster_params.cols = raster_data.RasterXSize
+    
+    # get and check number of raster bands - it must be one
+    raster_bands = raster_data.RasterCount
+    if raster_bands > 1:
+        raise TypeError, 'More than one raster band in raster' 
+    
+    # set critical grid values from geotransform array
+    raster_params.topLeftX = raster_data.GetGeoTransform()[0]
+    raster_params.pixSizeEW = raster_data.GetGeoTransform()[1]
+    raster_params.rotGT2 = raster_data.GetGeoTransform()[2]
+    raster_params.topLeftY = raster_data.GetGeoTransform()[3]
+    raster_params.rotGT4 = raster_data.GetGeoTransform()[4]
+    raster_params.pixSizeNS = raster_data.GetGeoTransform()[5]
+ 
+    # get single band 
+    band = raster_data.GetRasterBand(1)
+    
+    # get no data value for current band
+    try: 
+        raster_params.noDataValue = band.GetNoDataValue()
+    except:
+        pass
+    # read data from band 
+    grid_values = band.ReadAsArray( 0, 0, raster_params.cols, raster_params.rows )
+    if grid_values is None:
+        raise IOError, 'Unable to read data from raster'
+     
+    # transform data into numpy array
+    data = np.asarray( grid_values ) 
+
+    # if nodatavalue exists, set null values to NaN in numpy array
+    if raster_params.noDataValue is not None:
+        data = np.where( abs( data - raster_params.noDataValue ) > 1e-05, data, np.NaN ) 
+
+    return raster_params, data
+
+
+def read_dem( in_dem_fn ):
+    """
+    Read input DEM file.
+
+    @param  in_dem_fn: name of file to be read.
+    @type  in_dem_fn:  string
+    
+    """
+            
+    # try reading DEM data
+    try:
+        dem_params, dem_array = read_raster_band( in_dem_fn )
+        dem_params.check_params()
+    except ( IOError, TypeError, Raster_Parameters_Errors ), e:                    
+        raise IOError, 'Unable to read data from raster'
+           
+    # create current grid
+    return Grid(in_dem_fn, dem_params, dem_array)
+    
+               
+def read_line_shapefile( line_shp_path ):
+    """
+    Read line shapefile.
+
+    @param  line_shp_path:  parameter to check.
+    @type  line_shp_path:  QString or string
+    
+    """       
+    # reset layer parameters 
+  
+    if line_shp_path is None or line_shp_path == '':            
+        return dict( success = False, error_message = 'No input path' ) 
+
+    # open input vector layer
+    shape_driver = ogr.GetDriverByName( "ESRI Shapefile" )
+
+    line_shape = shape_driver.Open( str( line_shp_path ), 0 )
+
+    # layer not read
+    if line_shape is None: 
+        return dict( success = False, error_message = 'Unable to open input shapefile' ) 
+     
+    # get internal layer
+    lnLayer = line_shape.GetLayer(0)          
+            
+    # set vector layer extent   
+    layer_extent = lnLayer.GetExtent()
+    lines_extent={}
+    lines_extent['xmin'], lines_extent['xmax'] = layer_extent[0], layer_extent[1]
+    lines_extent['ymin'], lines_extent['ymax'] = layer_extent[2], layer_extent[3]    
+                    
+    # initialize lists storing vertex coordinates of line
+    lines_points = []
+
+    # start reading layer features        
+    curr_line = lnLayer.GetNextFeature()
+            
+    # loop in layer features                 
+    while curr_line:        
+
+        line_points = []
+                    
+        line_geom = curr_line.GetGeometryRef()
+
+        if line_geom is None:
+            line_shape.Destroy()                          
+            return dict( success = False, error_message = 'No geometry ref' ) 
+ 
+        if line_geom.GetGeometryType() != ogr.wkbLineString and \
+           line_geom.GetGeometryType() != ogr.wkbMultiLineString:                        
+            line_shape.Destroy()           
+            return dict( success = False, error_message = 'Not a linestring/multilinestring' ) 
+
+        for i in range( line_geom.GetPointCount() ):
+                            
+            x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
+                        
+            line_points.append( Point(x,y,z) )
+                            
+        lines_points.append(line_points)
+                    
+        curr_line = lnLayer.GetNextFeature()
+
+    line_shape.Destroy()
+
+    return dict( success = True, extent=lines_extent, vertices=lines_points ) 
+       
+    # return lines_points, layer_extent_x, layer_extent_y
+

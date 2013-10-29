@@ -23,7 +23,8 @@ class qProf_gui(object):
         self.action = QAction(QIcon(":/plugins/qProf/icon.png"), "qProf", self.iface.mainWindow())
                    
         # connect the action to the run method
-        QObject.connect(self.action, SIGNAL("triggered()"), self.run)
+        self.action.triggered.connect( self.run )
+        # QObject.connect(self.action, SIGNAL("triggered()"), self.run)
 
         # Add toolbar button and menu item
         self.iface.addToolBarIcon(self.action)

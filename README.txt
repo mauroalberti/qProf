@@ -1,5 +1,5 @@
-This is the version 0.1.3 (experimental) of qProf, a Quantum Gis plugin to calculate profiles from one or more DEM and a single path (stored as a shapefile).
+This is qProf, a Quantum Gis plugin to calculate profiles from DEM/GPX files, and for plotting geological traces in cross-sections. 
 
-contacts:
+Contacts:
 Mauro Aberti - alberti.m65@gmail.com
 Marco Zanieri - marcozanieri@gmail.com

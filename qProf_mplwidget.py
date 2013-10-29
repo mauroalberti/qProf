@@ -60,11 +60,11 @@ class MplWidget( QWidget ):
     Widget defined in Qt Designer.
     """
     
-    def __init__(self, parent = None):
+    def __init__(self, window_title = 'Profile', parent = None):
         
         # initialization of Qt MainWindow widget
         QWidget.__init__(self)
-        self.setWindowTitle ( 'Profile' )
+        self.setWindowTitle ( window_title )
 
         # set the canvas and the navigation toolbar
         self.canvas = MplCanvas( )

@@ -1,19 +1,29 @@
 [general]
 name=qProf
-description=Calculates height and slope profiles
-version=version 0.1.3
-qgisMinimumVersion=1.8
-email=alberti.m65@gmail.com
+description=Calculates height and slope profiles from DEM and GPX files, and plots geological plane traces on profiles
+category=Plugins 
+version=0.2.1
+experimental=False
+qgisMinimumVersion=2.0
 author=Mauro Alberti, Marco Zanieri
-category=Raster
+email=alberti.m65@gmail.com
+icon=./icon.png
+
 ; end of mandatory metadata
 
 ; start of optional metadata
 changelog=
-    0.1.3 : fixed bug related to non-ascii names in input files 
+    0.1.3 : - fixed bug related to non-ascii names in input files. 
+    0.1.4 : - reshaped the GUI
+            - added GPX and 3D-line processing
+            - fixed bug in profile plot.
+    0.2.0 : - added cross-section creation tool
+			- minor GUI changes
+            - some code refactoring
+    0.2.1 : - changes for QGis 2.0 compatibility 
 
 ; tags are in comma separated value format, spaces are allowed
-tags=raster, dem, profiles
+tags=raster, dem, profiles, gpx, geology, cross-section
 
 ; these metadata can be empty
 ; in a future version of the web application it will
@@ -22,10 +32,6 @@ tags=raster, dem, profiles
 homepage=https://bitbucket.org/mauroalberti/qprof
 tracker=https://bitbucket.org/mauroalberti/qprof/issues
 repository=https://bitbucket.org/mauroalberti/qprof
-icon=icon.png
-
-; experimental flag
-experimental=True
 
 ; deprecated flag (applies to the whole plugin and not only to the uploaded version)
 deprecated=False

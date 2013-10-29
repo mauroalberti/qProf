@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-
 import numpy as np
-
-
-
+ 
+ 
 def is_number(s):
     """
     Check if string can be converted to number.
@@ -22,7 +20,14 @@ def is_number(s):
     else:
         return True
  
+
+def almost_zero( val ):
     
+    tolerance = 1e-10    
+    if abs( val ) > tolerance: return False
+    else: return True
+    
+       
 def ij_transfer_func( i, j, transfer_funcs ):
     """
     Return a z value as the result of a function (transfer_func_z) applied to a (x,y) point.

@@ -31,3 +31,10 @@ class Output_Errors(Exception):
 class ConnectionError:
     pass
 
+
+class AnaliticSurfaceIOException( Exception ):
+    pass
+
+class AnaliticSurfaceCalcException( Exception ):
+    pass
+

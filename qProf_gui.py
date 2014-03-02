@@ -41,7 +41,7 @@ class qProf_gui(object):
     def run(self):
 
         # create and show the dialog
-        dlg = qProfDialog()        
+        dlg = qProfDialog( self.iface )        
         dlg.show()
         dlg.exec_()
         

@@ -331,27 +331,20 @@ class GDALParameters( object ):
 
 
 class QGisRasterParameters( object ):
-    """
-    Manage GDAL parameters from rasters.
-    
-    """
 
     # class constructor
-    def __init__( self ): 
-        """
-        Class constructor.
-        
-        @return:  generic-case GDAL parameters.
-        """
-        self.nodatavalue = None
-        self.cellsizeEW = None
-        self.cellsizeNS = None
-        self.rows = None
-        self.cols = None
-        self.xMin = None
-        self.xMax = None
-        self.yMin = None
-        self.yMax = None
+    def __init__( self, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue = None, crs = None ): 
+
+        self.cellsizeEW = cellsizeEW
+        self.cellsizeNS = cellsizeNS
+        self.rows = rows
+        self.cols = cols
+        self.xMin = xMin
+        self.xMax = xMax
+        self.yMin = yMin
+        self.yMax = yMax
+        self.nodatavalue = nodatavalue
+        self.crs = crs
 
 
     def point_in_dem_area(self, point):
@@ -391,11 +384,9 @@ class QGisRasterParameters( object ):
         point.y = self.yMin + (array_dict['y']+0.5)*self.cellsizeNS
         
         return point        
-        
-        
 
 
-def read_raster_band( raster_name ):
+def read_raster_band_via_gdal( raster_name ):
     """
     Read an input raster band, based on GDAL module.
     
@@ -476,7 +467,7 @@ def read_dem( in_dem_fn ):
             
     # try reading DEM data
     try:
-        dem_params, dem_array = read_raster_band( in_dem_fn )
+        dem_params, dem_array = read_raster_band_via_gdal( in_dem_fn )
         dem_params.check_params()
     except ( IOError, TypeError, Raster_Parameters_Errors ), e:                    
         raise IOError, 'Unable to read data from raster'
@@ -485,9 +476,9 @@ def read_dem( in_dem_fn ):
     return Grid(in_dem_fn, dem_params, dem_array)
     
                
-def read_line_shapefile( line_shp_path ):
+def read_line_shapefile_via_ogr( line_shp_path ):
     """
-    Read line shapefile.
+    Read line shapefile using OGR.
 
     @param  line_shp_path:  parameter to check.
     @type  line_shp_path:  QString or string
@@ -552,5 +543,3 @@ def read_line_shapefile( line_shp_path ):
 
     return dict( success = True, extent=lines_extent, vertices=lines_points ) 
        
-    # return lines_points, layer_extent_x, layer_extent_y
-

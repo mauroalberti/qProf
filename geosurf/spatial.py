@@ -18,6 +18,11 @@ from .algebr_utils import point_solution
 MINIMUM_SEPARATION_THRESHOLD = 1e-10
 MINIMUM_VECTOR_MAGNITUDE = 1e-10 
        
+
+#*** TEMP
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+#*** temp DEBUG
  
 
 class Point(object):
@@ -27,7 +32,7 @@ class Point(object):
     """
         
     # class constructor
-    def __init__( self, x = np.nan, y = np.nan, z = np.nan ):
+    def __init__( self, x = np.nan, y = np.nan, z = 0.0 ):
         """ 
         Point class constructor.
         
@@ -120,7 +125,12 @@ class Point(object):
     # property for z
     z = property( g_z, s_z )
     
-  
+
+    def copy( self ):
+        
+        return Point( self.x, self.y, self.z )
+        
+          
     def distance( self, another ):
         """
         Calculate Euclidean distance between two points.
@@ -131,10 +141,11 @@ class Point(object):
         @return:  distance between the two points - float.        
         """
         
-        assert self.z != np.nan
-        assert another.z != np.nan
-        return sqrt( ( self.x - another.x ) ** 2 + ( self.y - another.y ) ** 2 + ( self.z - another.z ) ** 2 )
-    
+        try:
+            return sqrt( ( self.x - another.x ) ** 2 + ( self.y - another.y ) ** 2 + ( self.z - another.z ) ** 2 )
+        except:
+            return np.nan
+        
     
     def hor_distance( self, another ):
         """
@@ -145,7 +156,10 @@ class Point(object):
         
         @return:  horizontal distance between the two points - float.        
         """
-        return sqrt( ( self.x - another.x ) ** 2 + ( self.y - another.y ) ** 2 )
+        try:
+            return sqrt( ( self.x - another.x ) ** 2 + ( self.y - another.y ) ** 2 )
+        except:
+            return np.nan        
     
         
     def movedby( self, sx = 0.0 , sy = 0.0 , sz = 0.0 ):
@@ -202,6 +216,40 @@ class Point(object):
                       self.z )
         
         
+    def is_coincident_with( self, another, tolerance = 1.0e-6 ):
+        
+        if self.distance(another) > tolerance:
+            return False
+        else:
+            return True
+        
+
+def interpolate_linear_horizontal_points( start_pt, end_pt, interp_distance ):
+    
+    assert interp_distance >= 0
+    
+    length_2d, _, versor_2D, _ = start_pt.distance_uvector( end_pt )
+    
+    assert length_2d > 0.0
+
+    generator_vector = versor_2D.scale( interp_distance )
+
+    interpolated_points = [ start_pt ]
+    
+    n = 0
+    
+    while ( True ):        
+        n += 1 
+        new_pt = start_pt.displaced_by_vector( generator_vector.scale( n ) )
+        if start_pt.distance(new_pt) >= length_2d:
+            break        
+        interpolated_points.append( new_pt )
+        
+    interpolated_points.append( end_pt )
+        
+    return interpolated_points
+
+            
 class Point4D( Point ):
     
     def __init__(self, x = np.nan, y = np.nan, z = 0.0, time = np.nan ):
@@ -591,7 +639,209 @@ class GeolPlane(object):
         
         return CartesianPlane( a, b, c, d )
     
-      
+
+class Line(object):
+    # Line is a list of Point objects
+
+    def __init__( self ):
+     
+        self.points = []
+        
+        
+    def copy( self ):
+        
+        new_line = Line()
+        new_line.points = [ pt.copy() for pt in self.points ]
+        
+        return new_line
+        
+
+    def add_point( self, pt ):
+        
+        new_line = self.copy()
+        new_line.points.append( pt.copy() )
+        
+        return new_line
+        
+ 
+    def add_points(self, pt_list ):
+
+        new_line = self.copy()
+        new_line.points = new_line.points + [ pt.copy() for pt in pt_list ]
+        
+        return new_line
+                        
+
+    def remove_coincident_successive_points( self ):
+        
+        new_line = Line().add_point( self.points[0] )
+
+        for ndx in range(1, self.num_points() ):
+            if not self.points[ndx].is_coincident_with( new_line.points[-1] ):
+                new_line = new_line.add_point( self.points[ndx] )
+ 
+        return new_line
+    
+
+    def join( self, another ):
+        """
+        Joins together two lines and returns the join as a new line without point changes, 
+        with possible overlapping points 
+        and orientation mismatches between the two original lines
+        """
+        
+        return self.add_points( another.points )
+   
+                    
+    def num_points( self ):
+        
+        return len( self.points )
+    
+        
+    def length( self ):
+        
+        length = 0.0
+        for ndx in range( self.num_points()-1 ):
+            length += self.points[ndx].distance( self.points[ndx+1] )
+        return length            
+
+
+    def incremental_length( self ):
+        
+        incremental_length_list = []
+        length = 0.0
+        incremental_length_list.append( length )
+        for ndx in range( self.num_points()-1 ):            
+            length += self.points[ndx].distance( self.points[ndx+1] )
+            incremental_length_list.append( length )        
+            
+        return incremental_length_list         
+        
+
+    def reverse_direction( self ):
+        
+        new_line = self.copy()
+        new_line.points.reverse() # in-place operation on new_line
+        
+        return new_line
+    
+                
+    def resample_with_original_vertices( self, sample_distance, mantain_original_vertices = True ):
+        
+        cleaned_line = self.remove_coincident_successive_points()
+        resampled_line = Line()
+
+        for point_ndx in xrange( cleaned_line.num_points() - 1 ):
+            
+            resampled_line = resampled_line.add_points( interpolate_linear_horizontal_points( 
+                                                            cleaned_line.points[ point_ndx ],
+                                                            cleaned_line.points[ point_ndx+1 ],
+                                                            sample_distance )[:-1] )
+        resampled_line = resampled_line.add_point( cleaned_line.points[ -1 ] )
+
+        return resampled_line
+            
+
+    def get_slopes( self ):
+  
+        slopes_list = []
+        for ndx in range( self.num_points() - 1 ):            
+            vector = self.points[ndx].to_vector( self.points[ndx+1] )
+            slopes_list.append( degrees( vector.slope_radians() ) ) 
+        slopes_list.append( np.nan ) # slope value for last point is unknown         
+        return slopes_list        
+        
+        
+def line_from_xyz_list( xyz_list ):
+    
+    return Line().add_points( [ Point(x,y,z) for (x,y,z) in xyz_list ] )
+
+        
+class MultiLine(object):
+    # MultiLine is a list of Line objects
+    
+    def __init__( self, lines_list ):
+     
+        self.lines = lines_list    
+    
+    
+    def num_parts( self ):
+        
+        return len( self.lines )
+    
+    
+    def num_points( self ):
+        
+        num_points = 0
+        for line in self.lines:
+            num_points += line.num_points()
+            
+        return num_points
+    
+
+    def is_continuous( self ):
+        
+        for line_ndx in range( len(self.lines) - 1 ):
+            if not self.lines[line_ndx].points[-1].is_coincident_with( self.lines[line_ndx+1].points[0] ) or \
+               not self.lines[line_ndx].points[-1].is_coincident_with( self.lines[line_ndx+1].points[-1] ):
+                return False
+            
+        return True
+        
+            
+    def is_unidirectional( self ):        
+        
+        for line_ndx in range( len(self.lines) - 1):
+            if not self.lines[line_ndx].points[-1].is_coincident_with( self.lines[line_ndx+1].points[0] ):
+                return False
+            
+        return True
+
+
+    def to_line( self ):
+
+        return Line().add_points( [ point for line in self.lines for point in line.points ] )
+        
+
+def multiline_from_xyz( xyz_lists ):
+    # input is a list of list of (x,y,z) values
+    
+    line_list = []
+    for xyz_list in xyz_lists:
+        line_list.append( line_from_xyz_list( xyz_list ) )
+        
+    return MultiLine( line_list )
+        
+    
+def multiline_from_lines( line_list ):
+    
+    return MultiLine( line_list )
+    
+     
+def merge_lines( lines, progress_ids ):
+    """
+    lines: a list of list of (x,y,z) tuples for multilines, o
+    """
+
+    sorted_line_list = [line for (id, line) in sorted(zip( progress_ids, lines))]
+
+    line_list = []
+    for line in sorted_line_list:
+       
+        line_type, line_geometry = line 
+     
+        if line_type == 'multiline': 
+            path_line = multiline_from_xyz( line_geometry ).to_line()
+        elif line_type == 'line':            
+            path_line = line_from_xyz_list( line_geometry ) 
+        line_list.append( path_line )  # now a list of Lines     
+                
+    # now the list of Lines has to be transformed into a single Line 
+    merged_line = multiline_from_lines( line_list ).to_line().remove_coincident_successive_points()
+    
+    return merged_line
+               
+                   
 class ArrCoord(object):
     """
     2D Array coordinates.

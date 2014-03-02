@@ -5,6 +5,8 @@ import os
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil
 import numpy as np
 
+import copy
+
 import xml.dom.minidom
 
 import unicodedata
@@ -14,57 +16,39 @@ from osgeo import ogr
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from qgis.core import QgsPoint, QgsRaster
-from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis
+from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis
 
 from qt_utils.utils import lastUsedDir, setLastUsedDir
 
-from geosurf.spatial import Point, Vector, GeolPlane, CartesianPlane
-from geosurf.geoio import QGisRasterParameters, read_line_shapefile
+from geosurf.spatial import Point, Vector, GeolPlane, CartesianPlane, MultiLine, Line, \
+                            merge_lines
+                            
+from geosurf.geoio import QGisRasterParameters
 from geosurf.geodetic import TrackPointGPX
 from geosurf.intersections import project_struct_pt_on_section
-
-from qgs_tools.tools import get_current_raster_layers, get_current_line_layers, get_current_point_layers, \
-                            get_selected_features_attr
+from geosurf.errors import Vector_Input_Errors
+           
+from qgs_tools.tools import get_current_line_layers, get_current_point_layers, get_selected_features_attr, \
+                            get_raster_params_via_qgis, get_current_singleband_raster_layers, \
+                            read_vector_line_qgs, make_qgs_point, project_point
             
 from qProf_mplwidget import MplWidget
 
+from projections import project_line
 
         
 class qProfDialog( QDialog ):
-    """
-    Constructor
-    
-    """
-    
-    def __init__( self ):
 
-        super( qProfDialog, self ).__init__()        
-        self.current_directory = os.path.dirname(__file__)
-        self.initialize_parameters()                 
-        self.setup_gui()
-        self.setWindowFlags( Qt.WindowStaysOnTopHint )       
-           
+    def __init__( self, interface ):
 
-    def initialize_parameters(self):
-        
-        self.rasterLayers = get_current_raster_layers() 
-        self.lineLayers = get_current_line_layers()
-        self.pointLayers = get_current_point_layers()
-
-        self.line_shape_path = None
-        self.profile_points = []
-        
-        self.selected_dems = []
-        self.dem_parameters = []
-       
+        super( qProfDialog, self ).__init__() 
+        self.mapcanvas = interface.mapCanvas() 
         self.profile_windows = []
-        self.cross_section_windows = []        
-        self.profiles = None
-        self.export_from_DEM = None
-        
-        self.projected_struct_dataset = None
-        
+        self.cross_section_windows = []      
+        self.current_directory = os.path.dirname(__file__)                 
+        self.setup_gui()
+        #self.setWindowFlags( Qt.WindowStaysOnTopHint )       
+           
 
     def setup_gui( self ): 
 
@@ -83,7 +67,11 @@ class qProfDialog( QDialog ):
 
         QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_line_layer_combobox )
         QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_point_layer_comboboxes )
-        QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_raster_layer_treewidget )        
+        QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_single_band_raster_layer_treewidget )
+        
+        QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_line_layer_combobox )
+        QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_point_layer_comboboxes )
+        QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_single_band_raster_layer_treewidget )
                 
         self.dialog_layout.addWidget(self.main_widget)                             
         self.setLayout(self.dialog_layout)            
@@ -105,22 +93,24 @@ class qProfDialog( QDialog ):
         
         ## Shapefile input
                 
-        input2DLayout.addWidget( QLabel( self.tr("Line layer:") ), 0, 0, 1, 1)       
-
-        self.Trace2D_comboBox = QComboBox()
-        
-        self.Trace2D_comboBox.currentIndexChanged[int].connect (self.get_path_source )
-                 
-        input2DLayout.addWidget(self.Trace2D_comboBox, 0, 1, 1, 3) 
-        
+        input2DLayout.addWidget( QLabel( self.tr("Line layer:") ), 0, 0, 1, 1) 
+        self.Trace2D_comboBox = QComboBox()                         
+        input2DLayout.addWidget(self.Trace2D_comboBox, 0, 1, 1, 3)         
         self.refresh_line_layer_combobox()
 
-
+        input2DLayout.addWidget( QLabel( self.tr("Choose order field for line merging:") ), 1, 0, 1, 2) 
+        
+        self.Trace2D_order_field_comboBox = QComboBox()                        
+        input2DLayout.addWidget(self.Trace2D_order_field_comboBox, 1, 2, 1, 2)         
+        self.refresh_order_field_combobox()
+        
+        self.Trace2D_comboBox.currentIndexChanged[int].connect (self.refresh_order_field_combobox )
+        
         ## Input from DEM
         
         # input DEM tree view 
                                     
-        input2DLayout.addWidget(QLabel( "Use DEMs:" ), 1, 0, 1, 1)
+        input2DLayout.addWidget(QLabel( "Use DEMs:" ), 2, 0, 1, 1)
        
         self.listDEMs_treeWidget = QTreeWidget()
         self.listDEMs_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -132,37 +122,27 @@ class qProfDialog( QDialog ):
         self.listDEMs_treeWidget.headerItem().setText( 0, self.tr( "Files" ) )
         self.listDEMs_treeWidget.header().setVisible(False)
 
-        self.listDEMs_treeWidget.itemClicked[ QTreeWidgetItem, int ].connect( self.get_DEM_sources )
-        """
-        QObject.connect( self.listDEMs_treeWidget, 
-                         SIGNAL( " itemClicked ( QTreeWidgetItem * , int ) " ), 
-                         self.get_DEM_sources itemClicked ( QTreeWidgetItem * , int ))
-        """         
+        #self.listDEMs_treeWidget.itemClicked[ QTreeWidgetItem, int ].connect( self.get_dem_sources )
          
-        self.refresh_raster_layer_treewidget()
+        self.refresh_single_band_raster_layer_treewidget()
             
-        input2DLayout.addWidget(self.listDEMs_treeWidget, 1, 1, 1, 3 )           
+        input2DLayout.addWidget(self.listDEMs_treeWidget, 2, 1, 1, 3 )           
            
-        ## max sampling distance
+        ## trace sampling distance
          
-        input2DLayout.addWidget( QLabel( self.tr("Max sampling distance") ), 2, 0, 1, 1 )         
+        input2DLayout.addWidget( QLabel( self.tr("Trace sampling distance") ), 3, 0, 1, 1 )         
         self.sample_distance_lineedit = QLineEdit()
-        input2DLayout.addWidget( self.sample_distance_lineedit, 2, 1, 1, 3 )
+        input2DLayout.addWidget( self.sample_distance_lineedit, 3, 1, 1, 3 )
 
         ## 'Calculate profile' push button
         
         self.CalcProf2D_pushbutton = QPushButton(self.tr("Calculate profile")) 
         self.CalcProf2D_pushbutton.clicked.connect( self.calculate_profiles_from_DEMs )
-        """
-        QObject.connect(self.CalcProf2D_pushbutton, 
-                        SIGNAL("clicked()"), 
-                        self.calculate_profiles_from_DEMs )
-        """
                        
-        input2DLayout.addWidget( self.CalcProf2D_pushbutton, 3, 0, 1, 4 )
+        input2DLayout.addWidget( self.CalcProf2D_pushbutton, 4, 0, 1, 4 )
                         
         input2DWidget.setLayout( input2DLayout )        
-        profile_toolbox.addItem ( input2DWidget, "Elevations from DEM" )        
+        profile_toolbox.addItem ( input2DWidget, "Elevations from DEMs" )        
         
         ## Input from GPX
         
@@ -177,16 +157,11 @@ class qProfDialog( QDialog ):
         
         self.input_gpx_QPButt = QPushButton( "..." )
         self.input_gpx_QPButt.clicked.connect( self.select_input_gpxFile )
-        # QObject.connect( self.input_gpx_QPButt, SIGNAL( "clicked()" ), self.select_input_gpxFile )
         input3DLayout.addWidget(self.input_gpx_QPButt, 0, 2, 1, 1)        
 
         self.CalcProf3D_pushbutton = QPushButton(self.tr("Calculate profile from track points")) 
         self.CalcProf3D_pushbutton.clicked.connect( self.calculate_profile_from_GPX )
-        """
-        QObject.connect(self.CalcProf3D_pushbutton, 
-                        SIGNAL("clicked()"), 
-                        self.calculate_profile_from_GPX ) 
-        """              
+             
         input3DLayout.addWidget( self.CalcProf3D_pushbutton, 1, 0, 1, 4 )                       
         
         input3DWidget.setLayout( input3DLayout )        
@@ -199,11 +174,7 @@ class qProfDialog( QDialog ):
         
         self.PlotProf_pushbutton = QPushButton(self.tr("Plot")) 
         self.PlotProf_pushbutton.clicked.connect( self.plot_profiles )
-        """
-        QObject.connect(self.PlotProf_pushbutton, 
-                        SIGNAL("clicked()"), 
-                        self.plot_profiles )  
-        """             
+            
         plotLayout.addWidget( self.PlotProf_pushbutton, 1, 0, 1, 2 )        
      
         self.PlotHeight_checkbox = QCheckBox( self.tr( "height"))
@@ -225,7 +196,6 @@ class qProfDialog( QDialog ):
         
         self.Export_fromDEMData_pushbutton = QPushButton(self.tr("Export profiles as")) 
         self.Export_fromDEMData_pushbutton.clicked.connect( self.export_from_DEM_data )
-        # QObject.connect(self.Export_fromDEMData_pushbutton, SIGNAL("clicked()"), self.export_from_DEM_data )               
         exportFromDEMLayout.addWidget( self.Export_fromDEMData_pushbutton, 0, 0, 1, 2 )        
 
         self.ExportfromDEM_asCSV_checkbox = QCheckBox( self.tr( "csv"))
@@ -236,7 +206,6 @@ class qProfDialog( QDialog ):
 
         self.Export3DLine_pushbutton = QPushButton(self.tr("Export 3D line from DEM ")) 
         self.Export3DLine_pushbutton.clicked.connect( self.write_DEM_3D_lnshp )
-        # QObject.connect(self.Export3DLine_pushbutton, SIGNAL("clicked()"), self.write_DEM_3D_lnshp )               
         exportFromDEMLayout.addWidget( self.Export3DLine_pushbutton, 1, 0, 1, 2 )
          
         self.DEM_3D_Export_comboBox = QComboBox()
@@ -253,7 +222,6 @@ class qProfDialog( QDialog ):
 
         self.Export_fromGPXData_pushbutton = QPushButton(self.tr("Export profiles as:")) 
         self.Export_fromGPXData_pushbutton.clicked.connect( self.export_from_GPX_data )
-        # QObject.connect(self.Export_fromGPXData_pushbutton, SIGNAL("clicked()"), self.export_from_GPX_data )               
         exportFromGPXLayout.addWidget( self.Export_fromGPXData_pushbutton, 0, 0, 1, 3 )         
         
         self.ExportfromGPX_asCSV_checkbox = QCheckBox( self.tr( "csv"))
@@ -290,16 +258,15 @@ class qProfDialog( QDialog ):
         crosssect_create_layout = QGridLayout() 
         crosssect_create_layout.setVerticalSpacing ( 40 )
        
-        crosssect_create_layout.addWidget( QLabel("Note: you should have already created a profile.\nThis profile should derive from a path made up by two points only, i.e., start and end points."), 0, 0, 1, 4 )       
+        crosssect_create_layout.addWidget( QLabel("Note: you should have already created a profile.\n\
+This profile should derive from a path made up by two points only,\n\
+i.e., start and end points. At least one record in the geological layer\n\
+should be selected, in order to project it/them on the section"), 0, 0, 1, 4 )       
       
         crosssect_create_layout.addWidget( QLabel("Layer"), 1, 0, 1, 1 )
         self.stratif_layer_comboBox = QComboBox()
-        self.stratif_layer_comboBox.currentIndexChanged[int].connect( self.set_stratification_layer )
-        """
-        QObject.connect( self.stratif_layer_comboBox, 
-                         SIGNAL( " currentIndexChanged ( int ) " ), 
-                         self.set_stratification_layer )  
-        """               
+        self.stratif_layer_comboBox.currentIndexChanged[int].connect( self.update_stratification_layer_boxes )
+               
         crosssect_create_layout.addWidget( self.stratif_layer_comboBox, 1, 1, 1, 3 )        
            
         crosssect_create_layout.addWidget( QLabel("Id"), 2, 0, 1, 1 )
@@ -322,12 +289,10 @@ class qProfDialog( QDialog ):
 
         self.cross_section_calc_pushbutton = QPushButton(self.tr("Create cross-section"))
         self.cross_section_calc_pushbutton.clicked.connect( self.create_cross_section )
-        # QObject.connect(self.cross_section_calc_pushbutton, SIGNAL("clicked()"), self.create_cross_section )               
         crosssect_create_layout.addWidget( self.cross_section_calc_pushbutton, 5, 0, 1, 4 )
 
         crosssect_create_widget.setLayout(crosssect_create_layout)
-        cross_section_toolbox.addItem( crosssect_create_widget, "Create cross-section")
-        
+        cross_section_toolbox.addItem( crosssect_create_widget, "Create cross-section")        
 
         ## output
         
@@ -336,7 +301,6 @@ class qProfDialog( QDialog ):
 
         self.save_crosssect_results_pushbutton = QPushButton(self.tr("Export cross-section results as:")) 
         self.save_crosssect_results_pushbutton.clicked.connect( self.save_crosssect_results )
-        # QObject.connect(self.save_crosssect_results_pushbutton, SIGNAL("clicked()"), self.save_crosssect_results )               
         crosssect_output_layout.addWidget( self.save_crosssect_results_pushbutton, 0, 0, 1, 3 )
       
         self.save_crosssect_results_asCSV_checkbox = QCheckBox( self.tr( "csv"))
@@ -346,8 +310,7 @@ class qProfDialog( QDialog ):
         crosssect_output_layout.addWidget( self.save_crosssect_results_asPtShp_checkbox, 1, 1, 1, 1 )         
 
         crosssect_output_widget.setLayout( crosssect_output_layout )        
-        cross_section_toolbox.addItem ( crosssect_output_widget, 'Export cross-section results' ) 
-        
+        cross_section_toolbox.addItem ( crosssect_output_widget, 'Export cross-section results' )         
         
         # widget final setup
                 
@@ -363,17 +326,21 @@ class qProfDialog( QDialog ):
         about_layout = QVBoxLayout( )
         
         htmlText = """
-        <h3>qProf release 0.2.1 (2013-10-22)</h3>
+        <h3>qProf rel. 0.2.2 (2013.03.02)</h3>
         Created by M. Alberti (www.malg.eu) and M. Zanieri.
         <br />Concept: M. Zanieri and M. Alberti, implementation: M. Alberti.
         <br />We thank S. Peduzzi for his vigorous testing.
         <br />Plugin for creating profiles from DEM and GPX files, and as an aid in creating geological cross-sections.       
         <br />
         <h4>Profile</h4>
-        It is possible to create a profile from one or more DEMs and a line shapefile, or
-        from a GPX file storing track points. Be careful, when using DEMs, that both the line shapefile 
-        and the DEMs must all be already projected in the same system, for instance UTM.
-        <br /><br />When calculating a profile from DEM, you must set the 'max sampling distance',
+        It is possible to create a profile from one or more DEMs and a line layer, or
+        from a GPX file storing track points. In this release, data sources can be projected in different CRS,
+        and the created profiles will be in the project CRS.
+        <br /><br />For line layers storing more than one line, they will be merged into a single line, based on the 
+        chosen order field when available, or otherwise on the internal line order.
+        Some artefacts in resulting profiles can derive from an erroneous line order, not corrected by 
+        defining an order in an integer field (order values start from 1).
+        <br /><br />When calculating a profile from DEM, you must set the 'Trace sampling distance',
         i.e. the distance between consecutive sampling point automatically added
         when the original vertices of the used path are distanced more than this value.
         It is advisable to use a value that is comparable to the resolution of the used DEM,
@@ -402,66 +369,66 @@ class qProfDialog( QDialog ):
 
     def refresh_line_layer_combobox(self):
         
-        self.lineLayers = get_current_line_layers()        
-        
         self.Trace2D_comboBox.clear()
-
-        for layer in self.lineLayers:
-            self.Trace2D_comboBox.addItem( layer.name() )        
         
+        lineLayers = get_current_line_layers()         
+        for layer in lineLayers:
+            self.Trace2D_comboBox.addItem( layer.name() )        
 
+
+    def refresh_order_field_combobox( self ):       
+        
+        self.Trace2D_order_field_comboBox.clear()
+        
+        try:
+            shape_qgis_ndx = self.Trace2D_comboBox.currentIndex()
+            line_shape = get_current_line_layers()[ shape_qgis_ndx ]
+        except:
+            return 
+        
+        line_layer_field_list = line_shape.dataProvider().fields().toList( )
+        
+        for field in line_layer_field_list:
+            self.Trace2D_order_field_comboBox.addItem( field.name() )        
+
+    
     def refresh_point_layer_comboboxes(self):
         
-        self.pointLayers = get_current_point_layers()        
-        
-        self.stratif_layer_comboBox.clear()
-        
+        self.pointLayers = get_current_point_layers()
+        self.stratif_layer_comboBox.clear()        
         message = "choose"
         self.stratif_layer_comboBox.addItem( message )
         for layer in self.pointLayers:
             self.stratif_layer_comboBox.addItem( layer.name() )              
 
 
-    def refresh_raster_layer_treewidget( self ):
+    def refresh_single_band_raster_layer_treewidget( self ):
         
-        self.rasterLayers = get_current_raster_layers()
+        self.singleband_raster_layers_in_project = get_current_singleband_raster_layers()
 
         self.listDEMs_treeWidget.clear() 
                                     
-        for layer in self.rasterLayers:
-            tree_item = QTreeWidgetItem( self.listDEMs_treeWidget, [ layer.name() ] )       
+        for raster_layer in self.singleband_raster_layers_in_project:
+            tree_item = QTreeWidgetItem( self.listDEMs_treeWidget, [ raster_layer.name() ] )       
             tree_item.setFlags( tree_item.flags() | Qt.ItemIsUserCheckable )
             tree_item.setCheckState( 0, 0 )
  
-             
-    def get_path_source(self):
-        
-        if len(self.lineLayers) == 0:
-            self.line_shape_path = None
-            return
-        
-        shape_qgis_ndx = self.Trace2D_comboBox.currentIndex()
-        if shape_qgis_ndx < 0:           
-            self.line_shape_path = None
-            return
-         
-        self.line_shape_path = self.lineLayers[ shape_qgis_ndx ].source()      
-        
  
-    def get_DEM_sources(self):   
+    def get_selected_dems( self ):   
         # defining selected DEMs
 
-        self.selected_dems = []
-        self.dem_parameters = []
-        
+        selected_dems = []
         for dem_qgis_ndx in range( self.listDEMs_treeWidget.topLevelItemCount () ):
             curr_DEM_item = self.listDEMs_treeWidget.topLevelItem ( dem_qgis_ndx ) 
             if curr_DEM_item.checkState ( 0 ) == 2:
-                self.selected_dems.append( self.rasterLayers[ dem_qgis_ndx ] )
-             
-        if len( self.selected_dems ) > 0:
-            self.dem_parameters = [ self.get_parameters( selected_dem ) for selected_dem in self.selected_dems ]
+                selected_dems.append( self.singleband_raster_layers_in_project[ dem_qgis_ndx ] )
+         
+        dem_parameters = []    
+        if len( selected_dems ) >= 1:
+            dem_parameters = [ QGisRasterParameters( *get_raster_params_via_qgis( selected_dem ) ) for selected_dem in selected_dems ]
        
+        return selected_dems, dem_parameters
+    
             
     def select_input_gpxFile( self ):
             
@@ -476,258 +443,188 @@ class qProfDialog( QDialog ):
         self.input_gpx_lineEdit.setText( fileName )
 
 
-    def get_parameters( self, layer ):
-
-        dem_params = QGisRasterParameters()
-        
-        dem_params.rows = layer.height()
-        dem_params.cols = layer.width()
-        
-        extent = layer.extent()
-        
-        dem_params.xMin = extent.xMinimum()
-        dem_params.xMax = extent.xMaximum()        
-        dem_params.yMin = extent.yMinimum()
-        dem_params.yMax = extent.yMaximum()
-            
-        dem_params.cellsizeEW = (dem_params.xMax-dem_params.xMin) / float(dem_params.cols)
-        dem_params.cellsizeNS = (dem_params.yMax-dem_params.yMin) / float(dem_params.rows)
-
-        return dem_params
-
-
     def get_z(self, dem_layer, point ):
         
         identification = dem_layer.dataProvider().identify( QgsPoint( point.x, point.y ), QgsRaster.IdentifyFormatValue )
         if not identification.isValid(): 
             return np.nan
         else: 
-            # assert len( ident.values() ) == 1
             result_map = identification.results()
             return float( result_map[1] )
                           
 
-    def interpolate_bilinear(self, layer, layer_params, point):  
+    def interpolate_bilinear(self, dem, dem_params, point):  
       
-        array_coords_dict = layer_params.geogr2raster( point )
+        array_coords_dict = dem_params.geogr2raster( point )
         floor_x_raster = floor( array_coords_dict["x"] )
         ceil_x_raster = ceil( array_coords_dict["x"] )
         floor_y_raster = floor( array_coords_dict["y"] )
         ceil_y_raster = ceil( array_coords_dict["y"] )                
          
         # bottom-left center
-        p1 = layer_params.raster2geogr( dict(x=floor_x_raster,
-                                             y=floor_y_raster))
+        p1 = dem_params.raster2geogr( dict(x=floor_x_raster,
+                                           y=floor_y_raster))
         # bottom-right center       
-        p2 = layer_params.raster2geogr( dict(x=ceil_x_raster,
-                                             y=floor_y_raster))
+        p2 = dem_params.raster2geogr( dict(x=ceil_x_raster,
+                                           y=floor_y_raster))
         # top-left center
-        p3 = layer_params.raster2geogr( dict(x=floor_x_raster,
-                                             y=ceil_y_raster)) 
+        p3 = dem_params.raster2geogr( dict(x=floor_x_raster,
+                                           y=ceil_y_raster)) 
         # top-right center       
-        p4 = layer_params.raster2geogr( dict(x=ceil_x_raster,
-                                             y=ceil_y_raster))
+        p4 = dem_params.raster2geogr( dict(x=ceil_x_raster,
+                                           y=ceil_y_raster))
          
-        z1 = self.get_z( layer, p1 )
-        z2 = self.get_z( layer, p2 )         
-        z3 = self.get_z( layer, p3 )
-        z4 = self.get_z( layer, p4 ) 
+        z1 = self.get_z( dem, p1 )
+        z2 = self.get_z( dem, p2 )         
+        z3 = self.get_z( dem, p3 )
+        z4 = self.get_z( dem, p4 ) 
         
         delta_x = point.x - p1.x
         delta_y = point.y - p1.y 
 
-        z_x_a = z1 + (z2-z1)*delta_x/layer_params.cellsizeEW
-        z_x_b = z3 + (z4-z3)*delta_x/layer_params.cellsizeEW        
+        z_x_a = z1 + (z2-z1)*delta_x/dem_params.cellsizeEW
+        z_x_b = z3 + (z4-z3)*delta_x/dem_params.cellsizeEW        
         
-        return z_x_a + (z_x_b-z_x_a)*delta_y/layer_params.cellsizeNS
+        return z_x_a + (z_x_b-z_x_a)*delta_y/dem_params.cellsizeNS
             
         
-    def interpolate_point_z( self, layer, layer_params, point ):
+    def interpolate_point_z( self, dem, dem_params, point ):
         
-        if layer_params.point_in_interpolation_area( point ):
-            return self.interpolate_bilinear( layer, layer_params, point  )
-        elif layer_params.point_in_dem_area( point ):
-            return self.get_z( layer, point )
+        if dem_params.point_in_interpolation_area( point ):
+            return self.interpolate_bilinear( dem, dem_params, point  )
+        elif dem_params.point_in_dem_area( point ):
+            return self.get_z( dem, point )
         else:
             return np.nan            
                         
-                        
-    def calculate_slopes_in_DEM_profile( self, profile_points3D ):
-        
-        slopes_list = []
-        for ndx in range( len( profile_points3D ) - 1 ):            
-            vector = profile_points3D[ndx].to_vector( profile_points3D[ndx+1] )
-            slopes_list.append( degrees( vector.slope_radians() ) ) 
-        slopes_list.append( np.nan ) # slope value for last point is unknown         
-        return slopes_list
-
 
     def get_sample_distance(self, lineedit):
         
         if lineedit.text() == '':
-            return np.nan, "Input window is empty" 
+            return None, "Input window is empty" 
         try:
             sample_distance = float( lineedit.text() )
         except:
-            return np.nan, "Input cannot be converted to a float value"        
+            return None, "Input cannot be converted to a float value"        
         if not sample_distance > 0.0:
-            return np.nan, "Input value is negative or zero"
+            return None, "Input value is negative or zero"
         return sample_distance, "OK"
-        
-
-    def get_input_profile(self, line_shape_path):        
-                     
-        if line_shape_path is None:            
-            return [], "No selected shapefile"          
-            
-        try: 
-            result = read_line_shapefile( line_shape_path )
-            if not result['success']:
-                return [], str( result['error_message'] )    
-            lines_points = result['vertices']           
-        except:                    
-            return [], "Error while reading input shapefile" 
-
-        if len( lines_points ) != 1: 
-            return [], "Path is not a single line"
-                      
-        input_profile_points = lines_points[ 0 ] 
-               
-        if len( input_profile_points ) < 2:
-            return [], "Path is not a line" 
-        
-        return input_profile_points, "OK"
         
         
     def calculate_profiles_from_DEMs(self):
         
-        self.profiles = None
-        self.export_from_DEM = None
+        # check the presence of input line layer 
+        try:
+            shape_qgis_ndx = self.Trace2D_comboBox.currentIndex()
+            line_shape = get_current_line_layers()[ shape_qgis_ndx ]
+        except:
+            QMessageBox.critical( self, "Input line layer", "No input line layer available" )
+            return            
+
+        # progressive index field
+        try:
+            progr_id_ndx = self.Trace2D_order_field_comboBox.currentIndex()
+        except:
+            progr_id_ndx = -1
         
+        # check if there are available and selected DEMs
+        try:
+            selected_dems, selected_dem_parameters = self.get_selected_dems()
+            assert selected_dems != [] and selected_dem_parameters != []     
+        except:
+            QMessageBox.critical( self, "Input DEMs", "No DEM available/selected" )
+            return
+                    
         # get sample distance
         sample_distance, message = self.get_sample_distance( self.sample_distance_lineedit )
-        if sample_distance == np.nan:
+        if sample_distance is None:
             QMessageBox.critical( self, 
-                                  "Error while reading sample distance", 
+                                  "Sample distance", 
                                   message )
             return  
              
-        # get profile path from input shapefile
-        self.profile_points, message = self.get_input_profile( self.line_shape_path )
-        if self.profile_points == []:
-            QMessageBox.critical( self, 
-                                  "Error while reading shapefile path", 
-                                  message ) 
+        # get profile path from input line layer
+        try:
+            profile_orig_lines, progress_ids, profile_orig_crs = read_vector_line_qgs( line_shape, progr_id_ndx )
+        except Vector_Input_Errors as error_msg:
+            QMessageBox.critical( self, "Input line", error_msg )
+            return            
+
+        profile_processed_line = merge_lines( profile_orig_lines, progress_ids )
+
+        on_the_fly_projection = True if self.mapcanvas.hasCrsTransformEnabled() else False
+        if on_the_fly_projection:
+            projectCrs = self.mapcanvas.mapRenderer().destinationCrs()
+            self.projected_line = project_line( profile_processed_line, profile_orig_crs, projectCrs )            
+        else:
+            self.projected_line = profile_processed_line
             
-        # check if there are available DEMs selected
-        
-        if self.selected_dems == [] or \
-           self.dem_parameters == []:
-            QMessageBox.critical( self, "Error in input DEMs", "No DEM chosen" )
-            return 
-                        
-        # cycles through path points and determines 3D points
-        # checks if the distance between current and previous path points is larger than threshold
-        # if it is, determines intermediate 3D points
-        # finally, determines 3D points for current path point
-        
-        profiles_points3D = []       
-        for point_ndx in xrange( 0, len( self.profile_points ) ):
-                        
-            curr_point = self.profile_points[ point_ndx ]             
-            if point_ndx == 0: prev_point = curr_point                        
-            inter_2Dvertices_dist, _, inter_2Dvertices_versor, _ = prev_point.distance_uvector( curr_point ) 
-            
-            if inter_2Dvertices_dist == 0.0 and point_ndx > 0: continue # skip coincident points
-            
-            # determines intermediate points          
-            if inter_2Dvertices_dist > sample_distance:
-                num_iter = 1 
-                while num_iter * sample_distance < inter_2Dvertices_dist:                
-                    offset_vector_2d = inter_2Dvertices_versor.scale( num_iter * sample_distance )
-                    interm_point = prev_point.displaced_by_vector( offset_vector_2d )
-                    points_3D = []                   
-                    for layer, layer_params in zip( self.selected_dems, self.dem_parameters ):
-                        interp_z = self.interpolate_point_z( layer, layer_params, interm_point )
-                        points_3D.append( Point(interm_point.x, 
-                                                interm_point.y, 
-                                                interp_z ) ) 
-                    profiles_points3D.append( points_3D )
-                    num_iter += 1
-                               
-            # determines current point
-            points_3D = []                   
-            for layer, layer_params in zip( self.selected_dems, self.dem_parameters ):
-                interp_z = self.interpolate_point_z( layer, layer_params, curr_point )
-                points_3D.append( Point( curr_point.x,
-                                         curr_point.y,
-                                         interp_z ) )
-            profiles_points3D.append( points_3D )
-            
-            # updates previous point for next cycle start
-            prev_point = curr_point
+        # line resampled with sample distance
+        resampled_line = self.projected_line.resample_with_original_vertices( sample_distance )
+       
+        dem_3Dlines = []
+        for dem, dem_params in zip( selected_dems, selected_dem_parameters ):
+            if on_the_fly_projection and dem.crs() != projectCrs:
+                line_with_dem_crs = project_line( resampled_line, projectCrs, dem.crs() ) 
+            else:
+                line_with_dem_crs = resampled_line
                 
-        # list of profiles, each one made up of the DEM name and its list of 3Dpoints
-        profiles_points = []
-        for ndx, layer in enumerate( self.selected_dems ):
-            profile_points = [ points_3D[ndx] for points_3D in profiles_points3D ]
-            if len ( [ point3D for point3D in profile_points if not isnan( point3D.z ) ] ) == 0:
-                QMessageBox.critical( self, "Profiles from DEM", "No profile created for DEM source %s" % layer.name() )
-            else:                                
-                profiles_points.append( [ layer.name(), profile_points ] )
+            profile_3d = Line()
+            for pt_dem_crs, pt_project_crs in zip(line_with_dem_crs.points, resampled_line.points):
+                profile_3d = profile_3d.add_point( Point( pt_project_crs.x, 
+                                                         pt_project_crs.y, 
+                                                         self.interpolate_point_z( dem, dem_params, pt_dem_crs ) ) )
+            dem_3Dlines.append( profile_3d )
 
-        # check if no profile exists
-        if len( profiles_points ) == 0:
-            QMessageBox.critical( self, "Profiles from DEM", "No profiles created" )
-            return
+        # extract parameters for final processings
         
-        # uses the first profile as a template for getting common x, y and cumulative 2D distances
-        first_profile_points = profiles_points[0][1]
+        # dem names
+        dem_names = [ dem.name() for dem in selected_dems ]        
         
         # define x values as a separate list
-        x_values = [ points3D.x for points3D in first_profile_points]
+        x_values = [ pt.x for pt in resampled_line.points ]
 
-        # define x values as a separate list
-        y_values = [ points3D.y for points3D in first_profile_points]
+        # define y values as a separate list
+        y_values = [ pt.y for pt in resampled_line.points ]
         
-        # define 2D distance values as separate list        
-        cum_distances_2D = [ 0.0 ]
-        for ndx in range( len( first_profile_points ) - 1 ):
-            incr_2Ddist, _, _, _ = ( first_profile_points[ndx] ).distance_uvector( first_profile_points[ndx+1] )
-            cum_distances_2D.append( cum_distances_2D[-1] + incr_2Ddist )
-            
-        # extract DEM names, elevations and slopes as separate lists
-        dataset_names = []; elevations = []; slopes = []; cum_distances_3D = []              
-        for dem_name, profile_points3D  in profiles_points:
-            dataset_names.append( dem_name )
-            elevations.append( [ point3D.z for point3D in profile_points3D ] )
-            slopes.append( self.calculate_slopes_in_DEM_profile( profile_points3D ) )
-            dist3D = [ 0.0 ]
-            for ndx in range( len( profile_points3D ) - 1 ):
-                _, incr_3Ddist, _, _ = ( profile_points3D[ndx] ).distance_uvector( profile_points3D[ndx+1] )
-                dist3D.append( dist3D[-1] + incr_3Ddist )
-            cum_distances_3D.append(dist3D)            
+        # 2D cumulative distances
+        cum_distances_2D = resampled_line.incremental_length()
+
+        # 3D cumulative distances        
+        cum_distances_3D = [ profile_3d.incremental_length() for profile_3d in dem_3Dlines ]
+        
+        # elevations
+        elevations = []
+        for profile_3d in dem_3Dlines:
+            elevations.append( [ point3D.z for point3D in profile_3d.points ] )
+        
+        # slopes
+        slopes = []
+        for profile_3d in dem_3Dlines:
+            slopes.append( profile_3d.get_slopes() )            
+              
                
         # define variable for plotting                
         self.profiles = dict( tag='DEM',
-                              dataset_names=dataset_names,
+                              dataset_names=dem_names,
                               x_values=x_values,
                               y_values=y_values,
                               cum_distances_2D=cum_distances_2D,
                               cum_distances_3D=cum_distances_3D,
                               elevations=elevations,
-                              slopes=slopes)
+                              slopes=slopes)            
+               
+        QMessageBox.information( self, "Profiles calculated", "Now you can plot/export" )
+
         
         # process results for export         
         self.export_from_DEM = self.parse_DEM_results_for_export()
         
         # update combobox for 3D line export        
         self.DEM_3D_Export_comboBox.clear()        
-        self.DEM_3D_Export_comboBox.addItems( dataset_names )
-            
-            
-        QMessageBox.information( self, "Profiles calculated", "Now you can plot/export" )
-
+        self.DEM_3D_Export_comboBox.addItems( dem_names )
+        
+        return
 
 
     def calculate_profile_from_GPX(self):
@@ -848,10 +745,8 @@ class qProfDialog( QDialog ):
          
         return result_data
 
-
         
-    def parse_GPX_results_for_export(self):
-        
+    def parse_GPX_results_for_export(self):        
 
         assert  self.profiles['tag'] == 'GPX'
 
@@ -915,11 +810,8 @@ class qProfDialog( QDialog ):
 
     def plot_profiles( self ):
  
-        # check state for plotting
-        if not self.valid_profiles_for_plot():            
-            QMessageBox.critical( self, "Plotting profile", "No profile is available for plotting" )
-            return  
-        elif not ( self.PlotHeight_checkbox.isChecked() or self.PlotSlope_checkbox.isChecked() ):
+        # check state for plotting 
+        if not ( self.PlotHeight_checkbox.isChecked() or self.PlotSlope_checkbox.isChecked() ):
             QMessageBox.critical( self, "Plotting profile", "Neither height or slope options are selected" )
             return         
 
@@ -964,8 +856,6 @@ class qProfDialog( QDialog ):
             axes_height.set_color_cycle( colors )
             for dem_name, z_values, color in zip( dataset_names, elevations, colors ):              
                 z_values_array = np.array( z_values )
-                #valid_s_2d_values = s_2d_values_array[ np.isfinite( z_values_array ) ]
-                #valid_z_values = z_values_array[ np.isfinite( z_values_array ) ] 
                 for val_int in self.valid_intervals( z_values_array ):               
                     axes_height.fill_between( s_2d_values_array[ val_int['start'] : val_int['end']+1 ], 
                                               plot_z_min, 
@@ -985,17 +875,13 @@ class qProfDialog( QDialog ):
             axes_slope.set_color_cycle( colors )
             for dem_name, profile_slopes, color in zip( dataset_names, slopes, colors):
                 
-                slope_values_array = np.array( profile_slopes )
-                #valid_s_2d_values = s_2d_values_array[ np.isfinite( slope_values_array ) ]
-                #valid_slope_values = slope_values_array[ np.isfinite( slope_values_array ) ]  
-                for val_int in self.valid_intervals( slope_values_array ): 
-                    #if val_int['end'] == len()              
+                slope_values_array = np.array( profile_slopes ) 
+                for val_int in self.valid_intervals( slope_values_array ):              
                     axes_slope.fill_between( s_2d_values_array[ val_int['start'] : val_int['end']+1 ], 
                                              0, 
                                              slope_values_array[ val_int['start'] : val_int['end']+1 ], 
                                              facecolor=color, 
                                              alpha=0.1 )                
-                #axes_slope.fill_between( valid_s_2d_values, 0, valid_slope_values, facecolor=color, alpha=0.1 )
                 axes_slope.plot(cum_distances_2D, profile_slopes,'-', label = unicode(dem_name) )
                 
             axes_slope.grid(True)
@@ -1072,8 +958,12 @@ class qProfDialog( QDialog ):
         if shape_driver is None:
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
+        
+        try:    
+            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
             
-        ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
         if ptshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
@@ -1146,7 +1036,11 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
             
-        lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        try:
+            lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+                        
         if lnshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
@@ -1215,7 +1109,6 @@ class qProfDialog( QDialog ):
         gpx_parsed_results = self.parse_GPX_results_for_export()
                 
         # definition of field names        
-        # track_name = self.profiles['dataset_names']  
         header_list = ['lat', 'lon', 'time', 'elev', 'cumulated_2d_distance', 'cumulated_3d_distance', 'slopes (degr)' ]              
         
         # output for csv file
@@ -1249,7 +1142,11 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
             
-        ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        try:
+            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+                        
         if ptshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
@@ -1315,8 +1212,12 @@ class qProfDialog( QDialog ):
         if shape_driver is None:
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return             
-            
-        lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        
+        try:    
+            lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+                        
         if lnshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
@@ -1369,7 +1270,7 @@ class qProfDialog( QDialog ):
         lnshp_datasource.Destroy()        
 
 
-    def set_layer_params_in_comboboxes( self, layer_comboBox, comboBoxes ):
+    def update_stratification_layer_boxes( self ):
         
         if len(self.pointLayers) == 0:
             return
@@ -1382,19 +1283,12 @@ class qProfDialog( QDialog ):
         fields = layer.dataProvider().fields()     
         field_names = [ field.name() for field in fields.toList()]
                 
-        for ndx, combobox in enumerate( comboBoxes ):
+        for ndx, combobox in enumerate( self.stratification_comboBoxes ):
             combobox.clear()
             if ndx == 0:
                 combobox.addItems( ["none"])
             combobox.addItems( field_names )
-          
-        return layer
-                   
-            
-    def set_stratification_layer(self):        
-                
-        self.stratification_layer = self.set_layer_params_in_comboboxes( self.stratif_layer_comboBox, self.stratification_comboBoxes )
- 
+
 
     def get_current_combobox_values( self, combobox_list ):
         
@@ -1475,70 +1369,100 @@ class qProfDialog( QDialog ):
         cross_section_window.canvas.draw()         
         self.cross_section_windows.append( cross_section_window )
 
-  
-    def conditions_for_cross_section(self):
 
-        # check if only one dem selected
-        if len( self.selected_dems ) != 1 or len( self.dem_parameters ) != 1:
-            return False, "One DEM (and only one DEM) has to be used in the profile section"        
-        # check if profile exists
-        if self.profile_points == []:               
-            return False, "Profile has not been calculated"
-        # check that section is made up of only two points
-        if len( self.profile_points ) != 2:        
-            return False, "Profile is not made up by only two points"
+    def get_z_from_dem( self, struct_pts_2d, selected_dem, dem_parameters ):      
         
-        return True, ''        
-          
-
-    def get_3d_points( self, struct_pts_2d, selected_dem, dem_parameters ):      
-        
-        struct_pts_3d = []
+        z_list = []
         for point_2d in struct_pts_2d:
             interp_z = self.interpolate_point_z( selected_dem, dem_parameters, point_2d )
-            struct_pts_3d.append( Point(point_2d.x, point_2d.y, interp_z ) )
+            z_list.append( interp_z )
             
-        return struct_pts_3d
+        return z_list
             
                       
     def create_cross_section(self):
-        
-        # check pre-conditions
-        conditions, msg = self.conditions_for_cross_section()
-        if not conditions:
+
+        # check if profile exists
+        if self.projected_line is None:               
             QMessageBox.critical( self, 
                                   "Error while creating cross-section", 
-                                  msg )            
-            return                
-
-        # extract the names of the required fields for the stratification layer
-        stratification_field_list = self.get_current_combobox_values( self.stratification_comboBoxes )
-           
-        # retrieve selected points with attributes        
-        success, result = get_selected_features_attr( self.stratification_layer, stratification_field_list ) 
+                                  "Profile has not been calculated" )            
+            return
+        # check that section is made up of only two points
+        if self.projected_line.num_points() != 2:        
+            QMessageBox.critical( self, 
+                                  "Error while creating cross-section", 
+                                  "Profile is not made up by only two points" )            
+            return
+                        
+        # dem parameters
+        selected_dem_list, selected_dem_parameters = self.get_selected_dems()
+        if len( selected_dem_list ) > 1:
+            QMessageBox.critical( self, 
+                                  "Error while creating cross-section", 
+                                  "One DEM (and only one DEM) has to be used in the profile section" )            
+            return             
+        dem, dem_crs, dem_params = selected_dem_list[0], selected_dem_list[0].crs(), selected_dem_parameters[0]
+        
+        # get stratification layer with parameter fields
+        stratif_lyr_qgis_ndx = self.stratif_layer_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        if stratif_lyr_qgis_ndx < 0: 
+            QMessageBox.critical( self, 
+                                  "Error while creating cross-section", 
+                                  'No defined point layer for structural data' )            
+            return        
+        stratification_layer = self.pointLayers[ stratif_lyr_qgis_ndx ]
+        stratification_layer_crs = stratification_layer.crs()
+        stratification_field_list = self.get_current_combobox_values( self.stratification_comboBoxes )           
+        # retrieve selected stratification points with their attributes        
+        success, result = get_selected_features_attr( stratification_layer, stratification_field_list ) 
         if not success:
             QMessageBox.critical( self, "Error while creating cross-section", result )            
             return
         else:
             feature_attrs =  result                  
-
-        ### process point attributes to obtain ###
-        
-        # - IDs of structural points
+        # list of stratification points with original crs
+        strat_pts_orig_crs = [ Point(rec[0], rec[1]) for rec in feature_attrs ]
+        # IDs of stratification points
         struct_pts_ids = [ rec[2] for rec in feature_attrs ]
-        
-        # - 3D structural points, with x, y, and z extracted from the current DEM
-        struct_pts_3d = self.get_3d_points( [ Point(rec[0], rec[1]) for rec in feature_attrs ],
-                                            self.selected_dems[0], 
-                                            self.dem_parameters[0] ) 
-
-        # - structural planes (3D), as geological planes
+        # - stratification planes (3D), as geological planes
         try:
             structural_planes = [ GeolPlane( rec[3], rec[4] ) for rec in feature_attrs ]
         except:
             QMessageBox.critical( self, "Error while creating cross-section", "Check chosen fields for possible errors" )            
             return
+                
+        # check if on-the-fly-projection is set on
+        on_the_fly_projection = True if self.mapcanvas.hasCrsTransformEnabled() else False
+        if on_the_fly_projection:
+            projectCrs = self.mapcanvas.mapRenderer().destinationCrs()        
         
+        strat_pts_prj_crs = copy.deepcopy(strat_pts_orig_crs)            
+        if on_the_fly_projection and stratification_layer_crs != projectCrs:
+            # project points to the project CRS
+            strat_pts_prj_crs = []
+            for pt in strat_pts_orig_crs:
+                qgs_pt = make_qgs_point(pt.x,pt.y)
+                qgs_pt_prj_crs = project_point( qgs_pt, stratification_layer_crs, projectCrs )
+                strat_pts_prj_crs.append(  Point( qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y() ) )
+        
+        # project the source points from point layer crs to DEM crs
+        # if the two crs are different
+        strat_pts_dem_crs = copy.deepcopy(strat_pts_orig_crs)        
+        if on_the_fly_projection and stratification_layer_crs != dem_crs:
+            strat_pts_dem_crs = []
+            for pt in strat_pts_orig_crs:
+                qgs_pt = make_qgs_point(pt.x,pt.y)
+                qgs_pt_dem_crs = project_point( qgs_pt, stratification_layer_crs, dem_crs )
+                strat_pts_dem_crs.append(  Point( qgs_pt_dem_crs.x(), qgs_pt_dem_crs.y() ) )            
+                        
+        # - 3D structural points, with x, y, and z extracted from the current DEM
+        struct_pts_z = self.get_z_from_dem( strat_pts_dem_crs,
+                                             selected_dem_list[0], 
+                                             selected_dem_parameters[0] ) 
+        assert len(strat_pts_prj_crs) == len(struct_pts_z)
+        struct_pts_3d = [ Point(pt.x,pt.y,z) for (pt,z) in zip(strat_pts_prj_crs, struct_pts_z)]
+
         # - zip together the two data sets                     
         assert len( struct_pts_3d ) == len( structural_planes )
         structural_data = zip( struct_pts_3d, structural_planes, struct_pts_ids )   
@@ -1546,7 +1470,7 @@ class qProfDialog( QDialog ):
         ### map points onto section ###
         
         # calculation of Cartesian plane expressing section plane
-        sect_pt_1, sect_pt_2 = self.profile_points
+        sect_pt_1, sect_pt_2 = self.projected_line.points
         
         section_init_pt = Point( sect_pt_1.x, sect_pt_1.y, 0.0 )
         section_final_pt = Point( sect_pt_2.x, sect_pt_2.y, 0.0 )
@@ -1662,7 +1586,11 @@ class qProfDialog( QDialog ):
             QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
             return
 
-        ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        try:
+            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            
         if ptshp_datasource is None:
             QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return

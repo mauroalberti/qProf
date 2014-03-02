@@ -1,8 +1,8 @@
 [general]
 name=qProf
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological plane traces on profiles
-category=Plugins 
-version=0.2.1
+category=Raster 
+version=0.2.2
 experimental=False
 qgisMinimumVersion=2.0
 author=Mauro Alberti, Marco Zanieri
@@ -20,7 +20,11 @@ changelog=
     0.2.0 : - added cross-section creation tool
 			- minor GUI changes
             - some code refactoring
-    0.2.1 : - changes for QGis 2.0 compatibility 
+    0.2.1 : - changes for QGis 2.0 compatibility
+    0.2.2 : - added compatibility with on-the-fly projection
+			- merging of multiple lines
+			- management of bug related to unicode in Linux - ogr
+     
 
 ; tags are in comma separated value format, spaces are allowed
 tags=raster, dem, profiles, gpx, geology, cross-section

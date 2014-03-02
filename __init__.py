@@ -2,11 +2,11 @@
 /***************************************************************************
  qProf - plugin for Quantum GIS
 
- geoProfiles
+ topographic and geologic profiles
                               -------------------
-        begin                : 2012-11-06
-        version              : 0.2.1 for QuantumGIS 2.0 - 22/10/2013
-        copyright            : (C) 2012-2013 M. Alberti (implementation and concept) and M. Zaniero (concept)
+        begin                : 2012.11.06
+        version              : 0.2.2 for QuantumGIS 2.0 - 2014.03.02
+        copyright            : (C) 2012-2014 M. Alberti (implementation and concept) and M. Zaniero (concept)
         email                : alberti.m65@gmail.com
         
  ***************************************************************************/

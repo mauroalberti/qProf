@@ -1,7 +1,7 @@
 
 from math import sqrt, radians, sin, cos
 
-from .spatial import Point4D
+from .spatial import Point_4D
 
 WGS84 = { 'semi-major axis': 6378137.0, 
           'first eccentricity squared': 6.69437999014e-3}
@@ -44,7 +44,7 @@ class TrackPointGPX( object ):
         x, y, z = geodetic2ecef ( self.lat, self.lon, self.elev )
         t = self.time
         
-        return Point4D( x, y, z, t )
+        return Point_4D( x, y, z, t )
         
         
     

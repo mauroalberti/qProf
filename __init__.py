@@ -5,7 +5,7 @@
  topographic and geologic profiles
                               -------------------
         begin                : 2012.11.06
-        version              : 0.2.2 for QuantumGIS 2.0 - 2014.03.02
+        version              : 0.2.4 for QuantumGIS 2.0
         copyright            : (C) 2012-2014 M. Alberti (implementation and concept) and M. Zaniero (concept)
         email                : alberti.m65@gmail.com
         

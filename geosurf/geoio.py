@@ -14,7 +14,7 @@ try:
 except: 
     import ogr
 
-from .spatial import Grid, Point
+from .spatial import Grid, Point_3D
 from .errors import Raster_Parameters_Errors
 
 
@@ -47,11 +47,15 @@ class GDALParameters( object ):
         Set raster no data value.
         
         @param  nodataval:  the raster no-data value.
-        @type  nodataval:  number or string convertible to float.
+        @type  nodataval:  None, otherwise number or string convertible to float.
                 
         @return:  self.         
         """
-        self._nodatavalue = float( nodataval )
+
+        try:
+            self._nodatavalue = float( nodataval )
+        except:
+            self._nodatavalue = None
         
    
     def g_noDataValue( self ):
@@ -294,18 +298,18 @@ class GDALParameters( object ):
         """
         Creates a point at the lower-left corner of the raster.
         
-        @return:  new Point instance.                        
+        @return:  new Point_3D instance.                        
         """
-        return Point( self.topLeftX, self.topLeftY - abs( self.pixSizeNS ) * self.rows )
+        return Point_3D( self.topLeftX, self.topLeftY - abs( self.pixSizeNS ) * self.rows )
 
     
     def trcorner( self ):
         """
         Create a point at the top-right corner of the raster.
 
-        @return:  new Point instance.                
+        @return:  new Point_3D instance.                
         """        
-        return Point( self.topLeftX + abs( self.pixSizeEW ) * self.cols, self.topLeftY )  
+        return Point_3D( self.topLeftX + abs( self.pixSizeEW ) * self.cols, self.topLeftY )  
    
 
     def geo_equiv( self, other, tolerance = 1.0e-6 ): 
@@ -333,8 +337,9 @@ class GDALParameters( object ):
 class QGisRasterParameters( object ):
 
     # class constructor
-    def __init__( self, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue = None, crs = None ): 
+    def __init__( self, name, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue, crs ): 
 
+        self.name = name
         self.cellsizeEW = cellsizeEW
         self.cellsizeNS = cellsizeNS
         self.rows = rows
@@ -349,10 +354,10 @@ class QGisRasterParameters( object ):
 
     def point_in_dem_area(self, point):
         
-        if point.x >= self.xMin and \
-           point.x <= self.xMax and \
-           point.y >= self.yMin and \
-           point.y <= self.yMax:
+        if point._x >= self.xMin and \
+           point._x <= self.xMax and \
+           point._y >= self.yMin and \
+           point._y <= self.yMax:
             return True
         else:
             return False
@@ -360,10 +365,10 @@ class QGisRasterParameters( object ):
           
     def point_in_interpolation_area(self, point):
         
-        if point.x >= self.xMin+self.cellsizeEW/2.0 and \
-           point.x <= self.xMax-self.cellsizeEW/2.0 and \
-           point.y >= self.yMin+self.cellsizeNS/2.0 and \
-           point.y <= self.yMax-self.cellsizeNS/2.0:
+        if point._x >= self.xMin+self.cellsizeEW/2.0 and \
+           point._x <= self.xMax-self.cellsizeEW/2.0 and \
+           point._y >= self.yMin+self.cellsizeNS/2.0 and \
+           point._y <= self.yMax-self.cellsizeNS/2.0:
             return True
         else:
             return False
@@ -371,17 +376,17 @@ class QGisRasterParameters( object ):
                    
     def geogr2raster(self, point):
         
-        x = ( point.x - ( self.xMin + self.cellsizeEW/2.0 ) ) / self.cellsizeEW
-        y = ( point.y - ( self.yMin + self.cellsizeNS/2.0 ) ) / self.cellsizeNS
+        x = ( point._x - ( self.xMin + self.cellsizeEW/2.0 ) ) / self.cellsizeEW
+        y = ( point._y - ( self.yMin + self.cellsizeNS/2.0 ) ) / self.cellsizeNS
         
         return dict(x=x,y=y) 
       
     
     def raster2geogr(self, array_dict ):
         
-        point = Point()
-        point.x = self.xMin + (array_dict['x']+0.5)*self.cellsizeEW
-        point.y = self.yMin + (array_dict['y']+0.5)*self.cellsizeNS
+        point = Point_3D()
+        point._x = self.xMin + (array_dict['x']+0.5)*self.cellsizeEW
+        point._y = self.yMin + (array_dict['y']+0.5)*self.cellsizeNS
         
         return point        
 
@@ -403,10 +408,14 @@ def read_raster_band_via_gdal( raster_name ):
     gdal.AllRegister
     
     # open raster file and check operation success 
-    raster_data = gdal.Open( str( raster_name ), GA_ReadOnly )    
+    try:
+        raster_data = gdal.Open( str( raster_name ), GA_ReadOnly )    
+    except:
+        raise IOError, 'Unable to open raster with gdal.Open function'
+    
     if raster_data is None:
         raise IOError, 'Unable to open raster band' 
-
+    
     # initialize DEM parameters
     raster_params = GDALParameters()
     
@@ -414,8 +423,8 @@ def read_raster_band_via_gdal( raster_name ):
     raster_params.driverShortName = raster_data.GetDriver().ShortName
 
     # get current raster projection
-    raster_params.projection = raster_data.GetProjection()   
-
+    raster_params.projection = raster_data.GetProjection()
+    
     # get row and column numbers    
     raster_params.rows = raster_data.RasterYSize
     raster_params.cols = raster_data.RasterXSize
@@ -432,27 +441,31 @@ def read_raster_band_via_gdal( raster_name ):
     raster_params.topLeftY = raster_data.GetGeoTransform()[3]
     raster_params.rotGT4 = raster_data.GetGeoTransform()[4]
     raster_params.pixSizeNS = raster_data.GetGeoTransform()[5]
- 
+     
     # get single band 
     band = raster_data.GetRasterBand(1)
-    
+
     # get no data value for current band
-    try: 
+    try:
         raster_params.noDataValue = band.GetNoDataValue()
     except:
         pass
-    # read data from band 
-    grid_values = band.ReadAsArray( 0, 0, raster_params.cols, raster_params.rows )
+            
+    # read data from band
+    try: 
+        grid_values = band.ReadAsArray( 0, 0, raster_params.cols, raster_params.rows )
+    except:
+        raise IOError, 'Unable to read grid values with gdal ReadAsArray function'
     if grid_values is None:
         raise IOError, 'Unable to read data from raster'
-     
+         
     # transform data into numpy array
-    data = np.asarray( grid_values ) 
+    data = np.asarray( grid_values )
 
     # if nodatavalue exists, set null values to NaN in numpy array
-    if raster_params.noDataValue is not None:
+    if raster_params.noDataValue is not None and not np.isnan( raster_params.noDataValue ):
         data = np.where( abs( data - raster_params.noDataValue ) > 1e-05, data, np.NaN ) 
-
+    
     return raster_params, data
 
 
@@ -470,8 +483,8 @@ def read_dem( in_dem_fn ):
         dem_params, dem_array = read_raster_band_via_gdal( in_dem_fn )
         dem_params.check_params()
     except ( IOError, TypeError, Raster_Parameters_Errors ), e:                    
-        raise IOError, 'Unable to read data from raster'
-           
+        raise IOError, e
+                          
     # create current grid
     return Grid(in_dem_fn, dem_params, dem_array)
     
@@ -533,7 +546,7 @@ def read_line_shapefile_via_ogr( line_shp_path ):
                             
             x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
                         
-            line_points.append( Point(x,y,z) )
+            line_points.append( Point_3D(x,y,z) )
                             
         lines_points.append(line_points)
                     

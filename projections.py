@@ -1,19 +1,18 @@
 
-from geosurf.spatial import Point, Line
+from geosurf.spatial import Point_2D, Line_2D
 
 from qgs_tools.tools import project_point
 
 from qgis.core import QgsPoint
 
    
-def project_line( srcLine, srcCrs, destCrs ):
+def project_line_2d( srcLine, srcCrs, destCrs ):
     
-    destLine = Line()
-    
-    for pt in srcLine.points:        
-        srcPt = QgsPoint (pt.x, pt.y)
+    destLine = Line_2D()    
+    for pt in srcLine._pts:        
+        srcPt = QgsPoint (pt._x, pt._y)
         destPt = project_point( srcPt, srcCrs, destCrs )
-        destLine = destLine.add_point( Point( destPt.x(), destPt.y() ) )
+        destLine = destLine.add_pt( Point_2D( destPt.x(), destPt.y() ) )
         
     return destLine
         

@@ -6,84 +6,117 @@ from math import *
 
 import numpy as np
 
-from .spatial import Point, GeolPlane, CartesianPlane, Vector 
+from .spatial import Point_3D, GeolPlane, CartesianPlane, Segment_3D, Vector_3D, GeolAxis, ParamLine 
+from .profiles import PlaneAttitude
 from .errors import ConnectionError  
 
 
-def calculate_point_distance( projected_point, section_init_pt, section_vector ):
+def calculate_distance_with_sign( projected_point, section_init_pt, section_vector ):
 
-    assert projected_point.z != np.nan
-    assert projected_point.z is not None            
+    assert projected_point._z != np.nan
+    assert projected_point._z is not None            
     
-    projected_vector = section_init_pt.to_vector( projected_point )            
+    projected_vector = Segment_3D( section_init_pt, projected_point ).to_vector()            
     cos_alpha = section_vector.vectors_cos_angle( projected_vector )
     
-    return projected_vector.lenght_3d() * cos_alpha
+    return projected_vector.length() * cos_alpha
     
-  
-def map_point_onto_section( structural_pt, structural_plane, structural_pt_id, section_init_pt, section_cartes_plane, section_vector ):
 
-        # transform geological plane attitude into cartesian plane      
-        point_cartes_plane = structural_plane.to_cartes_plane( structural_pt ) 
-        
-        ## intersection between two planes (structural and section plane)
-        ## this intersection gives also the orientation of the 
-        ## segment to plot on the cross-section   
-        
-        intersection_versor, inters_point = section_cartes_plane.intersect( point_cartes_plane )
+def get_intersection_slope( intersection_versor, section_vector ):
     
-        slope_radians = abs( intersection_versor.slope_radians() )
-        scalar_product_for_downward_sense = section_vector.scalar_product( intersection_versor.to_down_vector() )
-        if scalar_product_for_downward_sense > 0.0:
-            intersection_downward_sense = "right"
-        elif scalar_product_for_downward_sense == 0.0:
-            intersection_downward_sense = "vertical"
-        else:
-            intersection_downward_sense = "left"  
-            
-        ## shortest distance between a 3D point and a 3D line
-        ## (both lying in a structural plane)
-        ## i.e., perpendicular projection of a point onto a line (3D)
-        ## gives the position where the segment lies => intersection point
+    slope_radians = abs( intersection_versor.slope_radians() )
+    scalar_product_for_downward_sense = section_vector.scalar_product( intersection_versor.to_down_vector() )
+    if scalar_product_for_downward_sense > 0.0:
+        intersection_downward_sense = "right"
+    elif scalar_product_for_downward_sense == 0.0:
+        intersection_downward_sense = "vertical"
+    else:
+        intersection_downward_sense = "left"  
         
-        structural_vector = inters_point.to_vector( structural_pt )        
-        projection_distance = structural_vector.scalar_product( intersection_versor )        
-        projection_vector = intersection_versor.scale( projection_distance )        
-        projected_point = Point( inters_point.x + projection_vector.x,
-                                 inters_point.y + projection_vector.y,
-                                 inters_point.z + projection_vector.z )
+    return slope_radians, intersection_downward_sense
 
-        # horizontal distance between projected structural point and profile start
-        distance = calculate_point_distance( projected_point, section_init_pt, section_vector ) 
-                
-        ## solution for current structural point        
-        return { 'id': structural_pt_id,
-                 'structural_pt': structural_pt,
-                 'structural_plane': structural_plane,                
-                 'slope_radians': slope_radians,
-                 'intersection_downward_sense': intersection_downward_sense,
-                 'projected_point': projected_point,
-                 'horizontal_distance': distance }   
+
+def calculate_intersection_versor( section_cartes_plane, structural_cartes_plane ):
     
+    return section_cartes_plane.intersection_versor( structural_cartes_plane )
+    
+    
+def calculate_nearest_intersection( intersection_versor, section_cartes_plane, structural_cartes_plane, structural_pt ):
+    
+    dummy_inters_point = section_cartes_plane.intersection_point( structural_cartes_plane )            
+    dummy_structural_vector = Segment_3D( dummy_inters_point, structural_pt ).to_vector()        
+    dummy_distance = dummy_structural_vector.scalar_product( intersection_versor )        
+    offset_vector = intersection_versor.scale( dummy_distance ) 
+           
+    return Point_3D( dummy_inters_point._x + offset_vector._x,
+                     dummy_inters_point._y + offset_vector._y,
+                     dummy_inters_point._z + offset_vector._z )
+
+
+def calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt ):
+    
+    axis_versor = map_axis.to_versor()
+    l, m, n = axis_versor._x, axis_versor._y, axis_versor._z
+    axis_param_line = ParamLine( structural_pt, l, m, n )
+    return axis_param_line.intersect_cartes_plane( section_cartes_plane )
+         
+          
+def map_measure_to_section( structural_rec, section_data, map_axis = None ):
+    
+    # extract source data
+    structural_pt, structural_plane, structural_pt_id = structural_rec
+    section_init_pt, section_cartes_plane, section_vector = section_data['init_pt'], section_data['cartes_plane'], section_data['vector']
      
-def project_struct_pt_on_section( structural_data, section_init_pt, section_cartes_plane, section_vector ):
+    # transform geological plane attitude into Cartesian plane      
+    structural_cartes_plane = structural_plane.to_cartes_plane( structural_pt ) 
+
+    ## intersection versor       
+    intersection_versor = calculate_intersection_versor( section_cartes_plane, structural_cartes_plane )
+
+    # calculate slope of geological plane onto section plane
+    slope_radians, intersection_downward_sense = get_intersection_slope( intersection_versor, section_vector )
+        
+    # intersection point
+    if map_axis is None:    
+        intersection_point = calculate_nearest_intersection( intersection_versor, section_cartes_plane, structural_cartes_plane, structural_pt )
+    else:
+        intersection_point = calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt )
+         
+    # horizontal distance between projected structural point and profile start
+    signed_distance_from_section_start = calculate_distance_with_sign( intersection_point, section_init_pt, section_vector ) 
+           
+    ## solution for current structural point        
+    return PlaneAttitude( structural_pt_id,
+                          structural_pt,
+                          structural_plane,
+                          intersection_point,
+                          slope_radians,
+                          intersection_downward_sense,
+                          signed_distance_from_section_start )
+     
+
+def map_struct_pts_on_section( structural_data, section_data, mapping_method ):
     """
     defines:
         - 2D x-y location in section
         - plane-plane segment intersection
     """
+    
+    if mapping_method['method'] == 'nearest':
+        return [ map_measure_to_section(structural_rec, section_data ) for structural_rec in structural_data ]
+        
+    if mapping_method['method'] == 'common axis':
+        map_axis = GeolAxis( mapping_method['trend'], mapping_method['plunge'] )
+        return [ map_measure_to_section(structural_rec, section_data, map_axis ) for structural_rec in structural_data ]
 
-    point_projections = []
-    for structural_pt, structural_plane, structural_pt_id in structural_data:        
-        inters_solution = map_point_onto_section(structural_pt,
-                                                 structural_plane,
-                                                 structural_pt_id,
-                                                 section_init_pt,
-                                                 section_cartes_plane,
-                                                 section_vector)
-        point_projections.append( inters_solution )
-    return point_projections
-
+    if mapping_method['method'] == 'individual axes':
+        assert len( mapping_method['individual_axes_values'] ) == len( structural_data )
+        result = []
+        for structural_rec, (trend, plunge) in zip( structural_data, mapping_method['individual_axes_values']):
+            map_axis = GeolAxis( trend, plunge )
+            result.append( map_measure_to_section(structural_rec, section_data, map_axis ) )
+        return result
+        
 
 class Intersection_Parameters(object):
     """

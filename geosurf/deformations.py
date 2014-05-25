@@ -2,7 +2,7 @@
 from math import radians, sin, cos, tan
 import numpy as np
 
-from .spatial import Axis
+from .spatial import GeolAxis
 
 
 def calculate_geographic_scale_matrix( a_range, b_range, grid_length, grid_width ):
@@ -39,7 +39,7 @@ def calculate_rotation_matrix( rot_axis_trend, rot_axis_plunge, rot_angle ):
     
     phi = radians( rot_angle )
 
-    rotation_versor = Axis(rot_axis_trend, rot_axis_plunge).to_versor()
+    rotation_versor = GeolAxis(rot_axis_trend, rot_axis_plunge).to_versor()
 
     l = rotation_versor.x
     m = rotation_versor.y

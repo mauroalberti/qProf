@@ -75,6 +75,4 @@ def array_from_function( row_num, col_num, x_transfer_func, y_transfer_func, z_t
     
     return np.fromfunction( ij_transfer_func, ( row_num, col_num ), transfer_funcs=transfer_funcs )
         
-    
- 
  

@@ -4,22 +4,17 @@
         
 """
 
-# Python Qt4 bindings for GUI objects
+import numpy as np
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from matplotlib import rcParams
-
-
-# import the Qt4Agg FigureCanvas object, that binds Figure to
-# Qt4Agg backend. It also inherits from QWidget
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-
-# import the NavigationToolbar Qt4Agg widget
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
-
-# Matplotlib Figure object
 from matplotlib.figure import Figure
+
+from .utils import valid_intervals
 
        
 
@@ -28,13 +23,11 @@ class MplCanvas(FigureCanvas):
     Class to represent the FigureCanvas widget.
     """
     
-    def __init__( self ):
- 
+    def __init__( self ): 
        
         self.set_rcParams()    
          
         self.fig = Figure()
-        #self.ax = self.fig.add_subplot(111)
         FigureCanvas.__init__(self, self.fig)
             
 
@@ -52,13 +45,9 @@ class MplCanvas(FigureCanvas):
         rcParams["figure.subplot.hspace"] = 0.1  
         
         rcParams["figure.facecolor"] = 'white' 
-
        
         
 class MplWidget( QWidget ):
-    """
-    Widget defined in Qt Designer.
-    """
     
     def __init__(self, window_title = 'Profile', parent = None):
         
@@ -78,9 +67,9 @@ class MplWidget( QWidget ):
         # manage the navigation toolbar
         self.window_tabs = QTabWidget()
         self.window_tabs.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)        
-        self.window_tabs.addTab( self.ntb, "Map" )
+        self.window_tabs.addTab( self.ntb, "View" )
         
-        #TO BE ADDED IN SUSEQUENT RELEASE
+        #TO BE ADDED IN SUBSEQUENT RELEASE
         #self.window_tabs.addTab( inputWidget, "Rendering" )         
 
         # create a vertical box layout
@@ -94,4 +83,25 @@ class MplWidget( QWidget ):
         self.setLayout(self.vbl)
         
         self.show()
+       
+            
+def plot_line( axes, x_list, y_list, linecolor, name='' ):
+    
+    if name != '':                       
+        axes.plot( x_list, y_list,'-', color=linecolor, label = unicode(name) )
+    else:
+        axes.plot( x_list, y_list,'-', color=linecolor )
         
+            
+def plot_filled_line( axes, x_list, y_list, plot_y_min, facecolor, alpha = 0.1 ):
+
+    y_values_array = np.array( y_list )
+    x_values_array = np.array( x_list )
+    for val_int in valid_intervals( y_values_array ):               
+        axes.fill_between( x_values_array[ val_int['start'] : val_int['end']+1 ], 
+                          plot_y_min, 
+                          y_values_array[ val_int['start'] : val_int['end']+1 ], 
+                          facecolor = facecolor, 
+                          alpha = alpha )
+    
+         

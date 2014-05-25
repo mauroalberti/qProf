@@ -35,55 +35,19 @@ from qgis.core import *
 from qgis.gui import *
 
 
-class PointMapTool( QgsMapTool ):
+class PointMapToolEmitPoint( QgsMapToolEmitPoint ):
 
 	def __init__( self, canvas, button ):
 		
-		super( PointMapTool, self ).__init__( canvas )
+		super( PointMapToolEmitPoint, self ).__init__( canvas )
 		self.canvas = canvas
 		self.cursor = QCursor( Qt.CrossCursor )
 		self.button = button
 
 
-	def canvasMoveEvent( self, event ):
-		
-		moved = pyqtSignal()
-		self.moved.emit( { 'x': event.pos().x(), 'y': event.pos().y() } )
-
-
-	def canvasReleaseEvent( self, event ):
-		
-		release_event_signal = pyqtSignal( name='leftClicked' )
-		if event.button() == Qt.RightButton: 
-			release_event_signal = pyqtSignal( name='rightClicked' ) 					
-		self.release_event_signal.emit( {'x': event.pos().x(), 'y': event.pos().y()} )
-
-
-	def canvasDoubleClickEvent( self, event ):
-
-		doubleClicked = pyqtSignal()		
-		self.doubleClicked.emit( {'x': event.pos().x(), 'y': event.pos().y()} )
-
-
-	def activate( self ):
-		
-		QgsMapTool.activate( self )
-		self.canvas.setCursor( self.cursor )
-		self.button.setCheckable( True )
-		self.button.setChecked( True )
-
-
-	def deactivate( self ):
-		
-		deactivate = pyqtSignal()
-		self.deactivate.emit()
-
-
-	def isZoomTool( self ):
-		
-		return False
-
-
 	def setCursor( self, cursor ):
 		
 		self.cursor = QCursor( cursor )
+		
+		
+		

@@ -29,12 +29,28 @@ class Output_Errors(Exception):
     
     
 class ConnectionError:
+    
     pass
 
 
 class AnaliticSurfaceIOException( Exception ):
+    
     pass
 
+
 class AnaliticSurfaceCalcException( Exception ):
+    
     pass
+
+
+class GPXIOException( Exception ):
+    
+    pass
+
+
+class VectorIOException( Exception ):
+    
+    pass
+
+
 

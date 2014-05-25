@@ -1,48 +1,44 @@
 
-# Import the PyQt and QGIS libraries
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from qgis.core import *
 
-# Initialize Qt resources from file resources.py
 import resources
 
-# Import the code for the dialog
-from qProf_dialog import qProfDialog
+from qProf_QWidget import qprof_QWidget
 
 
-class qProf_gui(object):
 
-    def __init__(self, iface):
-        # Save reference to the QGIS interface
-        self.iface = iface
+class qProf_gui( object ):
+
+    def __init__(self, interface):
+
+        self.interface = interface
+        self.main_window = self.interface.mainWindow()
+        self.canvas = self.interface.mapCanvas()        
+
 
     def initGui(self):
-        # Create action that will start plugin configuration
-        self.action = QAction(QIcon(":/plugins/qProf/icon.png"), "qProf", self.iface.mainWindow())
-                   
-        # connect the action to the run method
-        self.action.triggered.connect( self.run )
-        # QObject.connect(self.action, SIGNAL("triggered()"), self.run)
-
-        # Add toolbar button and menu item
-        self.iface.addToolBarIcon(self.action)
-        self.iface.addPluginToMenu("QProf", self.action)
+        
+        self.qprof_QAction = QAction(QIcon(":/plugins/qProf/icon.png"), "qProf", self.interface.mainWindow())
+        self.qprof_QAction.setWhatsThis( "Topographic and geological profiles" ) 
+        self.qprof_QAction.triggered.connect( self.open_qprof )
+        self.interface.addPluginToMenu("QProf", self.qprof_QAction)
 
 
     def unload(self):
-        # Remove the plugin menu item and icon
-        self.iface.removePluginMenu("qProf",self.action)
-        self.iface.removeToolBarIcon(self.action)
+
+        self.interface.removePluginMenu( "qProf", self.qprof_QAction )
 
 
-    # run method that performs all the real work
-    def run(self):
+    def open_qprof(self):
 
-        # create and show the dialog
-        dlg = qProfDialog( self.iface )        
-        dlg.show()
-        dlg.exec_()
+        qprof_DockWidget = QDockWidget( 'qProf', self.interface.mainWindow() )        
+        qprof_DockWidget.setAttribute(Qt.WA_DeleteOnClose)
+        qprof_DockWidget.setAllowedAreas( Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea )        
+        self.qProf_QWidget = qprof_QWidget( self.canvas )        
+        qprof_DockWidget.setWidget( self.qProf_QWidget )       
+        self.interface.addDockWidget( Qt.RightDockWidgetArea, qprof_DockWidget )
         
 

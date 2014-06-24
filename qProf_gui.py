@@ -38,7 +38,8 @@ class qProf_gui( object ):
         qprof_DockWidget.setAttribute(Qt.WA_DeleteOnClose)
         qprof_DockWidget.setAllowedAreas( Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea )        
         self.qProf_QWidget = qprof_QWidget( self.canvas )        
-        qprof_DockWidget.setWidget( self.qProf_QWidget )       
+        qprof_DockWidget.setWidget( self.qProf_QWidget ) 
+        qprof_DockWidget.destroyed.connect( self.qProf_QWidget.closeEvent )       
         self.interface.addDockWidget( Qt.RightDockWidgetArea, qprof_DockWidget )
         
 

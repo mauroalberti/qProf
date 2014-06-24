@@ -2386,6 +2386,51 @@ class qprof_QWidget( QWidget ):
         for multiline_2d in curve_set:
                 for line_2d in multiline_2d._lines:
                     plot_line( axes, line_2d.x_list(), line_2d.y_list(), color )
+                    
+                    
+    def closeEvent( self, event ):
+        
+        try:
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_input_profile_layer_combobox )
+        except:
+            pass
+        
+        try:    
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_single_band_raster_layer_treewidget )
+        except:
+            pass
+        
+        try:            
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_point_lyr_combobox )        
+        except:
+            pass
+        
+        try:           
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_line_lyr_combobox )
+        except:
+            pass
+            
+        try:            
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_input_profile_layer_combobox )
+        except:
+            pass
+        
+        try:            
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_single_band_raster_layer_treewidget )
+        except:
+            pass
+        
+        try:            
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_point_lyr_combobox )                
+        except:
+            pass
+        
+        try:            
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_line_lyr_combobox )
+        except:
+            pass
+                
+        
         
         
         

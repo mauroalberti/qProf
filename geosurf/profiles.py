@@ -13,7 +13,7 @@ class Profiles( object ):
     def init_elements(self):
         
         self.profile_dems = []
-        self.line_layer = None                
+        self.profile_line = None                
         self.topo_profiles = []
         self.plane_attitudes = []
         self.curves = []

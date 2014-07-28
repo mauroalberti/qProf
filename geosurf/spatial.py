@@ -21,12 +21,12 @@ MINIMUM_SEPARATION_THRESHOLD = 1e-10
 MINIMUM_VECTOR_MAGNITUDE = 1e-10
 
 
-def make_qgs_point( x, y):
+def qgs_point( x, y):
     
     return QgsPoint(x, y)
         
 
-def project_point( qgsPt, srcCrs, destCrs ):
+def project_qgs_point( qgsPt, srcCrs, destCrs ):
     
     return QgsCoordinateTransform( srcCrs, destCrs ).transform( qgsPt )
 
@@ -69,8 +69,8 @@ class Point_2D( object ):
 
     def project_crs( self, srcCrs, destCrs ):
         
-        qgis_pt = make_qgs_point( self._x, self._y )
-        destCrs_qgis_pt = project_point( qgis_pt, srcCrs, destCrs )
+        qgis_pt = qgs_point( self._x, self._y )
+        destCrs_qgis_pt = project_qgs_point( qgis_pt, srcCrs, destCrs )
         
         return Point_2D( destCrs_qgis_pt.x(), destCrs_qgis_pt.y() )
   
@@ -1104,22 +1104,69 @@ class GeolPlane(object):
         d = - ( a * point._x + b * point._y + c * point._z )        
         return CartesianPlane( a, b, c, d )
     
-        
-def xy_list_to_Line_2D( xy_list ):
 
-    return Line_2D( [ Point_2D(x,y) for (x,y) in xy_list ] )
+def eq_xy_pair( xy_pair_1, xy_pair_2 ):
+
+    if xy_pair_1[0] == xy_pair_2[0] and xy_pair_1[1] == xy_pair_2[1]:
+        return True
+    
+    return False
+
+ 
+def remove_equal_consecutive_xypairs( xy_list ):
+    
+    out_xy_list = [ xy_list[0] ]
+    
+    for n in range( 1, len( xy_list ) ):
+        if not eq_xy_pair( xy_list[n], out_xy_list[-1] ):
+            out_xy_list.append( xy_list[n] )
+            
+    return out_xy_list
+    
+           
+def xytuple_list_to_Line_2D( xytuple_list ):
+
+    return Line_2D( [ Point_2D(x,y) for (x,y) in xytuple_list ] )
 
     
-def xy_list2_to_MultiLine_2D( xy_list2 ):
+def xytuple_list2_to_MultiLine_2D( xytuple_list2 ):
     # input is a list of list of (x,y) values
     
-    assert len( xy_list2 ) > 0
+    assert len( xytuple_list2 ) > 0
     lines_list = []
-    for xy_list in xy_list2:
+    for xy_list in xytuple_list2:
         assert len( xy_list ) > 0
-        lines_list.append( xy_list_to_Line_2D( xy_list ) )
+        lines_list.append( xytuple_list_to_Line_2D( xy_list ) )
         
     return MultiLine_2D( lines_list )
+
+
+def list2_to_list( list2 ):
+    """
+    input: a list of list of (x,y) tuples
+    output: a list of (x,y) tuples
+    """
+
+    out_list = []
+    for list1 in list2:
+        for el in list1:
+            out_list.append( el )
+        
+    return out_list
+
+
+def list3_to_list( list3 ):
+    """
+    input: a list of list of (x,y) tuples
+    output: a list of (x,y) tuples
+    """
+
+    out_list = []
+    for list2 in list3:
+        for list1 in list2:
+            out_list += list1
+        
+    return out_list
 
      
 def merge_lines( lines, progress_ids ):
@@ -1135,9 +1182,9 @@ def merge_lines( lines, progress_ids ):
         line_type, line_geometry = line 
      
         if line_type == 'multiline': 
-            path_line = xy_list2_to_MultiLine_2D( line_geometry ).to_line()
+            path_line = xytuple_list2_to_MultiLine_2D( line_geometry ).to_line()
         elif line_type == 'line':            
-            path_line = xy_list_to_Line_2D( line_geometry ) 
+            path_line = xytuple_list_to_Line_2D( line_geometry ) 
         line_list.append( path_line )  # now a list of Lines     
                 
     # now the list of Lines is transformed into a single Line_2D 
@@ -1604,8 +1651,8 @@ class Grid(object):
             grid_coord_to_geogr_coord_y_closure = lambda i : self.domain.g_trcorner()._y - self.cellsize_y() * ( 0.5 + i )
              
             # arrays storing the geographical coordinates of the cell centers along the x- and y- axes    
-            cell_center_x_array = self._x()
-            cell_center_y_array = self._y()      
+            cell_center_x_array = self.x()
+            cell_center_y_array = self.y()      
 
             ycoords_x, xcoords_y  = np.broadcast_arrays( cell_center_x_array, cell_center_y_array )
                         

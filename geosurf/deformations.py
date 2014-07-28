@@ -41,9 +41,9 @@ def calculate_rotation_matrix( rot_axis_trend, rot_axis_plunge, rot_angle ):
 
     rotation_versor = GeolAxis(rot_axis_trend, rot_axis_plunge).to_versor()
 
-    l = rotation_versor.x
-    m = rotation_versor.y
-    n = rotation_versor.z
+    l = rotation_versor._x
+    m = rotation_versor._y
+    n = rotation_versor._z
 
     cos_phi = cos( phi )
     sin_phi = sin( phi )

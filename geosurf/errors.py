@@ -53,4 +53,9 @@ class VectorIOException( Exception ):
     pass
 
 
+class OGR_IO_Errors(Exception):
+    """
+    Exception for raster parameters.
+    """
+    pass  
 

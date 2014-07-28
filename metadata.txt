@@ -2,7 +2,7 @@
 name=qProf
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological attitudes and traces on profiles
 category=Raster 
-version=0.2.5
+version=0.2.6
 experimental=False
 qgisMinimumVersion=2.0
 author=Mauro Alberti, Marco Zanieri
@@ -29,8 +29,8 @@ changelog=
 	        - added geological attitude projection by common and individual fold axes
 	        - added geological traces projection by fold axis
 	0.2.5 : - bugfixing (disconnecting signals at module closing)
+	0.2.6 : - added profile creation from digitized line
 	
-     
 
 ; tags are in comma separated value format, spaces are allowed
 tags = raster, dem, profiles, gpx, geology, cross-section, fold axis

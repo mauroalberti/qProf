@@ -992,17 +992,29 @@ class qprof_QWidget( QWidget ):
               
     def create_topo_profiles_from_DEMs( self ):
 
+        try:
+            selected_dems = self.selected_dems
+        except:
+            QMessageBox.critical( self, "Error", "DEM(s) not yet defined" )
+            return            
+        
+        try:
+            profile_line = self.profile_line
+        except:
+            QMessageBox.critical( self, "Error", "Profile line not yet defined" )
+            return       
+        
         # get profile creation parameters                        
         sample_distance = self.profile_densify_distance_lineedit.text()                                
         plot_height_choice = self.DEM_plot_height_checkbox.isChecked()
         plot_slope_choice = self.DEM_plot_slope_checkbox.isChecked() 
                         
         # check profile creation parameters 
-        input_parameters_state_ok, msg = self.check_profile_creation_parameters(self.selected_dems,
-                                                                                self.profile_line, 
+        input_parameters_state_ok, msg = self.check_profile_creation_parameters(selected_dems,
+                                                                                profile_line, 
                                                                                 sample_distance,
-                                                                                 plot_height_choice,
-                                                                                 plot_slope_choice )
+                                                                                plot_height_choice,
+                                                                                plot_slope_choice )
         
         if not ( input_parameters_state_ok ):
             QMessageBox.critical( self, "Error", msg )

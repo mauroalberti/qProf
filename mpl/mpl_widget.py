@@ -4,15 +4,21 @@
         
 """
 
+
+from __future__  import division
+
 import numpy as np
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from matplotlib import rcParams
+
+from matplotlib import cm, rcParams
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d import Axes3D
 
 from .utils import valid_intervals
 
@@ -85,13 +91,19 @@ class MplWidget( QWidget ):
         self.show()
        
             
-def plot_line( axes, x_list, y_list, linecolor, name='' ):
+def plot_line( axes, x_list, y_list, linecolor, name="", linewidth=1 ):
     
-    if name != '':                       
-        axes.plot( x_list, y_list,'-', color=linecolor, label = unicode(name) )
-    else:
-        axes.plot( x_list, y_list,'-', color=linecolor )
-        
+    line, = axes.plot( x_list, y_list,'-', color=linecolor, linewidth=linewidth )
+
+    if name is not None and name != "": 
+        axes.annotate(name, xy=(x_list[0], y_list[0]),  xycoords='data',
+                    xytext=(-40, 25), textcoords='offset points',
+                    size=8,
+                    arrowprops=dict(arrowstyle="fancy",
+                                    fc="0.6", ec="none",
+                                    patchB=line,
+                                    connectionstyle="angle3,angleA=0,angleB=-90") )
+
             
 def plot_filled_line( axes, x_list, y_list, plot_y_min, facecolor, alpha = 0.1 ):
 
@@ -103,5 +115,19 @@ def plot_filled_line( axes, x_list, y_list, plot_y_min, facecolor, alpha = 0.1 )
                           y_values_array[ val_int['start'] : val_int['end']+1 ], 
                           facecolor = facecolor, 
                           alpha = alpha )
+
+  
+def view_3D_surface( surface_3d ):
+           
+    X, Y, Z = surface_3d
+        
+    # tripcolor plot.
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.plot_trisurf( X, Y, Z, cmap=cm.jet, linewidth=0.1 )
+    ax.autoscale(enable=True, axis='both', tight=True)
+    plt.show()
+    
+    
     
          

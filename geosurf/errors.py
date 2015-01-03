@@ -1,34 +1,36 @@
 
+from __future__  import division
 
-class Raster_Parameters_Errors(Exception):
+
+class RasterParametersException(Exception):
     """
     Exception for raster parameters.
     """
     pass  
 
 
-class Vector_Input_Errors(Exception):
+class VectorInputException(Exception):
     """
     Exception for vector input parameters.
     """
     pass  
 
 
-class FunInp_Err(Exception):
+class FunInputException(Exception):
     """
     Exception for function input errors.
     """
     pass
     
 
-class Output_Errors(Exception):
+class OutputException(Exception):
     """
     Exception for output errors.
     """
     pass
     
     
-class ConnectionError:
+class ConnectionException:
     
     pass
 
@@ -53,7 +55,7 @@ class VectorIOException( Exception ):
     pass
 
 
-class OGR_IO_Errors(Exception):
+class OGRIOException(Exception):
     """
     Exception for raster parameters.
     """

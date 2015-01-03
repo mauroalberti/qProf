@@ -2,7 +2,7 @@
 name=qProf
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological attitudes and traces on profiles
 category=Raster 
-version=0.2.7
+version=0.2.8
 experimental=False
 qgisMinimumVersion=2.0
 author=Mauro Alberti, Marco Zanieri
@@ -31,6 +31,7 @@ changelog=
   0.2.5 : - bugfixing (disconnecting signals at module closing)
   0.2.6 : - added profile creation from digitized line
   0.2.7 : - fixed minor bug related to not yet defined DEMs &/or profile
+  0.2.8 : - added intersection between line or polygon layer and profile; fixed minor bugs; minor change to interface
 	
 
 ; tags are in comma separated value format, spaces are allowed

@@ -1,4 +1,6 @@
 
+from __future__  import division
+
 import numpy as np
 
 from PyQt4.QtCore import *
@@ -9,7 +11,6 @@ from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis, QgsFeature, \
                       QgsCoordinateTransform, QgsPoint
 from qgis.gui import *
 
-from .spatial import Point_2D, Line_2D
 from .errors import VectorIOException
 
 
@@ -37,6 +38,12 @@ def loaded_vector_layers():
  
     return filter( lambda layer: layer.type() == QgsMapLayer.VectorLayer, 
                    loaded_layers() )
+    
+    
+def loaded_polygon_layers():        
+    
+    return filter( lambda layer: layer.geometryType() == QGis.Polygon, 
+                          loaded_vector_layers() )
     
             
 def loaded_line_layers():        
@@ -94,9 +101,6 @@ def pt_geoms_attrs( pt_layer, field_list = [] ):
 
 
 def line_geoms_attrs( line_layer, field_list = [] ):
-    """
-    return: lines, list
-    """
     
     lines = []
     
@@ -220,25 +224,37 @@ def raster_qgis_params( raster_layer ):
     return name, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue, crs    
 
 
-def qgs_point( x, y ):
+def qgs_point_2d( x, y ):
     
-    return QgsPoint(x, y)
+    return QgsPoint( x, y )
         
 
 def project_qgs_point( qgsPt, srcCrs, destCrs ):
     
     return QgsCoordinateTransform( srcCrs, destCrs ).transform( qgsPt )
 
-    
+
 def project_line_2d( srcLine, srcCrs, destCrs ):
     
-    destLine = Line_2D()    
+    destLine = Line2D()    
     for pt in srcLine._pts:        
         srcPt = QgsPoint (pt._x, pt._y)
         destPt = project_qgs_point( srcPt, srcCrs, destCrs )
-        destLine = destLine.add_pt( Point_2D( destPt.x(), destPt.y() ) )
+        destLine = destLine.add_pt( Point2D( destPt.x(), destPt.y() ) )
         
     return destLine
+
+
+    
+def project_xy_list( src_crs_xy_list, srcCrs, destCrs ):
+    
+    pt_list_dest_crs = []    
+    for x,y in src_crs_xy_list._pts:        
+        srcPt = QgsPoint (x, y)
+        destPt = project_qgs_point( srcPt, srcCrs, destCrs )
+        pt_list_dest_crs = pt_list_dest_crs.append( [ destPt.x(), destPt.y() ] )
+        
+    return pt_list_dest_crs
         
         
 

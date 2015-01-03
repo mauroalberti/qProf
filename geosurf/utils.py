@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__  import division
+
 import numpy as np
  
  
@@ -21,11 +23,18 @@ def is_number(s):
         return True
  
 
+def to_float( iterable ):
+    
+    return [ float(item) for item in iterable ] 
+    
+    
 def almost_zero( val ):
     
     tolerance = 1e-10    
-    if abs( val ) > tolerance: return False
-    else: return True
+    if abs( val ) > tolerance: 
+        return False
+    else: 
+        return True
     
        
 def ij_transfer_func( i, j, transfer_funcs ):

@@ -1,5 +1,7 @@
 
-from .spatial import Line_2D
+from __future__  import division
+
+from .spatial import Line2D
 
 
 class Profiles( object ):
@@ -18,14 +20,24 @@ class Profiles( object ):
         self.plane_attitudes = []
         self.curves = []
         self.curves_ids = []
-        self.topo_pts = []
-        self.topo_lines = []
+        self.intersection_pts = []
+        self.intersection_lines = []
         
         
     def add_topo_profile(self, topo_profile ):
         
         self.topo_profiles.append( topo_profile )
- 
+
+
+    def add_intersections_pts(self, intersection_list ):
+
+        self.intersection_pts += intersection_list
+
+
+    def add_intersections_lines(self, formation_list, intersection_line3d_list, intersection_polygon_s_list2 ):
+
+        self.intersection_lines = zip( formation_list, intersection_line3d_list, intersection_polygon_s_list2 )
+        
 
     def get_current_dem_names( self ):
         
@@ -111,15 +123,7 @@ class Profiles( object ):
         self.curves_ids.append( ids_list )
  
 
-    def add_topo_pts(self, topo_pts ):
-        
-        self.topo_pts.append( topo_pts )
 
-
-    def add_topo_lines(self, topo_lines ):
-        
-        self.topo_lines.append( topo_lines )
-   
 
 class ProfileDEM( object ):
     
@@ -174,7 +178,7 @@ class TopoProfile( object ):
                    
     def get_increm_dist_3d( self ):
         
-        return self.profile_3d.incremental_length()
+        return self.profile_3d.incremental_length_3d()
         
        
     def get_increm_dist_2d( self ):
@@ -194,25 +198,7 @@ class PlaneAttitude( object ):
         self.dwnwrd_sense = dwnwrd_sense
         self.sign_hor_dist = sign_hor_dist
 
-
-class TopoPoints( object ):
-    
-    def __init__(self, topo_pt_list, attrs ):
-        
-        self.topo_points = topo_pt_list
-        self.attrs = attrs
-
-
-class TopoLines( object ):
-    
-    def __init__( self, line_2d_list, cats ):
-        
-        self.topo_lines_2d = line_2d_list
-        self.cats = cats
-        
-        
-    
-    
+   
     
     
     

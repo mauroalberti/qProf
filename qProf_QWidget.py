@@ -16,35 +16,46 @@ from osgeo import ogr
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis
+from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis, QgsGeometry
 from qgis.gui import QgsRubberBand
 
 from geosurf.qt_utils import lastUsedDir, setLastUsedDir
 
-from geosurf.spatial import Point_2D, Segment_2D, Vector_2D, MultiLine_2D, Line_2D
-from geosurf.spatial import Point_3D, Segment_3D, Vector_3D, MultiLine_3D, Line_3D                           
-from geosurf.spatial import merge_lines, cartes_plane_from_points, GeolPlane, GeolAxis, CartesianPlane, ParamLine
-from geosurf.spatial import xytuple_list2_to_MultiLine_2D
+from geosurf.spatial import Point2D, MultiLine2D, Line2D
+from geosurf.spatial import Point3D, Segment3D, MultiLine3D, Line3D                           
+from geosurf.spatial import merge_lines, GeolPlane, GeolAxis, CartesianPlane, ParamLine
+from geosurf.spatial import xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
                             
-from geosurf.geoio import QGisRasterParameters
+from geosurf.geo_io import QGisRasterParameters
 from geosurf.profiles import Profiles, TopoProfile, ProfileDEM
 from geosurf.geodetic import TrackPointGPX
 from geosurf.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from geosurf.errors import Vector_Input_Errors, GPXIOException, VectorIOException
+from geosurf.errors import VectorInputException, GPXIOException, VectorIOException
            
-from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, pt_geoms_attrs, \
+from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
                             raster_qgis_params, loaded_monoband_raster_layers, \
-                            line_geoms_with_id, qgs_point, project_qgs_point, vect_attrs, \
+                            line_geoms_with_id, qgs_point_2d, project_qgs_point, vect_attrs, \
                             line_geoms_attrs, field_values, MapDigitizeTool
+
+from geosurf.string_utils import clean_string
+from geosurf.utils import to_float
+
+from geosurf.qt_utils import new_file_path
             
 from mpl.mpl_widget import MplWidget, plot_line, plot_filled_line
 from mpl.utils import valid_intervals
 from projections import project_line_2d
 
+
+_plugin_name_ = "qProf"
+
         
 class qprof_QWidget( QWidget ):
     
     colors = ['orange', 'green', 'red', 'grey', 'brown', 'yellow', 'magenta', 'black', 'blue', 'white', 'cyan', 'chartreuse' ]
+
+    colors_addit = ["darkseagreen", "darkgoldenrod","darkviolet", "hotpink", "powderblue", "yellowgreen", "palevioletred", 
+                  "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow","magenta","blue","cyan","chartreuse" ] 
 
     def __init__( self, canvas ):
 
@@ -55,33 +66,58 @@ class qprof_QWidget( QWidget ):
            
 
     def initialize_parameters(self):
- 
+
+        self.selected_dems = []
+        self.selected_dem_colors = []
+        self.selected_dem_parameters = []
+         
         self.profile_windows = []
         self.cross_section_windows = [] 
-        self.profile_line = None   
+        self.profile_line2d_prjcrs_undensif = None   
         self.current_directory = os.path.dirname(__file__) 
         self.profiles = None
         self.DEM_data_export = None 
         self.profile_GPX = None
-        self.selected_dem_colors = []
+
         self.plane_attitudes_colors = []
         self.curve_colors = [] 
         
+
+    def info(self, msg):
         
+        QMessageBox.information( self,  _plugin_name_, msg )
+        
+        
+    def warn( self, msg):
+    
+        QMessageBox.warning( self,  _plugin_name_, msg )
+          
+                      
     def setup_gui( self ): 
 
         self.dialog_layout = QVBoxLayout()
         self.main_widget = QTabWidget()        
-        self.main_widget.addTab( self.setup_topoprofile_tab(), "Profile" )         
-        self.main_widget.addTab( self.setup_project_section_tab(), "Project" )
-        self.main_widget.addTab( self.setup_about_tab(), "About" )
-
+        self.main_widget.addTab( self.setup_topoprofile_tab(), "Topography" )         
+        self.main_widget.addTab( self.setup_project_section_tab(), "Projections" )
+        self.main_widget.addTab( self.setup_intersect_section_tab(), "Intersections" )
+        self.main_widget.addTab( self.setup_importexport_section_tab(), "Export" )
+        self.main_widget.addTab( self.setup_about_tab(), "Help/About" )
+        
+        self.prj_input_line_comboBox.currentIndexChanged[int].connect( self.update_linepoly_layers_boxes )
+        self.inters_input_line_comboBox.currentIndexChanged[int].connect( self.update_linepoly_layers_boxes )
+        self.inters_input_polygon_comboBox.currentIndexChanged[int].connect( self.update_linepoly_layers_boxes )
+               
+        self.refresh_struct_line_lyr_combobox()
+        self.refresh_struct_polygon_lyr_combobox()
+        
         QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_struct_point_lyr_combobox )        
         QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_struct_line_lyr_combobox )
-
+        QgsMapLayerRegistry.instance().layerWasAdded.connect( self.refresh_struct_polygon_lyr_combobox )
+        
         QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_struct_point_lyr_combobox )                
         QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_struct_line_lyr_combobox )
-                
+        QgsMapLayerRegistry.instance().layerRemoved.connect( self.refresh_struct_polygon_lyr_combobox )
+                       
         self.dialog_layout.addWidget(self.main_widget)                             
         self.setLayout(self.dialog_layout)            
         self.adjustSize()               
@@ -123,16 +159,21 @@ class qprof_QWidget( QWidget ):
         
         inputLine_Layout = QGridLayout()
         
-        self.DefineLine_pushbutton = QPushButton(self.tr("Define"))  
-        self.DefineLine_pushbutton.clicked.connect( self.define_line ) 
-        inputLine_Layout.addWidget(self.DefineLine_pushbutton, 0, 0, 1, 2 )
+        inputLine_Layout.addWidget( QLabel("Input from"), 0, 0, 1, 1 )
  
-        self.LoadLineLayer_checkbox = QRadioButton( self.tr("from layer") )
+        self.LoadLineLayer_checkbox = QRadioButton( self.tr("line layer") )
         self.LoadLineLayer_checkbox.setChecked( True )
-        inputLine_Layout.addWidget( self.LoadLineLayer_checkbox, 0, 2, 1, 1 )   
+        inputLine_Layout.addWidget( self.LoadLineLayer_checkbox, 0, 1, 1, 1 )   
                
-        self.DigitizeLine_checkbox = QRadioButton( self.tr("by digitization") )
-        inputLine_Layout.addWidget( self.DigitizeLine_checkbox, 0, 3, 1, 1 )
+        self.DigitizeLine_checkbox = QRadioButton( self.tr("digitization") )
+        inputLine_Layout.addWidget( self.DigitizeLine_checkbox, 0, 2, 1, 1 )
+        
+        self.PointListforLine_checkbox = QRadioButton( self.tr("point list") )
+        inputLine_Layout.addWidget( self.PointListforLine_checkbox, 0, 3, 1, 1 )
+        
+        self.DefineLine_pushbutton = QPushButton(self.tr("Define profile line"))  
+        self.DefineLine_pushbutton.clicked.connect( self.define_line ) 
+        inputLine_Layout.addWidget(self.DefineLine_pushbutton, 1, 0, 1, 4 )
                         
         inputLine_QGroupBox.setLayout( inputLine_Layout )
         
@@ -142,7 +183,7 @@ class qprof_QWidget( QWidget ):
         ## create profile section
         
         plotDEM_QGroupBox = QGroupBox( profileDEM_QWidget )
-        plotDEM_QGroupBox.setTitle( 'Create profile')
+        plotDEM_QGroupBox.setTitle( 'Create')
         
         plotDEM_Layout = QGridLayout()                
 
@@ -151,8 +192,13 @@ class qprof_QWidget( QWidget ):
         # trace sampling distance                 
         plotDEM_Layout.addWidget( QLabel( self.tr("Line densify distance") ), 0, 0, 1, 1 )         
         self.profile_densify_distance_lineedit = QLineEdit()
-        plotDEM_Layout.addWidget( self.profile_densify_distance_lineedit, 0, 1, 1, 3 )
-         
+        plotDEM_Layout.addWidget( self.profile_densify_distance_lineedit, 0, 1, 1, 1 )
+
+        plotDEM_Layout.addWidget( QLabel( self.tr("Vertical exaggeration") ), 0, 2, 1, 1 )  
+        self.DEM_exageration_ratio_Qlineedit = QLineEdit()
+        self.DEM_exageration_ratio_Qlineedit.setText( "1" )
+        plotDEM_Layout.addWidget( self.DEM_exageration_ratio_Qlineedit, 0, 3, 1, 1 )
+                        
         self.DEM_plot_height_checkbox = QCheckBox( self.tr( "height"))
         self.DEM_plot_height_checkbox.setChecked( True ) 
         plotDEM_Layout.addWidget( self.DEM_plot_height_checkbox, 1, 0, 1, 1 )  
@@ -160,55 +206,24 @@ class qprof_QWidget( QWidget ):
         self.DEM_plot_height_filled_checkbox = QCheckBox( self.tr( "(filled)"))
         plotDEM_Layout.addWidget( self.DEM_plot_height_filled_checkbox, 1, 1, 1, 1 ) 
 
-        self.DEM_exageration_1_1_checkbox = QCheckBox( self.tr( "scale ratio 1:1"))
-        plotDEM_Layout.addWidget( self.DEM_exageration_1_1_checkbox, 1, 2, 1, 2 ) 
-                
         self.DEM_plot_slope_checkbox = QCheckBox( self.tr( "slope (degrees)"))
-        plotDEM_Layout.addWidget( self.DEM_plot_slope_checkbox, 2, 0, 1, 1 ) 
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_checkbox, 1, 2, 1, 1 ) 
        
         self.DEM_plot_slope_filled_checkbox = QCheckBox( self.tr( "(filled)"))
-        plotDEM_Layout.addWidget( self.DEM_plot_slope_filled_checkbox, 2, 1, 1, 1 ) 
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_filled_checkbox, 1, 3, 1, 1 ) 
         
         self.CreateProfDEM_pushbutton = QPushButton(self.tr("Create profile")) 
         self.CreateProfDEM_pushbutton.clicked.connect( self.create_topo_profiles_from_DEMs )
                        
-        plotDEM_Layout.addWidget( self.CreateProfDEM_pushbutton, 2, 2, 1, 3 )
-
+        plotDEM_Layout.addWidget( self.CreateProfDEM_pushbutton, 2, 0, 1, 4 )
      
         plotDEM_QGroupBox.setLayout( plotDEM_Layout )
 
         profileDEM_Layout.addWidget( plotDEM_QGroupBox )
-         
-                 
-        ## Export section 
+
+
+        #########
         
-        exportDEM_QGroupBox = QGroupBox( profileDEM_QWidget )
-        exportDEM_QGroupBox.setTitle( 'Export')
-        
-        exportDEM_Layout = QGridLayout()         
-
-        self.Export_fromDEMData_pushbutton = QPushButton(self.tr("Export profiles as")) 
-        self.Export_fromDEMData_pushbutton.clicked.connect( self.export_from_DEM_data )
-        exportDEM_Layout.addWidget( self.Export_fromDEMData_pushbutton, 0, 0, 1, 2 )        
-
-        self.ExportfromDEM_asCSV_checkbox = QCheckBox( self.tr( "csv"))
-        exportDEM_Layout.addWidget( self.ExportfromDEM_asCSV_checkbox, 0, 2, 1, 1 )  
-
-        self.ExportfromDEM_asPtShp_checkbox = QCheckBox( self.tr( "2D point shp"))
-        exportDEM_Layout.addWidget( self.ExportfromDEM_asPtShp_checkbox, 0, 3, 1, 1 ) 
-
-        self.Export3DLine_pushbutton = QPushButton(self.tr("Export 3D line from DEM ")) 
-        self.Export3DLine_pushbutton.clicked.connect( self.write_DEM_3D_lnshp )
-        exportDEM_Layout.addWidget( self.Export3DLine_pushbutton, 1, 0, 1, 2 )
-         
-        self.DEM_3D_Export_comboBox = QComboBox()
-        exportDEM_Layout.addWidget(self.DEM_3D_Export_comboBox, 1, 2, 1, 2)   
-
-        exportDEM_QGroupBox.setLayout( exportDEM_Layout )
-        
-        profileDEM_Layout.addWidget( exportDEM_QGroupBox )
-         
-        ## 
                
         profileDEM_QWidget.setLayout( profileDEM_Layout )
                 
@@ -267,31 +282,7 @@ class qprof_QWidget( QWidget ):
         
         profileGPX_Layout.addWidget( plotGPX_QGroupBox )
         
-        ## Export Section
-
-        exportGPX_QGroupBox = QGroupBox( profileGPX_QWidget )
-        exportGPX_QGroupBox.setTitle('Export')
-        
-        exportGPX_Layout = QGridLayout()
-        
-        self.Export_fromGPXData_pushbutton = QPushButton(self.tr("Export profiles as:")) 
-        self.Export_fromGPXData_pushbutton.clicked.connect( self.export_from_GPX_data )
-        exportGPX_Layout.addWidget( self.Export_fromGPXData_pushbutton, 4, 0, 1, 3 )         
-        
-        self.ExportfromGPX_asCSV_checkbox = QCheckBox( self.tr( "csv"))
-        exportGPX_Layout.addWidget( self.ExportfromGPX_asCSV_checkbox, 5, 0, 1, 1 ) 
-        
-        self.ExportfromGPX_asPtShp_checkbox = QCheckBox( self.tr( "2D point shp"))
-        exportGPX_Layout.addWidget( self.ExportfromGPX_asPtShp_checkbox, 5, 1, 1, 1 )         
-        
-        self.ExportfromGPX_asLnShp_checkbox = QCheckBox( self.tr( "3D line shp"))
-        exportGPX_Layout.addWidget( self.ExportfromGPX_asLnShp_checkbox, 5, 2, 1, 1 )         
-           
-        exportGPX_QGroupBox.setLayout( exportGPX_Layout )
-        
-        profileGPX_Layout.addWidget( exportGPX_QGroupBox )
-         
-        ## 
+        ##### 
                
         profileGPX_QWidget.setLayout( profileGPX_Layout )                
         profile_toolbox.addItem ( profileGPX_QWidget, "Topographic profiles from GPXs" ) 
@@ -325,24 +316,26 @@ class qprof_QWidget( QWidget ):
                 
         # input point geological layer
                 
-        xs_input_point_proj_Layout.addWidget( QLabel("Layer"), 0, 0, 1, 1 )
+        xs_input_point_proj_Layout.addWidget( QLabel("Layer: "), 0, 0, 1, 1 )
         self.prj_struct_point_comboBox = QComboBox()
         self.prj_struct_point_comboBox.currentIndexChanged[int].connect( self.update_point_layers_boxes )
                
-        xs_input_point_proj_Layout.addWidget( self.prj_struct_point_comboBox, 0, 1, 1, 3 )        
+        xs_input_point_proj_Layout.addWidget( self.prj_struct_point_comboBox, 0, 1, 1, 6 )        
         self.refresh_struct_point_lyr_combobox()
+        
+        xs_input_point_proj_Layout.addWidget( QLabel("Fields:"), 1, 0, 1, 1 )
                    
-        xs_input_point_proj_Layout.addWidget( QLabel("Id field"), 1, 0, 1, 1 )
+        xs_input_point_proj_Layout.addWidget( QLabel("Id"), 1, 1, 1, 1 )
         self.proj_point_id_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget( self.proj_point_id_fld_comboBox, 1, 1, 1, 3 )
+        xs_input_point_proj_Layout.addWidget( self.proj_point_id_fld_comboBox, 1, 2, 1, 1 )
                      
-        xs_input_point_proj_Layout.addWidget( QLabel("Dip dir. field"), 2, 0, 1, 1 )
+        xs_input_point_proj_Layout.addWidget( QLabel("Dip dir."), 1, 3, 1, 1 )
         self.proj_point_dipdir_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget( self.proj_point_dipdir_fld_comboBox, 2, 1, 1, 1 ) 
+        xs_input_point_proj_Layout.addWidget( self.proj_point_dipdir_fld_comboBox, 1, 4, 1, 1 ) 
                 
-        xs_input_point_proj_Layout.addWidget( QLabel("Dip ang. field"), 2, 2, 1, 1 )
+        xs_input_point_proj_Layout.addWidget( QLabel("Dip ang. field"), 1, 5, 1, 1 )
         self.proj_point_dipang_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget( self.proj_point_dipang_fld_comboBox, 2, 3, 1, 1 )        
+        xs_input_point_proj_Layout.addWidget( self.proj_point_dipang_fld_comboBox, 1, 6, 1, 1 )        
         
         xs_input_point_proj_QGroupBox.setLayout( xs_input_point_proj_Layout )        
         xs_point_proj_Layout.addWidget( xs_input_point_proj_QGroupBox )        
@@ -351,42 +344,39 @@ class qprof_QWidget( QWidget ):
         ## interpolation method
         
         xs_method_point_proj_QGroupBox = QGroupBox( xs_point_proj_QWidget )
-        xs_method_point_proj_QGroupBox.setTitle('Projection method')
+        xs_method_point_proj_QGroupBox.setTitle('Project along')
         
         xs_method_point_proj_Layout = QGridLayout()
         
-        self.nearest_point_proj_choice = QRadioButton( "Nearest intersection")
+        self.nearest_point_proj_choice = QRadioButton( "nearest intersection")
         xs_method_point_proj_Layout.addWidget( self.nearest_point_proj_choice, 0, 0, 1, 3 )        
 
-        self.axis_common_point_proj_choice = QRadioButton( "Along axis projection - common axis")
-        xs_method_point_proj_Layout.addWidget( self.axis_common_point_proj_choice, 1, 0, 1, 3 )
-        
-        xs_method_point_proj_Layout.addWidget( QLabel("Trend"), 2, 0, 1, 1 )
+        self.axis_common_point_proj_choice = QRadioButton( "axis with trend")
+        xs_method_point_proj_Layout.addWidget( self.axis_common_point_proj_choice, 1, 0, 1, 1 )
         
         self.common_axis_point_trend_SpinBox = QDoubleSpinBox()
         self.common_axis_point_trend_SpinBox.setMinimum( 0.0 )
         self.common_axis_point_trend_SpinBox.setMaximum( 359.9 ) 
         self.common_axis_point_trend_SpinBox.setDecimals( 1 )
-        xs_method_point_proj_Layout.addWidget( self.common_axis_point_trend_SpinBox, 2, 1, 1, 1 )
+        xs_method_point_proj_Layout.addWidget( self.common_axis_point_trend_SpinBox, 1, 1, 1, 1 )
 
-        xs_method_point_proj_Layout.addWidget( QLabel("Plunge"), 2, 2, 1, 1 )
+        xs_method_point_proj_Layout.addWidget( QLabel("and plunge"), 1, 2, 1, 1 )
                 
         self.common_axis_point_plunge_SpinBox = QDoubleSpinBox()
         self.common_axis_point_plunge_SpinBox.setMinimum( 0.0 )
         self.common_axis_point_plunge_SpinBox.setMaximum( 89.9 ) 
         self.common_axis_point_plunge_SpinBox.setDecimals( 1 )
-        xs_method_point_proj_Layout.addWidget( self.common_axis_point_plunge_SpinBox, 2, 3, 1, 1 )                       
+        xs_method_point_proj_Layout.addWidget( self.common_axis_point_plunge_SpinBox, 1, 3, 1, 1 )                       
 
-        self.axis_individual_point_proj_choice = QRadioButton( "Along axis projection - individual axes")
-        xs_method_point_proj_Layout.addWidget( self.axis_individual_point_proj_choice, 3, 0, 1, 4 )
+        self.axis_individual_point_proj_choice = QRadioButton( "axes from trend field")
+        xs_method_point_proj_Layout.addWidget( self.axis_individual_point_proj_choice, 2, 0, 1, 1 )
 
-        xs_method_point_proj_Layout.addWidget( QLabel("Trend field"), 4, 0, 1, 1 )
         self.proj_point_indivax_trend_fld_comboBox = QComboBox()
-        xs_method_point_proj_Layout.addWidget( self.proj_point_indivax_trend_fld_comboBox, 4, 1, 1, 1 ) 
+        xs_method_point_proj_Layout.addWidget( self.proj_point_indivax_trend_fld_comboBox, 2, 1, 1, 1 ) 
 
-        xs_method_point_proj_Layout.addWidget( QLabel("Plunge field"), 4, 2, 1, 1 )
+        xs_method_point_proj_Layout.addWidget( QLabel("and plunge field"), 2, 2, 1, 1 )
         self.proj_point_indivax_plunge_fld_comboBox = QComboBox()
-        xs_method_point_proj_Layout.addWidget( self.proj_point_indivax_plunge_fld_comboBox, 4, 3, 1, 1 )
+        xs_method_point_proj_Layout.addWidget( self.proj_point_indivax_plunge_fld_comboBox, 2, 3, 1, 1 )
        
         xs_method_point_proj_QGroupBox.setLayout( xs_method_point_proj_Layout )        
         xs_point_proj_Layout.addWidget( xs_method_point_proj_QGroupBox )        
@@ -395,30 +385,31 @@ class qprof_QWidget( QWidget ):
         ## Plot groupbox
                 
         xs_plot_proj_QGroupBox = QGroupBox( xs_point_proj_QWidget )
-        xs_plot_proj_QGroupBox.setTitle('Plot')
+        xs_plot_proj_QGroupBox.setTitle('Plot geological attitudes')
         
-        xs_plot_proj_Layout = QGridLayout() 
+        xs_plot_proj_Layout = QGridLayout()      
+        
+        xs_plot_proj_Layout.addWidget( QLabel("Labels"), 0, 0, 1, 1 )
 
-        xs_plot_proj_Layout.addWidget( QLabel("Color"), 0, 0, 1, 1 )
+        self.plot_prj_add_trendplunge_label = QCheckBox( "dip dir/plunge")
+        xs_plot_proj_Layout.addWidget( self.plot_prj_add_trendplunge_label, 0, 1, 1, 1 )  
+        
+        self.plot_prj_add_pt_id_label = QCheckBox( "id")
+        xs_plot_proj_Layout.addWidget( self.plot_prj_add_pt_id_label, 0, 2, 1, 1 ) 
+
+        xs_plot_proj_Layout.addWidget( QLabel("Color"), 0, 3, 1, 1 )
         self.proj_point_color_comboBox = QComboBox()
         self.proj_point_color_comboBox.addItems( qprof_QWidget.colors )
-        xs_plot_proj_Layout.addWidget( self.proj_point_color_comboBox, 0, 1, 1, 1 )        
+        xs_plot_proj_Layout.addWidget( self.proj_point_color_comboBox, 0, 4, 1, 1 )  
         
-        xs_plot_proj_Layout.addWidget( QLabel("Add labels"), 1, 0, 1, 1 )
-        self.plot_prj_add_pt_id_label = QCheckBox( "Id")
-        xs_plot_proj_Layout.addWidget( self.plot_prj_add_pt_id_label, 1, 1, 1, 1 ) 
-        self.plot_prj_add_trendplunge_label = QCheckBox( "Dip dir/plunge")
-        xs_plot_proj_Layout.addWidget( self.plot_prj_add_trendplunge_label, 1, 2, 1, 1 )       
+        self.project_point_pushbutton = QPushButton(self.tr("Plot"))
+        self.project_point_pushbutton.clicked.connect( self.create_struct_point_projection )        
+        xs_plot_proj_Layout.addWidget( self.project_point_pushbutton, 1, 0, 1, 3 )
 
-        self.project_point_pushbutton = QPushButton(self.tr("Project geological attitudes"))
-        self.project_point_pushbutton.clicked.connect( self.create_struct_point_projection )
-        
-        xs_plot_proj_Layout.addWidget( self.project_point_pushbutton, 2, 0, 1, 4 )
-
-        self.reset_point_pushbutton = QPushButton(self.tr("Reset geological attitudes"))
+        self.reset_point_pushbutton = QPushButton(self.tr("Reset plot"))
         self.reset_point_pushbutton.clicked.connect( self.reset_struct_point_projection )
 
-        xs_plot_proj_Layout.addWidget( self.reset_point_pushbutton, 3, 0, 1, 4 )
+        xs_plot_proj_Layout.addWidget( self.reset_point_pushbutton, 1, 3, 1, 2 )
                                                         
         xs_plot_proj_QGroupBox.setLayout( xs_plot_proj_Layout )        
         xs_point_proj_Layout.addWidget( xs_plot_proj_QGroupBox )                
@@ -430,26 +421,9 @@ class qprof_QWidget( QWidget ):
                                           self.proj_point_indivax_plunge_fld_comboBox ]
                                      
         
-        ## output section
+        ##
         
-        xs_output_point_proj_QGroupBox = QGroupBox( xs_point_proj_QWidget )
-        xs_output_point_proj_QGroupBox.setTitle( 'Output' )
-        
-        xs_output_point_proj_Layout = QGridLayout()
-
-        self.save_proj_point_results_asCSV_checkbox = QCheckBox( self.tr( "csv"))
-        xs_output_point_proj_Layout.addWidget( self.save_proj_point_results_asCSV_checkbox, 0, 0, 1, 1 ) 
-       
-        self.save_proj_point_results_asPtShp_checkbox = QCheckBox( self.tr( "3D point shp"))
-        xs_output_point_proj_Layout.addWidget( self.save_proj_point_results_asPtShp_checkbox, 0, 1, 1, 1 )  
-                        
-        self.save_proj_point_results_pushbutton = QPushButton(self.tr("Export projected attitudes")) 
-        self.save_proj_point_results_pushbutton.clicked.connect( self.save_proj_points_results )
-        xs_output_point_proj_Layout.addWidget( self.save_proj_point_results_pushbutton, 1, 0, 1, 4 )
-
-        xs_output_point_proj_QGroupBox.setLayout(xs_output_point_proj_Layout)        
-        xs_point_proj_Layout.addWidget( xs_output_point_proj_QGroupBox ) 
-        
+                
         xs_point_proj_QWidget.setLayout( xs_point_proj_Layout )                
         project_toolbox.addItem ( xs_point_proj_QWidget, "Geological attitudes" ) 
                 
@@ -471,11 +445,9 @@ class qprof_QWidget( QWidget ):
                 
         xs_input_line_proj_Layout.addWidget( QLabel("Layer"), 0, 0, 1, 1 )
         self.prj_input_line_comboBox = QComboBox()
-        self.prj_input_line_comboBox.currentIndexChanged[int].connect( self.update_line_layers_boxes )
                
         xs_input_line_proj_Layout.addWidget( self.prj_input_line_comboBox, 0, 1, 1, 3 )        
-        self.refresh_struct_line_lyr_combobox()
-                   
+                           
         xs_input_line_proj_Layout.addWidget( QLabel("Id field"), 1, 0, 1, 1 )
         self.id_fld_line_prj_comboBox = QComboBox()
         xs_input_line_proj_Layout.addWidget( self.id_fld_line_prj_comboBox, 1, 1, 1, 3 )
@@ -483,6 +455,8 @@ class qprof_QWidget( QWidget ):
         xs_input_line_proj_Layout.addWidget( QLabel( "Line densify distance" ), 2, 0, 1, 1 )         
         self.project_line_densify_distance_lineedit = QLineEdit()
         xs_input_line_proj_Layout.addWidget( self.project_line_densify_distance_lineedit, 2, 1, 1, 3 )
+        
+        self.flds_prj_line_comboBoxes = [ self.id_fld_line_prj_comboBox ]
 
         xs_input_line_proj_QGroupBox.setLayout( xs_input_line_proj_Layout )        
         xs_line_proj_Layout.addWidget( xs_input_line_proj_QGroupBox )       
@@ -494,61 +468,39 @@ class qprof_QWidget( QWidget ):
         
         xs_method_line_proj_Layout = QGridLayout()
 
-        xs_method_line_proj_Layout.addWidget( QLabel("Projection axis"), 0, 0, 1, 4 )
+        xs_method_line_proj_Layout.addWidget( QLabel("Projection axis:"), 0, 0, 1, 1 )
                 
-        xs_method_line_proj_Layout.addWidget( QLabel("Trend"), 1, 0, 1, 1 )
+        xs_method_line_proj_Layout.addWidget( QLabel("trend"), 0, 1, 1, 1 )
         
         self.common_axis_line_trend_SpinBox = QDoubleSpinBox()
         self.common_axis_line_trend_SpinBox.setMinimum( 0.0 )
         self.common_axis_line_trend_SpinBox.setMaximum( 359.9 ) 
         self.common_axis_line_trend_SpinBox.setDecimals( 1 )
-        xs_method_line_proj_Layout.addWidget( self.common_axis_line_trend_SpinBox, 1, 1, 1, 1 )
+        xs_method_line_proj_Layout.addWidget( self.common_axis_line_trend_SpinBox, 0, 2, 1, 1 )
 
-        xs_method_line_proj_Layout.addWidget( QLabel("Plunge"), 1, 2, 1, 1 )
+        xs_method_line_proj_Layout.addWidget( QLabel("plunge"), 0, 3, 1, 1 )
                 
         self.common_axis_line_plunge_SpinBox = QDoubleSpinBox()
         self.common_axis_line_plunge_SpinBox.setMinimum( 0.0 )
         self.common_axis_line_plunge_SpinBox.setMaximum( 89.9 ) 
         self.common_axis_line_plunge_SpinBox.setDecimals( 1 )
-        xs_method_line_proj_Layout.addWidget( self.common_axis_line_plunge_SpinBox, 1, 3, 1, 1 )                       
+        xs_method_line_proj_Layout.addWidget( self.common_axis_line_plunge_SpinBox, 0, 4, 1, 1 )                       
 
         # calculate profile
-
-        xs_method_line_proj_Layout.addWidget( QLabel("Color"), 2, 0, 1, 1 )
-         
-        self.project_line_color_comboBox = QComboBox()
-        self.project_line_color_comboBox.addItems( qprof_QWidget.colors )
-        xs_method_line_proj_Layout.addWidget( self.project_line_color_comboBox, 2, 1, 1, 3 )
                          
         self.project_line_pushbutton = QPushButton(self.tr("Plot traces"))
-        self.project_line_pushbutton.clicked.connect( self.create_struct_line_projection )
-        
-        xs_method_line_proj_Layout.addWidget( self.project_line_pushbutton, 3, 0, 1, 4 )
+        self.project_line_pushbutton.clicked.connect( self.create_struct_line_projection )        
+        xs_method_line_proj_Layout.addWidget( self.project_line_pushbutton, 1, 0, 1, 5 )
 
         self.reset_curves_pushbutton = QPushButton(self.tr("Reset traces"))
         self.reset_curves_pushbutton.clicked.connect( self.reset_structural_lines_projection )
 
-        xs_method_line_proj_Layout.addWidget( self.reset_curves_pushbutton, 4, 0, 1, 4 )
+        xs_method_line_proj_Layout.addWidget( self.reset_curves_pushbutton, 2, 0, 1, 5 )
                                                 
         xs_method_line_proj_QGroupBox.setLayout( xs_method_line_proj_Layout )        
         xs_line_proj_Layout.addWidget( xs_method_line_proj_QGroupBox )                
 
-        self.flds_prj_line_comboBoxes = [ self.id_fld_line_prj_comboBox ]                                     
-
-        ## output section
-        
-        xs_output_line_proj_QGroupBox = QGroupBox( xs_line_proj_QWidget )
-        xs_output_line_proj_QGroupBox.setTitle( 'Output' )
-        
-        xs_output_line_proj_Layout = QGridLayout()
-              
-        self.save_proj_line_results_pushbutton = QPushButton(self.tr("Export projected lines as csv")) 
-        self.save_proj_line_results_pushbutton.clicked.connect( self.save_proj_lines_results )
-        xs_output_line_proj_Layout.addWidget( self.save_proj_line_results_pushbutton, 1, 0, 1, 4 )
-
-        xs_output_line_proj_QGroupBox.setLayout(xs_output_line_proj_Layout)        
-        xs_line_proj_Layout.addWidget( xs_output_line_proj_QGroupBox ) 
-                
+                        
         ## 
         
         xs_line_proj_QWidget.setLayout( xs_line_proj_Layout )                
@@ -559,12 +511,623 @@ class qprof_QWidget( QWidget ):
         # widget final setup
                 
         section_project_layout.addWidget( project_toolbox ) 
-        # section_project_layout.addWidget( xs_line_proj_toolbox )     
+           
         section_project_QWidget.setLayout( section_project_layout )
         
         return section_project_QWidget
 
 
+    def setup_intersect_section_tab(self):
+        
+        intersect_widget = QWidget()  
+        intersect_layout = QVBoxLayout( )  
+
+        intersect_toolbox = QToolBox()
+        
+        ### Line intersection section
+        
+        line_intersect_QWidget = QWidget()
+        line_intersect_Layout = QVBoxLayout()         
+
+        ## input section
+        
+        inters_line_input_QGroupBox = QGroupBox( line_intersect_QWidget )
+        inters_line_input_QGroupBox.setTitle('Input')
+         
+        inters_line_input_Layout = QGridLayout()
+
+                
+        # input traces layer
+      
+        inters_line_input_Layout.addWidget( QLabel("Line layer"), 0, 0, 1, 1 )
+
+        self.inters_input_line_comboBox = QComboBox()
+                       
+        inters_line_input_Layout.addWidget( self.inters_input_line_comboBox, 0, 1, 1, 3 )        
+        self.refresh_struct_line_lyr_combobox()
+                   
+        inters_line_input_Layout.addWidget( QLabel("Id field"), 1, 0, 1, 1 )
+        self.inters_input_id_fld_line_comboBox = QComboBox()
+        inters_line_input_Layout.addWidget( self.inters_input_id_fld_line_comboBox, 1, 1, 1, 3 )
+        
+        self.flds_inters_line_comboBoxes = [ self.inters_input_id_fld_line_comboBox ]
+        
+        inters_line_input_QGroupBox.setLayout( inters_line_input_Layout )        
+        line_intersect_Layout.addWidget( inters_line_input_QGroupBox )  
+
+        ## do section
+        
+        inters_line_do_QGroupBox = QGroupBox( line_intersect_QWidget )
+        inters_line_do_QGroupBox.setTitle('Intersect')
+         
+        inters_line_do_Layout = QGridLayout()
+        
+        self.inters_line_do_pushbutton = QPushButton(self.tr("Intersect")) 
+        self.inters_line_do_pushbutton.clicked.connect( self.do_line_intersection )
+        inters_line_do_Layout.addWidget( self.inters_line_do_pushbutton, 1, 0, 1, 4 )
+
+        self.line_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections")) 
+        self.line_inters_reset_pushbutton.clicked.connect( self.line_intersection_reset )
+        inters_line_do_Layout.addWidget( self.line_inters_reset_pushbutton, 2, 0, 1, 4 )
+        
+
+        inters_line_do_QGroupBox.setLayout( inters_line_do_Layout )        
+        line_intersect_Layout.addWidget( inters_line_do_QGroupBox )  
+                
+        # END do section
+        
+        line_intersect_QWidget.setLayout( line_intersect_Layout )                
+        intersect_toolbox.addItem ( line_intersect_QWidget, "Intersect line layer" ) 
+                       
+        # END Line intersection section
+ 
+        ### Polygon intersection section
+        
+        polygon_intersect_QWidget = QWidget()
+        polygon_intersect_Layout = QVBoxLayout()         
+
+
+        ## input section
+        
+        inters_polygon_input_QGroupBox = QGroupBox( polygon_intersect_QWidget )
+        inters_polygon_input_QGroupBox.setTitle('Input')
+         
+        inters_polygon_input_Layout = QGridLayout()
+
+                
+        # input traces layer
+      
+        inters_polygon_input_Layout.addWidget( QLabel("Polygon layer"), 0, 0, 1, 1 )
+
+        self.inters_input_polygon_comboBox = QComboBox()
+                       
+        inters_polygon_input_Layout.addWidget( self.inters_input_polygon_comboBox, 0, 1, 1, 3 )        
+        self.refresh_struct_polygon_lyr_combobox()
+                   
+        inters_polygon_input_Layout.addWidget( QLabel("Classification field"), 1, 0, 1, 1 )
+        self.inters_polygon_classifaction_field_comboBox = QComboBox()
+        inters_polygon_input_Layout.addWidget( self.inters_polygon_classifaction_field_comboBox, 1, 1, 1, 3 )
+        
+        self.flds_inters_polygon_comboBoxes = [ self.inters_polygon_classifaction_field_comboBox ]
+        
+        inters_polygon_input_QGroupBox.setLayout( inters_polygon_input_Layout )        
+        polygon_intersect_Layout.addWidget( inters_polygon_input_QGroupBox )  
+
+        ## do section
+        
+        inters_polygon_do_QGroupBox = QGroupBox( polygon_intersect_QWidget )
+        inters_polygon_do_QGroupBox.setTitle('Intersect')
+         
+        inters_polygon_do_Layout = QGridLayout()
+        
+        self.inters_polygon_do_pushbutton = QPushButton(self.tr("Intersect")) 
+        self.inters_polygon_do_pushbutton.clicked.connect( self.do_polygon_intersection )
+        inters_polygon_do_Layout.addWidget( self.inters_polygon_do_pushbutton, 1, 0, 1, 4 )
+
+        self.polygon_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections")) 
+        self.polygon_inters_reset_pushbutton.clicked.connect( self.polygon_intersection_reset )
+        inters_polygon_do_Layout.addWidget( self.polygon_inters_reset_pushbutton, 2, 0, 1, 4 )
+        
+
+        inters_polygon_do_QGroupBox.setLayout( inters_polygon_do_Layout )        
+        polygon_intersect_Layout.addWidget( inters_polygon_do_QGroupBox )  
+                
+        # END do section
+
+        polygon_intersect_QWidget.setLayout( polygon_intersect_Layout )                
+        intersect_toolbox.addItem ( polygon_intersect_QWidget, "Intersect polygon layer" ) 
+
+        # END Polygon intersection section
+        
+               
+        
+        intersect_layout.addWidget( intersect_toolbox ) 
+        
+        intersect_widget.setLayout(intersect_layout) 
+        
+        return intersect_widget       
+
+
+    def setup_importexport_section_tab(self):
+                
+                     
+        impexp_widget = QWidget()  
+        impexp_layout = QVBoxLayout()  
+
+
+        # Export section        
+
+        export_QGroupBox = QGroupBox( impexp_widget )
+        export_QGroupBox.setTitle('Export')
+         
+        export_inner_Layout = QVBoxLayout()
+        
+        self.export_topographic_profile_QPushButton = QPushButton("Topographic profile")
+        export_inner_Layout.addWidget(self.export_topographic_profile_QPushButton )  
+        self.export_topographic_profile_QPushButton.clicked.connect( self.do_export_topo_profiles )      
+        
+        self.export_project_geol_attitudes_QPushButton = QPushButton("Projected geological attitudes")
+        export_inner_Layout.addWidget(self.export_project_geol_attitudes_QPushButton )  
+        self.export_project_geol_attitudes_QPushButton.clicked.connect( self.do_export_project_geol_attitudes ) 
+                
+        self.export_project_geol_lines__QPushButton = QPushButton("Projected geological lines")
+        export_inner_Layout.addWidget(self.export_project_geol_lines__QPushButton )  
+        self.export_project_geol_lines__QPushButton.clicked.connect( self.do_export_project_geol_lines ) 
+                
+        self.export_line_intersections_QPushButton = QPushButton("Line intersections")
+        export_inner_Layout.addWidget(self.export_line_intersections_QPushButton )  
+        self.export_line_intersections_QPushButton.clicked.connect( self.do_export_line_intersections ) 
+                
+        self.export_polygon_intersections_QPushButton = QPushButton("Polygon intersections")
+        export_inner_Layout.addWidget(self.export_polygon_intersections_QPushButton )  
+        self.export_polygon_intersections_QPushButton.clicked.connect( self.do_export_polygon_intersections )         
+                
+        export_QGroupBox.setLayout( export_inner_Layout )        
+        impexp_layout.addWidget( export_QGroupBox )        
+
+       
+        impexp_widget.setLayout(impexp_layout) 
+        
+        return impexp_widget      
+    
+
+    def do_export_topo_profiles(self):
+        
+        def get_source_type():
+            
+            if dialog.src_allselecteddems_QRadioButton.isChecked():
+                return ["all_dems"]
+            elif dialog.src_singledem_QRadioButton.isChecked():
+                return ["single_dem",  dialog.src_singledemlist_QComboBox.currentIndex() ]
+            elif dialog.src_singlegpx_QRadioButton.isChecked():
+                return [ "gpx_file" ]
+            else:                
+                return []
+            
+        def get_format_type():
+            
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                return "shapefile - point"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""           
+            
+        if not (self.profile_GPX or self.profiles):
+            self.warn("No profile defined")
+            return          
+        
+        dialog = TopographicProfileExportDialog( self.selected_dems )
+
+        if dialog.exec_():
+            
+            output_source = get_source_type()
+            if output_source == []:
+                self.warn( "Error in output source" )
+                return
+            
+            output_format = get_format_type()
+            if output_format == "":
+                self.warn( "Error in output format" )
+                return
+            
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len( output_filepath ) == 0:
+                self.warn( "Error in output path" )
+                return                         
+                    
+        else:
+            
+            self.warn( "No export defined" )
+            return
+        
+        
+        self.output_topography( output_source, output_format, output_filepath )
+
+
+    def output_topography( self, output_source, output_format, output_filepath ):
+                
+        if output_source[0] == "all_dems":        
+            self.topography_export_all_dems( output_format, output_filepath )
+        elif output_source[0] == "single_dem": 
+            ndx_dem_to_export = output_source[1]
+            self.topography_export_single_dem( output_format, ndx_dem_to_export, output_filepath ) 
+        elif output_source[0] == "gpx_file":
+            self.topography_export_gpx_data( output_format, output_filepath )
+        else:
+            self.warn( "Internal error: output choice not correctly defined")
+            return
+
+
+    def do_export_project_geol_attitudes(self):
+
+            
+        def get_format_type():
+            
+            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                return "shapefile - point"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""           
+
+        try:
+            num_plane_attitudes_sets = len( self.profiles.plane_attitudes )
+        except:
+            self.warn( "No available geological attitudes" )
+            return
+        else:
+            if num_plane_attitudes_sets == 0:
+                self.warn("No available geological attitudes"  )
+                return        
+        
+        dialog = PointDataExportDialog( )
+
+        if dialog.exec_():
+            
+            output_format = get_format_type()
+            if output_format == "":
+                self.warn( "Error in output format" )
+                return
+            
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len( output_filepath ) == 0:
+                self.warn( "Error in output path" )
+                return                         
+                    
+        else:
+            
+            self.warn( "No export defined" )
+            return
+        
+        
+        self.output_geological_attitudes( output_format, output_filepath )
+
+
+    def output_geological_attitudes(self, output_format, output_filepath ):
+
+
+        # definition of field names
+        header_list = ['id',
+                       'or_strpt_x',
+                       'or_strpt_y',
+                       'or_strpt_z',
+                       'prj_strpt_x',
+                       'prj_strpt_y',
+                       'prj_strpt_z',
+                       's',
+                       'or_dipdir',
+                       'or_dipangle',
+                       'trc_dipangle',
+                       'trc_dipdir']
+
+        parsed_geologicalattitudes_results = self.parse_geologicalattitudes_results_for_export( self.profiles.plane_attitudes )
+
+        # output for csv file
+        if output_format == "csv":
+            self.write_generic_csv( output_filepath, header_list, parsed_geologicalattitudes_results )
+        elif output_format == "shapefile - point":
+            self.write_geological_attitudes_ptshp( output_filepath, header_list, parsed_geologicalattitudes_results )
+        else:
+            self.warn( "Internal error in export format")
+            return
+        
+        self.info( "Projected attitudes saved" )
+    
+    
+    def do_export_project_geol_lines(self):
+        
+        try:
+            num_proj_lines_sets = len( self.profiles.curves )
+        except:
+            self.warn( "No available geological traces" )
+            return 
+        else:
+            if num_proj_lines_sets == 0:
+                self.warn("No available geological traces to save" )
+                return 
+
+        fileName = QFileDialog.getSaveFileName(self, 
+                                               self.tr("Save results"),
+                                                "*.csv",
+                                                self.tr("csv (*.csv)"))
+
+        if fileName is None or fileName == '':
+            self.warn( "No output file has been defined" )
+            return  
+            
+        parsed_curves_for_export = self.parse_geologicalcurves_for_export()
+        header_list = ['id', 's', 'z']
+        
+        self.write_generic_csv( fileName, header_list, parsed_curves_for_export )
+        
+        self.info( "Projected lines saved" )        
+          
+    
+    
+    def do_export_line_intersections(self):
+   
+            
+        def get_format_type():
+            
+            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                return "shapefile - point"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""           
+
+        try:
+            num_intersection_pts = len( self.profiles.intersection_pts )
+        except:
+            self.warn( "No available profile-line intersections" )
+            return
+        else:
+            if num_intersection_pts == 0:
+                self.warn("No available profile-line intersections"  )
+                return        
+        
+        dialog = PointDataExportDialog( )
+
+        if dialog.exec_():
+            
+            output_format = get_format_type()
+            if output_format == "":
+                self.warn( "Error in output format" )
+                return
+            
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len( output_filepath ) == 0:
+                self.warn( "Error in output path" )
+                return                         
+                    
+        else:
+            
+            self.warn( "No export defined" )
+            return
+        
+        self.output_profile_lines_intersections( output_format, output_filepath )
+
+
+    def output_profile_lines_intersections(self, output_format, output_filepath ):
+
+
+        # definition of field names
+        header_list = ['id',
+                       's',
+                       'x',
+                       'y',
+                       'z']
+
+        parsed_profilelineintersections = self.parse_profilelineintersections_for_export( self.profiles.intersection_pts )
+
+        # output for csv file
+        if output_format == "csv":
+            self.write_generic_csv( output_filepath, header_list, parsed_profilelineintersections )
+        elif output_format == "shapefile - point":
+            self.write_intersection_line_ptshp( output_filepath, header_list, parsed_profilelineintersections )
+        else:
+            self.warn( "Internal error in export format")
+            return
+        
+        self.info( "Profile-lines intersections saved" )
+
+
+               
+    def write_intersection_line_ptshp( self, fileName, header_list, intersline_results ):
+
+
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn( "%s driver is not available" % shape_driver_name )
+            return
+
+        try:
+            shp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            shp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+            return
+
+        ptshp_layer = shp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint25D )
+        if ptshp_layer is None:
+            self.warn( "Output layer creation failed" )
+            return
+
+        # creates required fields
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTString ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[1], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[2], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[3], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[4], ogr.OFTReal ) )
+
+        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
+
+        # loops through output records
+        for rec_id, s, x, y, z in intersline_results:
+
+            pt_feature = ogr.Feature( ptshp_featureDefn )
+
+            pt = ogr.Geometry( ogr.wkbPoint25D )
+            pt.SetPoint( 0, x, y, z )
+            pt_feature.SetGeometry( pt )
+
+            pt_feature.SetField( header_list[0], str( rec_id ) )
+            pt_feature.SetField( header_list[1], s )
+            pt_feature.SetField( header_list[2], x )
+            pt_feature.SetField( header_list[3], y )
+            pt_feature.SetField( header_list[4], z )
+            
+            ptshp_layer.CreateFeature( pt_feature )
+
+            pt_feature.Destroy()
+
+        shp_datasource.Destroy()
+
+
+    def parse_profilelineintersections_for_export( self, profile_intersection_pts ):
+
+        result_data = []  
+              
+        for distances_from_profile_start, intersection_point3d, intersection_id in profile_intersection_pts: 
+
+            result_data.append( [intersection_id, distances_from_profile_start, intersection_point3d._x, intersection_point3d._y, intersection_point3d._z] )
+         
+        return result_data
+
+   
+    def do_export_polygon_intersections(self):  
+            
+        def get_format_type():
+            
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""           
+
+        try:
+            num_intersection_lines = len( self.profiles.intersection_lines )
+        except:
+            self.warn( "No available profile-polygon intersections" )
+            return
+        else:
+            if num_intersection_lines == 0:
+                self.warn("No available profile-polygon intersections"  )
+                return        
+        
+        dialog = LineDataExportDialog( )
+
+        if dialog.exec_():
+            
+            output_format = get_format_type()
+            if output_format == "":
+                self.warn( "Error in output format" )
+                return
+            
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len( output_filepath ) == 0:
+                self.warn( "Error in output path" )
+                return                         
+                    
+        else:
+            
+            self.warn( "No export defined" )
+            return
+        
+        
+        self.output_profile_polygons_intersections( output_format, output_filepath )
+
+
+    def output_profile_polygons_intersections(self, output_format, output_filepath ):
+
+        # definition of field names
+        header_list = ['class_fld',
+                       's',
+                       'x',
+                       'y',
+                       'z']
+
+        # output for csv file
+        if output_format == "csv":
+            self.write_line_csv( output_filepath, header_list, self.profiles.intersection_lines )
+        elif output_format == "shapefile - line":
+            self.write_intersection_polygon_lnshp( output_filepath, header_list, self.profiles.intersection_lines )
+        else:
+            self.warn( "Internal error in export format")
+            return
+        
+        self.info( "Profile-polygon intersections saved" )
+
+
+               
+    def write_intersection_polygon_lnshp( self, fileName, header_list, intersline_results ):
+
+
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn( "%s driver is not available" % shape_driver_name )
+            return
+
+        try:
+            shp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            shp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+            return
+
+        lnshp_layer = shp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbLineString25D )
+        if lnshp_layer is None:
+            self.warn( "Output layer creation failed" )
+            return
+
+        # creates required fields
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTString ) )
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[1], ogr.OFTReal ) )
+
+        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
+
+        # loops through output records
+        
+        for classification, line3d, s_list in intersline_results:
+            
+            assert len(line3d._pts) == len(s_list)
+            
+            # loops through output records   
+                              
+            for ndx in range( len( line3d._pts ) - 1 ):
+                
+                rec_a = line3d._pts[ndx]
+                rec_b = line3d._pts[ndx+1]
+                  
+                x0, y0, z0 = rec_a._x, rec_a._y, rec_a._z
+                x1, y1, z1 = rec_b._x, rec_b._y, rec_b._z
+                s = s_list[ndx+1]
+    
+                ln_feature = ogr.Feature( lnshp_featureDefn )            
+                segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (x0, y0, z0, x1, y1, z1))       
+                ln_feature.SetGeometry( segment_3d ) 
+    
+                ln_feature.SetField( header_list[0], str( classification ) )
+                ln_feature.SetField( header_list[1], s )
+                
+                lnshp_layer.CreateFeature( ln_feature )
+    
+                ln_feature.Destroy()
+
+        shp_datasource.Destroy()
+
+    
+           
     def setup_about_tab(self):
         
         about_widget = QWidget()  
@@ -577,7 +1140,7 @@ class qprof_QWidget( QWidget ):
         <br />We thank S. Peduzzi for his vigorous testing.
         <br />Plugin for creating profiles from DEM and GPX files, and as an aid in creating geological cross-sections.       
         <br />
-        <h4>Profile</h4>
+        <h4>Topography</h4>
         It is possible to create a topographic profile from one or more DEMs and a line digitized or stored in a layer, or directly 
         from a GPX file storing track points. Data sources can be projected in different CRS,
         and the created profiles will be in the project CRS.
@@ -594,7 +1157,7 @@ class qprof_QWidget( QWidget ):
         <br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees),
         and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
         <br />
-        <h4>Project</h4>
+        <h4>Projections</h4>
         Having defined and calculated a profile as previously described,
         it is also possible to project geological attitudes or traces on the section.
          <br /> <br /><u>Projection of geological attitudes</u>
@@ -612,11 +1175,25 @@ class qprof_QWidget( QWidget ):
         <br /> <br /><u>Projection of trace lines</u>
         <br /><br />Geological traces can be projected on the section plane, based on a fold axis for which 
         trend and plunge values have to be defined.
-        
-        
-        
 
         <br />
+        <h4>Intersections</h4>
+        It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>") 
+        or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
+        An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
+        
+        <br />
+        <h4>Export</h4>         
+        Results can be exported ad shapefiles or csv files. Depending on the data type,
+        the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for 
+        the QGis project.
+        <br />
+        <br />
+        <br />
+        
+        
+        
+        
         """
         
         aboutQTextBrowser = QTextBrowser( about_widget )        
@@ -637,22 +1214,38 @@ class qprof_QWidget( QWidget ):
         self.prj_struct_point_comboBox.addItems( [ layer.name() for layer in self.pointLayers ] )              
 
 
+    def update_ComboBox( self, combobox, layer_list ):
+    
+        combobox.clear()
+        if len( layer_list ) == 0:
+            return
+        combobox.addItem( "choose" )
+        combobox.addItems( [ layer.name() for layer in layer_list ] ) 
+            
+
+    def refresh_struct_polygon_lyr_combobox( self ):
+        
+        self.current_polygon_layers = loaded_polygon_layers()    
+        #self.update_ComboBox( self.prj_input_polygon_comboBox, self.current_polygon_layers )
+        self.update_ComboBox( self.inters_input_polygon_comboBox, self.current_polygon_layers )
+        
+        
     def refresh_struct_line_lyr_combobox( self ):
         
-        self.current_line_layers = loaded_line_layers()
-        self.prj_input_line_comboBox.clear()        
-        message = "choose"
-        self.prj_input_line_comboBox.addItem( message )
-        self.prj_input_line_comboBox.addItems( [ layer.name() for layer in self.current_line_layers ] )              
-   
-
+        self.current_line_layers = loaded_line_layers()    
+        self.update_ComboBox( self.prj_input_line_comboBox, self.current_line_layers )
+        self.update_ComboBox( self.inters_input_line_comboBox, self.current_line_layers )
+ 
+ 
     def define_source_DEMs(self):  
+        
+        self.selected_dems = []
+        self.selected_dem_colors = []
+        self.selected_dem_parameters = []
         
         current_raster_layers = loaded_monoband_raster_layers()  
         if len( current_raster_layers ) == 0:
-            QMessageBox.critical( self, 
-                                      "DEMs sources", 
-                                      "No available DEM" )
+            self.warn( "No loaded DEM" )
             return            
 
         dialog = SourceDEMsDialog( current_raster_layers )
@@ -660,19 +1253,33 @@ class qprof_QWidget( QWidget ):
         if dialog.exec_():
             selected_dems, selected_dem_colors = self.get_selected_dems_params( dialog )
         else:
-            QMessageBox.critical( self, 
-                                      "DEMs", 
-                                      "No DEM chosen" )
+            self.warn( "No DEM chosen" )
             return
             
-        if  len( selected_dems ) == 0:       
-            QMessageBox.critical( self, 
-                                      "DEMs sources", 
-                                      "No selected DEM" )
+        if  len( selected_dems ) == 0: 
+            self.warn( "No selected DEM" )
+            return      
         else:
             self.selected_dems = selected_dems
             self.selected_dem_colors = selected_dem_colors 
-  
+ 
+        # get project CRS information
+        on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
+                
+        # get geodata
+        self.selected_dem_parameters = [ self.get_dem_parameters(dem) for dem in selected_dems ] 
+        
+        # get DEMs resolutions in project CRS and choose the min value
+        dem_resolutions_prj_crs_list = []        
+        for dem, dem_params in zip( self.selected_dems, self.selected_dem_parameters ):
+            dem_resolutions_prj_crs_list.append( self.get_dem_resolution_in_prj_crs( dem, dem_params, on_the_fly_projection, project_crs ) )
+        min_dem_resolution = min( dem_resolutions_prj_crs_list )
+        if min_dem_resolution > 10:
+            min_dem_proposed_resolution = round( min_dem_resolution )
+        else:
+            min_dem_proposed_resolution = min_dem_resolution
+        self.profile_densify_distance_lineedit.setText( str( min_dem_proposed_resolution ) )
+         
         
     def get_selected_dems_params( self, dialog ):   
 
@@ -691,8 +1298,10 @@ class qprof_QWidget( QWidget ):
         
         if self.DigitizeLine_checkbox.isChecked():
             self.digitize_line()
-        else:
+        elif self.LoadLineLayer_checkbox.isChecked():
             self.load_line_layer()
+        elif self.PointListforLine_checkbox.isChecked():
+            self.load_point_list()
         
         
     def get_line_layer_params( self, dialog ):
@@ -702,15 +1311,31 @@ class qprof_QWidget( QWidget ):
         
         return line_layer, order_field_ndx
         
-   
-    def digitize_line( self ):
+
+    def get_point_list(self, dialog):
         
+        raw_point_string = dialog.point_list_qtextedit.toPlainText()
+        raw_point_list = raw_point_string.split("\n")
+        raw_point_list = map( lambda unicode_txt: clean_string( str(unicode_txt) ), raw_point_list ) 
+        data_list = filter( lambda rp: rp != "", raw_point_list)       
+        
+        #try:
+        point_list = [ to_float( xy_pair.split(",") ) for xy_pair in data_list ]
+        line2d = xytuple_list_to_Line2D(point_list)
+        assert line2d.num_points() >= 2
+        return line2d
+        
+           
+    def digitize_line( self ):
+
+        self.info( "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+
         try:
             self.rubberband.reset( QGis.Line )
         except:
             pass
 
-        self.previous_maptool = self.mapcanvas.mapTool( )            # Save the standard map tool for restoring it at the end
+        self.previous_maptool = self.mapcanvas.mapTool()            # Save the standard map tool for restoring it at the end
         self.digitize_maptool = MapDigitizeTool( self.mapcanvas )        #  mouse listener
         self.mapcanvas.setMapTool( self.digitize_maptool )
         self.connect_digitize_maptool()
@@ -735,7 +1360,7 @@ class qprof_QWidget( QWidget ):
         QObject.disconnect( self.digitize_maptool, SIGNAL( "moved"), self.canvas_refresh_profile_line )        
         QObject.disconnect( self.digitize_maptool, SIGNAL( "leftClicked"), self.canvas_add_point_to_profile  )
         QObject.disconnect( self.digitize_maptool, SIGNAL( "rightClicked"), self.canvas_end_profile_line )
-         
+
 
     def xy_from_canvas( self, position ):
         
@@ -777,7 +1402,7 @@ class qprof_QWidget( QWidget ):
         
         self.refresh_rubberband( self.profile_canvas_points )
 
-        self.profile_line = Line_2D( [ Point_2D(x,y) for x,y in self.profile_canvas_points ] )
+        self.profile_line2d_prjcrs_undensif = Line2D( [ Point2D(x,y) for x,y in self.profile_canvas_points ] )
         #self.profile_points_from_canvas = self.profile_canvas_points
         self.profile_canvas_points = []
        
@@ -804,9 +1429,7 @@ class qprof_QWidget( QWidget ):
         current_line_layers = loaded_line_layers()   
 
         if len( current_line_layers ) == 0:
-            QMessageBox.critical( self, 
-                                      "Line sources", 
-                                      "No available layers" )
+            self.warn( "No available line layers" )
             return            
 
         dialog = SourceLineLayerDialog( current_line_layers )
@@ -814,9 +1437,7 @@ class qprof_QWidget( QWidget ):
         if dialog.exec_():
             line_layer, order_field_ndx = self.get_line_layer_params( dialog )
         else:
-            QMessageBox.critical( self, 
-                                      "Line source", 
-                                      "No choice made" )
+            self.warn( "No defined line source" )
             return
 
         line_fld_ndx = int( order_field_ndx ) - 1
@@ -834,9 +1455,22 @@ class qprof_QWidget( QWidget ):
         # process input line layer
         profile_projected_line_2d = self.create_projected_line( profile_processed_line_2d, line_layer.crs(), on_the_fly_projection, project_crs )
         
-        self.profile_line = profile_projected_line_2d.remove_coincident_successive_points()
+        self.profile_line2d_prjcrs_undensif = profile_projected_line_2d.remove_coincident_successive_points()
         
-           
+
+    def load_point_list(self):
+        
+        dialog = LoadPointListDialog( )
+
+        if dialog.exec_():
+            line2d = self.get_point_list( dialog )
+        else:
+            self.warn( "No defined line source" )
+            return
+
+        self.profile_line2d_prjcrs_undensif = line2d
+        
+                   
     def get_on_the_fly_projection(self):
         
         on_the_fly_projection = True if self.mapcanvas.hasCrsTransformEnabled() else False
@@ -938,7 +1572,7 @@ class qprof_QWidget( QWidget ):
 
         try:
             profile_orig_lines, mergeorder_ids = line_geoms_with_id( line_shape, order_field_ndx )
-        except Vector_Input_Errors as error_msg:
+        except VectorInputException as error_msg:
             return False, error_msg
         return True, ( profile_orig_lines, mergeorder_ids )        
         
@@ -951,18 +1585,18 @@ class qprof_QWidget( QWidget ):
             return project_line_2d( profile_processed_line, line_layer_crs, project_crs )            
 
 
-    def get_DEM_3Dlines( self, dems, dems_params, resampled_line_2d, on_the_fly_projection, project_crs ):
+    def get_DEM_3Dlines( self, resampled_line_2d, on_the_fly_projection, project_crs ):
     
         dem_3Dlines = []
-        for dem, dem_params in zip( dems, dems_params ):
+        for dem, dem_params in zip( self.selected_dems, self.selected_dem_parameters ):
             if on_the_fly_projection and dem.crs() != project_crs:
                 line_with_dem_crs = project_line_2d( resampled_line_2d, project_crs, dem.crs() ) 
             else:
                 line_with_dem_crs = resampled_line_2d
                 
-            profile_3d = Line_3D()
+            profile_3d = Line3D()
             for pt_dem_crs, pt_project_crs in zip(line_with_dem_crs._pts, resampled_line_2d._pts):
-                profile_3d = profile_3d.add_pt( Point_3D( pt_project_crs._x, 
+                profile_3d = profile_3d.add_pt( Point3D( pt_project_crs._x, 
                                                          pt_project_crs._y, 
                                                          self.interpolate_point_z( dem, dem_params, pt_dem_crs ) ) )
             dem_3Dlines.append( profile_3d )
@@ -988,79 +1622,108 @@ class qprof_QWidget( QWidget ):
             return False, "Neither height or slope options are selected"
 
         return True, ''
-    
+   
+   
+    def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs ):   
+        
+        def distance_projected_pts( x, y, delta_x, delta_y, src_crs, dest_crs ):
+            
+            qgspt_start_src_crs = qgs_point_2d( x, y )
+            qgspt_end_src_crs = qgs_point_2d( x + delta_x, y + delta_y ) 
+            
+            qgspt_start_dest_crs = project_qgs_point( qgspt_start_src_crs, src_crs, dest_crs )
+            qgspt_end_dest_crs = project_qgs_point( qgspt_end_src_crs, src_crs, dest_crs )  
+            
+            pt2_start_dest_crs = Point2D( qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y() )
+            pt2d_end_dest_crs = Point2D( qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y() )        
+        
+            return pt2_start_dest_crs.distance( pt2d_end_dest_crs )               
+                   
+        cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
+        xMin, yMin = dem_params.xMin, dem_params.yMin
+        
+        if on_the_fly_projection and dem.crs() != prj_crs :            
+            cellsizeEW_prj_crs = distance_projected_pts( xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs )
+            cellsizeNS_prj_crs = distance_projected_pts( xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs )                        
+        else:            
+            cellsizeEW_prj_crs = cellsizeEW
+            cellsizeNS_prj_crs = cellsizeNS
+            
+        return 0.5 * ( cellsizeEW_prj_crs + cellsizeNS_prj_crs )
+        
               
     def create_topo_profiles_from_DEMs( self ):
 
         try:
             selected_dems = self.selected_dems
         except:
-            QMessageBox.critical( self, "Error", "DEM(s) not yet defined" )
+            self.warn( "DEM(s) not yet defined" )
             return            
-        
+
         try:
-            profile_line = self.profile_line
+            profile_line = self.profile_line2d_prjcrs_undensif
         except:
-            QMessageBox.critical( self, "Error", "Profile line not yet defined" )
+            self.warn( "Profile line not yet defined" )
             return       
         
-        # get profile creation parameters                        
-        sample_distance = self.profile_densify_distance_lineedit.text()                                
+        # get profile creation parameters 
+        try:                       
+            self.sample_distance = float( self.profile_densify_distance_lineedit.text() )
+        except:
+            self.warn( "Line densify distance not correctly defined")
+            return
+        
+        try:
+            self.vertical_exaggeration = float( self.DEM_exageration_ratio_Qlineedit.text() )
+            assert self.vertical_exaggeration > 0
+        except:
+            self.warn( "Vertical exaggeration must be numeric and positive")
+            return            
+                                        
         plot_height_choice = self.DEM_plot_height_checkbox.isChecked()
         plot_slope_choice = self.DEM_plot_slope_checkbox.isChecked() 
                         
         # check profile creation parameters 
         input_parameters_state_ok, msg = self.check_profile_creation_parameters(selected_dems,
                                                                                 profile_line, 
-                                                                                sample_distance,
+                                                                                self.sample_distance,
                                                                                 plot_height_choice,
                                                                                 plot_slope_choice )
         
         if not ( input_parameters_state_ok ):
-            QMessageBox.critical( self, "Error", msg )
+            self.warn( msg )
             return
                                  
         try:               
-            self.profiles = self.calculate_elevations_from_DEMs( self.selected_dems,
-                                                                 float( sample_distance )  )        
+            self.profiles = self.calculate_elevations_from_DEMs( float( self.sample_distance )  )        
         except VectorIOException, msg:
             self.profiles = None
-            QMessageBox.critical( self, "Error", msg )
+            self.warn( msg )
             return             
-                
-        # update combobox for 3D line export       
-        self.DEM_3D_Export_comboBox.clear()        
-        self.DEM_3D_Export_comboBox.addItems( self.profiles.get_current_dem_names() )
-        
-        self.plot_profile_elements( )        
+                        
+        self.plot_profile_elements( self.vertical_exaggeration )        
 
                                                                         
-    def calculate_elevations_from_DEMs(self, selected_dems, sample_distance ):
+    def calculate_elevations_from_DEMs(self, sample_distance ):
 
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
-                
-        # get geodata
-        selected_dem_parameters = [ self.get_dem_parameters(dem) for dem in selected_dems ]        
 
-        resampled_line_2d = self.profile_line.densify_nodes( sample_distance ) # line resampled by sample distance
+        resampled_line_2d = self.profile_line2d_prjcrs_undensif.densify( sample_distance ) # line resampled by sample distance
        
         # calculate 3D profiles from DEMs
-        dem_3Dlines = self.get_DEM_3Dlines( selected_dems, selected_dem_parameters, resampled_line_2d, on_the_fly_projection, project_crs )
+        dem_3Dlines = self.get_DEM_3Dlines( resampled_line_2d, on_the_fly_projection, project_crs )
         
-        return self.parse_topo_profiles_from_DEM( sample_distance, selected_dems, selected_dem_parameters, resampled_line_2d, dem_3Dlines )
+        return self.setup_profiles_properties( sample_distance, resampled_line_2d, dem_3Dlines )
 
 
-    def parse_topo_profiles_from_DEM(self, sample_distance, dems, dems_parameters, resampled_line_2d, dem_3Dlines ):
+    def setup_profiles_properties(self, sample_distance, resampled_line_2d, dem_3Dlines ):
         
-        profiles = Profiles( sample_distance )
-
-        # extract parameters for final processings       
-        profiles.profile_dems = [ ProfileDEM( dem, params ) for (dem, params) in zip(dems, dems_parameters ) ]
-        
-        profiles.profile_line = resampled_line_2d
-                
-        for dem_name, line_3d in zip( [ dem.name() for dem in dems ], dem_3Dlines ):
+        # setup profiles properties
+        profiles = Profiles( sample_distance )     
+        profiles.profile_dems = [ ProfileDEM( dem, params ) for (dem, params) in zip(self.selected_dems, self.selected_dem_parameters ) ]        
+        profiles.profile_line = resampled_line_2d                
+        for dem_name, line_3d in zip( [ dem.name() for dem in self.selected_dems ], dem_3Dlines ):
             profiles.add_topo_profile( TopoProfile( dem_name, line_3d ) )
         
         return profiles
@@ -1081,8 +1744,10 @@ class qprof_QWidget( QWidget ):
         slope_list_zip = zip( *slope_list )  
 
         result_data = []
+        rec_id = 0
         for x, y, cum_2d_dist, zs, cum3d_dists, slopes in zip( x_list, y_list, cumdist_2D_list, elev_list_zip, cumdist_3d_list_zip, slope_list_zip ):
-            record = [ x, y, cum_2d_dist]
+            rec_id += 1
+            record = [ rec_id, x, y, cum_2d_dist]
             for z, cum3d_dist, slope in zip( zs, cum3d_dists, slopes ):
                 if isnan(z): z = ''
                 if isnan(cum3d_dist): cum3d_dist = ''
@@ -1093,149 +1758,413 @@ class qprof_QWidget( QWidget ):
         return profiles.get_current_dem_names(), result_data
 
      
-    def export_from_DEM_data( self ):
+    def topography_export_all_dems( self, out_format, outfile_path ):
         
-        if self.profiles is None:            
-            QMessageBox.critical( self, "Saving results", "No DEM-derived profile is available for export" )
-            return 
-        
-        if not ( self.ExportfromDEM_asCSV_checkbox.isChecked() or self.ExportfromDEM_asPtShp_checkbox.isChecked() ):
-            QMessageBox.critical( self, "Saving results", "No output format is selected" )
+        if not self.profiles:
+            self.warn("No DEM-derived profile defined")
             return   
         
         # process results for data export         
         dem_names, export_data = self.parse_DEM_results_for_export( self.profiles )
                                   
-        # definition of field names         
-        cum3ddist_headers = ['cumulated_3d_distance']*len(dem_names)
-        slopes_headers = ['slopes (degr)']*len(dem_names)
-        header_list = ['x', 'y', 'cumulated_2d_distance'] + [ name for sublist in zip(dem_names, cum3ddist_headers, slopes_headers) for name in sublist ]              
+        # definition of field names
+        dem_headers = []
+        cum3ddist_headers = []
+        slopes_headers = []  
+        for ndx in range(len(dem_names)):
+            dem_headers.append(unicodedata.normalize('NFKD', unicode( dem_names[ndx][:10] )).encode('ascii', 'ignore'))
+            cum3ddist_headers.append("cds3d_"+str(ndx+1))
+            slopes_headers.append("slopd_"+str(ndx+1))
 
-        # output for csv file
-        if self.ExportfromDEM_asCSV_checkbox.isChecked():            
-            self.write_DEM_2D_csv( header_list, export_data )
-
-        # output for 2D pt shapefile            
-        if self.ExportfromDEM_asPtShp_checkbox.isChecked():
-            self.write_DEM_2D_ptshp( dem_names, export_data )
+        header_list = ["id", "x", "y", "cds2d"] + [ name for sublist in zip(dem_headers, cum3ddist_headers, slopes_headers) for name in sublist ]              
+            
+        if out_format == "csv":            
+            self.write_topography_allDEMs_csv( outfile_path, header_list, export_data )
+        elif out_format == "shapefile - point":
+            self.write_topography_allDEMs_ptshp( outfile_path, header_list, dem_names, export_data )
+        elif out_format == "shapefile - line":
+            self.write_topography_allDEMs_lnshp( outfile_path, header_list, dem_names, export_data ) 
+        else:
+            self.warn( "Internal error in export all DEMs")
+            return           
         
-        QMessageBox.information( self, "Profile export", "Finished" )
+        self.info( "Profile export completed" )
         
+                
+    def topography_export_single_dem( self, out_format, ndx_dem_to_export, outfile_path ):     
 
-    def write_DEM_2D_csv( self, header_list, export_data ):
-               
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results"),
-                                                "*.csv",
-                                                self.tr("csv (*.csv)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
+        if not self.profiles:
+            self.warn("No DEM-derived profile defined")
             return   
         
-        header_list = [ unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
+        # process results for data export         
+        _, export_data = self.parse_DEM_results_for_export( self.profiles )
+        
+        # definition of field names         
+        header_list = [ "id", "x", "y", "cds2d", "z", "cds3d", "slopdeg" ]      
+        
+        if out_format == "csv":            
+            self.write_topography_singleDEM_csv( outfile_path, header_list, export_data, ndx_dem_to_export )
+        elif out_format == "shapefile - point":
+            self.write_topography_singleDEM_ptshp( outfile_path, header_list, export_data, ndx_dem_to_export )
+        elif out_format == "shapefile - line":
+            self.write_topography_singleDEM_lnshp( outfile_path, header_list, export_data, ndx_dem_to_export ) 
+        else:
+            self.warn( "Internal error in export single DEM")
+            return           
+        
+        self.info( "Profile export completed" )
+
+
+    def topography_export_gpx_data( self, out_format, output_filepath ):
+            
+        if not self.profile_GPX:
+            self.warn("No GPX-derived profile defined")
+            return   
+
+        # process results from export         
+        gpx_parsed_results = self.parse_GPX_results_for_export( self.profile_GPX )
+                
+        # definition of field names        
+        header_list = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "slopdeg" ]                
+        # header_list = [ unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
+        
+        if out_format == "csv":            
+            self.write_generic_csv( output_filepath, header_list, gpx_parsed_results )
+        elif out_format == "shapefile - point":
+            self.write_topography_GPX_ptshp( output_filepath, header_list, gpx_parsed_results )
+        elif out_format == "shapefile - line":
+            self.write_topography_GPX_lnshp( output_filepath, header_list, gpx_parsed_results ) 
+        else:
+            self.warn( "Internal error in export single DEM")
+            return           
+        
+        self.info( "Profile export completed" )
+        
+        
+    def write_topography_allDEMs_csv( self, fileName, header_list, export_data, sep="," ):
+        
+        #header_list = [ unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
         with open( unicode( fileName ), 'w') as f:
-            f.write( ','.join( header_list )+'\n' )
+            f.write( sep.join( header_list )+'\n' )
             for rec in export_data:
                 out_rec_string = ''
                 for val in rec:
-                    out_rec_string += str( val ) + ','
+                    out_rec_string += str( val ) + sep
                 f.write( out_rec_string[:-1]+'\n' )
-                
-                      
-    def write_DEM_2D_ptshp( self, dem_names, export_data ):
         
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results as 2D point shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
 
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return           
+    def write_topography_singleDEM_csv( self, fileName, header_list, export_data, current_dem_ndx, sep="," ):
+                 
+        with open( unicode( fileName ), 'w') as f:            
+            f.write( sep.join( header_list )+'\n' )            
+            for rec in export_data:
+                rec_id, x, y, cum2ddist = rec[0], rec[1], rec[2], rec[3]                
+                z = rec[3+current_dem_ndx*3+1]
+                cum3ddist = rec[3+current_dem_ndx*3+2]
+                slope = rec[3+current_dem_ndx*3+3]               
+                
+                outdata_list = [str(val) for val in [rec_id, x, y, cum2ddist, z, cum3ddist, slope]]
+                f.write( sep.join( outdata_list ) + "\n" )
+                
+               
+    def write_generic_csv( self, output_filepath, header_list, parsed_results, sep="," ):
+        
+        with open( unicode( output_filepath ), 'w') as f:
+            f.write( sep.join( header_list )+'\n' )
+            for rec in parsed_results:
+                out_rec_string = ''
+                for val in rec:
+                    out_rec_string += str( val ) + sep
+                f.write( out_rec_string[:-1]+'\n' )
+
+
+    def write_line_csv( self, output_filepath, header_list, parsed_results, sep="," ):
+        
+        with open( unicode( output_filepath ), 'w') as f:
+            f.write( sep.join( header_list )+'\n' )
+            for classification, line3d, s_list in parsed_results:
+                for pt, s in zip(line3d._pts, s_list):
+                    out_values = [ classification, s, pt._x, pt._y, pt._z ]
+                    out_val_strings = [str(val) for val in out_values ]
+                    f.write( sep.join( out_val_strings ) + '\n' )
+                
+                                      
+    def write_topography_allDEMs_ptshp( self, fileName, header_list, dem_names, export_data ):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName( shape_driver_name )
         if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
-            return             
+            self.warn( "%s driver is not available" % shape_driver_name )
+            return           
         
         try:    
-            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+            shp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
         except TypeError:
-            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            shp_datasource = shape_driver.CreateDataSource( str( fileName ) )
             
-        if ptshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
         
-        ptshp_layer = ptshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint )
+        ptshp_layer = shp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint )
         if ptshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
+            self.warn( "Output layer creation failed" )
             return 
-                  
+       
         # creates required fields         
-        ptshp_layer.CreateField( ogr.FieldDefn( 'id', ogr.OFTInteger ) )
-        ptshp_layer.CreateField( ogr.FieldDefn( 'x', ogr.OFTReal ) )
-        ptshp_layer.CreateField( ogr.FieldDefn( 'y', ogr.OFTReal ) )       
-        ptshp_layer.CreateField( ogr.FieldDefn( 'cum2dis', ogr.OFTReal ) )
-        for dem_ndx, dem_name in enumerate( dem_names ):       
-            ptshp_layer.CreateField( ogr.FieldDefn( unicodedata.normalize('NFKD', unicode( dem_name[:10] )).encode('ascii', 'ignore'), ogr.OFTReal ) )       
-            ptshp_layer.CreateField( ogr.FieldDefn( 'cum3dis'+str(dem_ndx+1), ogr.OFTReal ) )        
-            ptshp_layer.CreateField( ogr.FieldDefn( 'slope'+str(dem_ndx+1), ogr.OFTReal ) )        
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTInteger ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[1], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[2], ogr.OFTReal ) )       
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[3], ogr.OFTReal ) )
+
+        for dem_ndx in range( len(dem_names) ):       
+            ptshp_layer.CreateField( ogr.FieldDefn( header_list[3+dem_ndx*3+1], ogr.OFTReal ) )       
+            ptshp_layer.CreateField( ogr.FieldDefn( header_list[3+dem_ndx*3+2], ogr.OFTReal ) )        
+            ptshp_layer.CreateField( ogr.FieldDefn( header_list[3+dem_ndx*3+3], ogr.OFTReal ) )        
         
         ptshp_featureDefn = ptshp_layer.GetLayerDefn()
         
+        field_names = []
+        for i in range(ptshp_featureDefn.GetFieldCount()):
+            field_names.append( ptshp_featureDefn.GetFieldDefn(i).GetName() )
+            
+        assert len(header_list) == len(field_names)
+                  
         # loops through output records                       
-        for ndx, rec in enumerate( export_data ):
+        for rec in export_data:
             
             pt_feature = ogr.Feature( ptshp_featureDefn )
             
             pt = ogr.Geometry(ogr.wkbPoint)
-            pt.SetPoint_2D( 0, rec[0], rec[1] )        
+            pt.SetPoint_2D( 0, rec[1], rec[2] )        
             pt_feature.SetGeometry( pt )
-            
-            pt_feature.SetField('id', ndx+1 )
-            pt_feature.SetField('x', rec[0] )   
-            pt_feature.SetField('y', rec[1] ) 
-            pt_feature.SetField('cum2dis', rec[2] )  
+
+            pt_feature.SetField(field_names[0], rec[0] )
+            pt_feature.SetField(field_names[1], rec[1] )   
+            pt_feature.SetField(field_names[2], rec[2] ) 
+            pt_feature.SetField(field_names[3], rec[3] )  
             for dem_ndx, dem_name in enumerate( dem_names ):
-                dem_height = rec[3+dem_ndx*3+0]
-                if dem_height != '': pt_feature.SetField( unicodedata.normalize('NFKD', unicode( dem_name[:10] )).encode('ascii', 'ignore'), dem_height )
-                cum3ddist = rec[3+dem_ndx*3+1]
-                if cum3ddist != '': pt_feature.SetField( 'cum3dis'+str(dem_ndx+1), cum3ddist )
-                slope = rec[3+dem_ndx*3+2]
-                if slope != '': pt_feature.SetField( 'slope'+str(dem_ndx+1), slope )                  
+                dem_height = rec[3+dem_ndx*3+1]
+                if dem_height != '': 
+                    pt_feature.SetField(field_names[3+dem_ndx*3+1], dem_height)             
+                cum3ddist = rec[3+dem_ndx*3+2]
+                if cum3ddist != '': 
+                    pt_feature.SetField(field_names[3+dem_ndx*3+2], cum3ddist)
+                slope = rec[3+dem_ndx*3+3]
+                if slope != '': 
+                    pt_feature.SetField(field_names[3+dem_ndx*3+3], slope)                  
   
+            ptshp_layer.CreateFeature( pt_feature )            
+            pt_feature.Destroy()            
+        shp_datasource.Destroy()
+   
+                                
+    def write_topography_singleDEM_ptshp( self, fileName, header_list, export_data, current_dem_ndx ): 
+             
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn( "%s driver is not available" % shape_driver_name )
+            return             
+            
+        try:
+            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+                        
+        if ptshp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+            return         
+        
+        ptshp_layer = ptshp_datasource.CreateLayer( 'profile', geom_type = ogr.wkbPoint )
+        if ptshp_layer is None:
+            self.warn( "Output layer creation failed" )
+            return     
+  
+        # creates required fields          
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTInteger ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[1], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[2], ogr.OFTReal ) ) 
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[3], ogr.OFTReal ) )       
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[4], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[5], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[6], ogr.OFTReal ) )     
+    
+        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
+        
+        # loops through output records   
+                          
+        for rec in export_data:
+
+            rec_id, x, y, cumdist2D = rec[0], rec[1], rec[2], rec[3]         
+            z = rec[3+current_dem_ndx*3+1]
+            cumdist3D = rec[3+current_dem_ndx*3+2]
+            slopedegr = rec[3+current_dem_ndx*3+3]
+            
+            if z == "":
+                continue
+                               
+            pt_feature = ogr.Feature( ptshp_featureDefn )
+            
+            pt = ogr.Geometry( ogr.wkbPoint )
+            pt.SetPoint_2D( 0, x, y)        
+            pt_feature.SetGeometry( pt )
+
+            pt_feature.SetField( header_list[0], rec_id )
+            pt_feature.SetField( header_list[1], x )   
+            pt_feature.SetField( header_list[2], y )
+            pt_feature.SetField( header_list[3], cumdist2D )             
+            pt_feature.SetField( header_list[4], z ) 
+            if cumdist3D != '': 
+                pt_feature.SetField( header_list[5], cumdist3D )
+            if slopedegr != '': 
+                pt_feature.SetField( header_list[6], slopedegr )   
+                            
+            ptshp_layer.CreateFeature( pt_feature )            
+            pt_feature.Destroy()            
+        ptshp_datasource.Destroy()
+      
+        
+    def write_topography_GPX_ptshp( self, output_filepath, header_list, gpx_parsed_results ):
+                
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn("%s driver is not available" % shape_driver_name  )
+            return             
+            
+        try:
+            shp_datasource = shape_driver.CreateDataSource( unicode( output_filepath ) )
+        except TypeError:
+            shp_datasource = shape_driver.CreateDataSource( str( output_filepath ) )
+                        
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( output_filepath )[1] )
+            return         
+        
+        ptshp_layer = shp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint )
+        if ptshp_layer is None:
+            self.warn( "Point layer creation failed" )
+            return 
+                        
+        # creates required fields         
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTInteger ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[1], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[2], ogr.OFTReal ) )
+        time_field = ogr.FieldDefn( header_list[3], ogr.OFTString )
+        time_field.SetWidth(20)  
+        ptshp_layer.CreateField( time_field ) 
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[4], ogr.OFTReal ) )      
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[5], ogr.OFTReal ) )
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[6], ogr.OFTReal ) )        
+        ptshp_layer.CreateField( ogr.FieldDefn( header_list[7], ogr.OFTReal ) )        
+        
+        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
+        
+        # loops through output records                       
+        for rec in gpx_parsed_results:
+            
+            pt_feature = ogr.Feature( ptshp_featureDefn )
+            
+            pt = ogr.Geometry(ogr.wkbPoint)
+            pt.SetPoint_2D( 0, rec[2], rec[1] )        
+            pt_feature.SetGeometry( pt )
+                    
+            pt_feature.SetField(header_list[0], rec[0])
+            pt_feature.SetField(header_list[1], rec[1])   
+            pt_feature.SetField(header_list[2], rec[2])
+                    
+            pt_feature.SetField(header_list[3], str(rec[3]))
+            if rec[4] != '': 
+                pt_feature.SetField(header_list[4], str(rec[4])) 
+            pt_feature.SetField(header_list[5], rec[5])
+            if rec[6] != '': 
+                pt_feature.SetField(header_list[6], rec[6])
+            if rec[7] != '': 
+                pt_feature.SetField(header_list[7], rec[7])
+                                                              
             ptshp_layer.CreateFeature( pt_feature )
             
             pt_feature.Destroy()
             
-        ptshp_datasource.Destroy()
+        shp_datasource.Destroy()
                                 
-                
-    def write_DEM_3D_lnshp( self ):
+                                  
+    def write_topography_allDEMs_lnshp( self, fileName, header_list, dem_names, export_data ):
 
-        if self.profiles is None:            
-            QMessageBox.critical( self, "Saving results", "No DEM-derived profile is available for export" )
-            return        
-
-        # process results for data export         
-        _, export_data = self.parse_DEM_results_for_export( self.profiles ) 
-                   
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results as line shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return       
-    
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName( shape_driver_name )
         if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
+            self.warn( "%s driver is not available" % shape_driver_name  )
+            return             
+        
+        try:    
+            shp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+        except TypeError:
+            shp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+            return         
+        
+        lnshp_layer = shp_datasource.CreateLayer( 'profile', geom_type = ogr.wkbLineString ) 
+        if lnshp_layer is None:
+            self.warn( "Output layer creation failed" )
+            return 
+       
+        # creates required fields         
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[0], ogr.OFTInteger ) )      
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[3], ogr.OFTReal ) )
+        for dem_ndx in range(len(dem_names)):       
+            lnshp_layer.CreateField( ogr.FieldDefn(header_list[3+dem_ndx*3+1], ogr.OFTReal ) ) 
+            lnshp_layer.CreateField( ogr.FieldDefn(header_list[3+dem_ndx*3+2], ogr.OFTReal ) )       
+            lnshp_layer.CreateField( ogr.FieldDefn(header_list[3+dem_ndx*3+3], ogr.OFTReal ) )
+        
+        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
+
+        field_names = []
+        for i in range(lnshp_featureDefn.GetFieldCount()):
+            field_names.append( lnshp_featureDefn.GetFieldDefn(i).GetName() )
+                
+        # loops through output records                       
+        for ndx in range( len( export_data ) - 1):
+            
+            rec_a = export_data[ndx]
+            rec_b = export_data[ndx+1]
+            
+            rec_a_x, rec_a_y = rec_a[1], rec_a[2]
+            rec_b_x, rec_b_y = rec_b[1], rec_b[2]            
+                        
+            ln_feature = ogr.Feature( lnshp_featureDefn )
+            
+            segment_2d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f, %f %f)' % ( rec_a_x, rec_a_y, rec_b_x, rec_b_y ) )       
+            ln_feature.SetGeometry( segment_2d ) 
+                      
+            ln_feature.SetField(field_names[0], rec_a[0] )
+            ln_feature.SetField(field_names[1], rec_b[3] )  
+            for dem_ndx, dem_name in enumerate( dem_names ):
+                dem_height = rec_b[3+dem_ndx*3+1]
+                if dem_height != '': 
+                    ln_feature.SetField(field_names[1+dem_ndx*3+1], dem_height)
+                cum3ddist = rec_b[3+dem_ndx*3+2]
+                if cum3ddist != '': 
+                    ln_feature.SetField(field_names[1+dem_ndx*3+2], cum3ddist)
+                slope = rec_b[3+dem_ndx*3+3]
+                if slope != '': 
+                    ln_feature.SetField(field_names[1+dem_ndx*3+3], slope)                  
+  
+            lnshp_layer.CreateFeature( ln_feature )            
+            ln_feature.Destroy()            
+        shp_datasource.Destroy()
+  
+
+    def write_topography_singleDEM_lnshp( self, fileName, header_list, export_data, current_dem_ndx ): 
+             
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn( "%s driver is not available" % shape_driver_name )
             return             
             
         try:
@@ -1244,55 +2173,124 @@ class qprof_QWidget( QWidget ):
             lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
                         
         if lnshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return         
         
         lnshp_layer = lnshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbLineString25D )
         if lnshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
+            self.warn( "Output layer creation failed" )
             return     
-
-        current_dem_ndx = self.DEM_3D_Export_comboBox.currentIndex()
-            
-        # creates required fields         
-        lnshp_layer.CreateField( ogr.FieldDefn( 'id', ogr.OFTInteger ) )      
-        lnshp_layer.CreateField( ogr.FieldDefn( 'cum2dis', ogr.OFTReal ) )
-        lnshp_layer.CreateField( ogr.FieldDefn( 'cum3dis', ogr.OFTReal ) )
-        lnshp_layer.CreateField( ogr.FieldDefn( 'slope', ogr.OFTReal ) )     
+                      
+        # creates required fields          
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[0], ogr.OFTInteger ) )      
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[3], ogr.OFTReal ) )
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[5], ogr.OFTReal ) )
+        lnshp_layer.CreateField( ogr.FieldDefn( header_list[6], ogr.OFTReal ) )     
     
         lnshp_featureDefn = lnshp_layer.GetLayerDefn()
         
-        # loops through output records                     
+        # loops through output records   
+                          
         for ndx in range( len( export_data )-1 ):
                 
             rec_a = export_data[ndx]
             rec_b = export_data[ndx+1]
-                            
-            x0, y0, z0 = rec_a[0], rec_a[1], rec_a[3+current_dem_ndx*3]
-            x1, y1, z1 = rec_b[0], rec_b[1], rec_b[3+current_dem_ndx*3]
-            
-            if z0 == '' or z1 == '': continue
+ 
+            rec_id = rec_a[0]                           
+            x0, y0, z0 = rec_a[1], rec_a[2], rec_a[3+current_dem_ndx*3+1]
+            x1, y1, z1 = rec_b[1], rec_b[2], rec_b[3+current_dem_ndx*3+1]
+            cum3ddist = rec_b[3 + current_dem_ndx*3 + 2]
+            slope_degr = rec_b[3 + current_dem_ndx*3 + 3]
+                        
+            if z0 == '' or z1 == '': 
+                continue
 
             ln_feature = ogr.Feature( lnshp_featureDefn )            
             segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (x0, y0, z0, x1, y1, z1))       
             ln_feature.SetGeometry( segment_3d ) 
             
-            ln_feature.SetField('id', ndx+1 )
-            ln_feature.SetField('cum2dis', rec_b[2] )  
-            cum3ddist = rec_b[3+current_dem_ndx*3+1]
-            if cum3ddist != '': ln_feature.SetField( 'cum3dis', cum3ddist )
-            slope = rec_b[3+current_dem_ndx*3+2]
-            if slope != '': ln_feature.SetField( 'slope', slope )  
+            ln_feature.SetField( header_list[0], rec_id )
+            ln_feature.SetField( header_list[3], rec_b[3] )              
+
+            if cum3ddist != '': 
+                ln_feature.SetField( header_list[5], cum3ddist )            
+
+            if slope_degr != '': 
+                ln_feature.SetField( header_list[6], slope_degr )       
+                                       
+            lnshp_layer.CreateFeature( ln_feature )            
+            ln_feature.Destroy()            
+        lnshp_datasource.Destroy()
+      
+        
+    def write_topography_GPX_lnshp(self, output_filepath, header_list, gpx_parsed_results):
+    
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName( shape_driver_name )
+        if shape_driver is None:
+            self.warn( "%s driver is not available" % shape_driver_name )
+            return             
+        
+        try:    
+            lnshp_datasource = shape_driver.CreateDataSource( unicode( output_filepath ) )
+        except TypeError:
+            lnshp_datasource = shape_driver.CreateDataSource( str( output_filepath ) )
+                        
+        if lnshp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( output_filepath )[1] )
+            return         
+        
+        lnshp_layer = lnshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbLineString25D )
+        if lnshp_layer is None:
+            self.warn( "Output layer creation failed" )
+            return     
+       
+        # creates required fields         
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[0], ogr.OFTInteger ) )
+        time_beg_field = ogr.FieldDefn( 'time_beg', ogr.OFTString )
+        time_beg_field.SetWidth(20)  
+        lnshp_layer.CreateField( time_beg_field )
+        time_end_field = ogr.FieldDefn( 'time_end', ogr.OFTString )
+        time_end_field.SetWidth(20)  
+        lnshp_layer.CreateField( time_end_field )     
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[5], ogr.OFTReal ) )
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[6], ogr.OFTReal ) )
+        lnshp_layer.CreateField( ogr.FieldDefn(header_list[7], ogr.OFTReal ) )     
+    
+        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
+        
+        # loops through output records                     
+        for ndx in range( len( gpx_parsed_results )-1 ):
+                
+            rec_a = gpx_parsed_results[ndx]
+            rec_b = gpx_parsed_results[ndx+1]
+                            
+            lon0, lat0, z0 = rec_a[2], rec_a[1], rec_a[4]
+            lon1, lat1, z1 = rec_b[2], rec_b[1], rec_b[4]
+            
+            if z0 == '' or z1 == '': 
+                continue
+
+            ln_feature = ogr.Feature( lnshp_featureDefn )            
+            segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (lon0, lat0, z0, lon1, lat1, z1))       
+            ln_feature.SetGeometry( segment_3d ) 
+              
+            ln_feature.SetField(header_list[0], rec_a[0] )
+            ln_feature.SetField('time_beg', str( rec_a[3] ) ) 
+            ln_feature.SetField('time_end', str( rec_b[3] ) )           
+            ln_feature.SetField(header_list[5], rec_b[5] )  
+            if rec_b[6] != '': 
+                ln_feature.SetField(header_list[6], rec_b[6] )
+            if rec_b[7] != '': 
+                ln_feature.SetField(header_list[7], rec_b[7] )  
                             
             lnshp_layer.CreateFeature( ln_feature )
             
             ln_feature.Destroy()
             
-        lnshp_datasource.Destroy()
-        
-        QMessageBox.information( self, "Saving 3d line", "Shapefile saved" )
- 
-            
+        lnshp_datasource.Destroy()        
+
+           
     def select_input_gpxFile( self ):
             
         fileName = QFileDialog.getOpenFileName( self, 
@@ -1325,7 +2323,7 @@ class qprof_QWidget( QWidget ):
         preliminar_check = self.check_GPX_profile_parameters()
         
         if not preliminar_check[0]:
-            QMessageBox.critical( self, "GPX input error", preliminar_check[1] )
+            self.warn( preliminar_check[1] )
             return   
         
         source_gpx_path = unicode( self.input_gpx_lineEdit.text() )
@@ -1334,7 +2332,7 @@ class qprof_QWidget( QWidget ):
             self.profile_GPX = self.calculate_profile_from_GPX( source_gpx_path )
         except GPXIOException, msg:
             self.profile_GPX = None
-            QMessageBox.critical( self, "GPX input error", msg )
+            self.warn( msg )
             return 
         
         self.plot_GPX_profile( self.profile_GPX )  
@@ -1508,195 +2506,23 @@ class qprof_QWidget( QWidget ):
         time_list = GPXprofile['times']          
         cumdist_2D_list = GPXprofile['cum_distances_2D']
         elev_list = GPXprofile['elevations'][0] # [0] required for compatibility with DEM processing                  
-        cumdist_3d_list = GPXprofile['cum_distances_3D'] [0] # [0] required for compatibility with DEM processing
+        cumdist_3d_list = GPXprofile['cum_distances_3D'][0] # [0] required for compatibility with DEM processing
         slope_list = GPXprofile['slopes'][0] # [0] required for compatibility with DEM processing
 
         result_data = []
+        rec_id = 0
         for lat, lon, time, elev, cumdist_2D, cumdist_3D, slope in zip( lat_list, lon_list, time_list, elev_list, cumdist_2D_list, cumdist_3d_list, slope_list ):
-            if isnan( elev ): elev = ''
-            if isnan( cumdist_3D ): cumdist_3D = ''
-            if isnan( slope ): slope = ''
-            record = [ lat, lon, time, elev, cumdist_2D, cumdist_3D, slope ]
+            rec_id += 1
+            if isnan( elev ): 
+                elev = ''
+            if isnan( cumdist_3D ): 
+                cumdist_3D = ''
+            if isnan( slope ): 
+                slope = ''
+            record = [ rec_id, lat, lon, time, elev, cumdist_2D, cumdist_3D, slope ]
             result_data.append( record )
-         
+        
         return result_data
-
- 
-    def export_from_GPX_data( self ):
-        
-        if self.profile_GPX is None:            
-            QMessageBox.critical( self, "Saving results", "No GPX-derived profile is available for export" )
-            return 
-    
-        if not ( self.ExportfromGPX_asCSV_checkbox.isChecked() or \
-                 self.ExportfromGPX_asPtShp_checkbox.isChecked() or \
-                 self.ExportfromGPX_asLnShp_checkbox.isChecked()):
-            QMessageBox.critical( self, "Saving results", "No output format is selected" )
-            return  
-
-        # process results from export         
-        gpx_parsed_results = self.parse_GPX_results_for_export( self.profile_GPX )
-                
-        # definition of field names        
-        header_list = ['lat', 'lon', 'time', 'elev', 'cumulated_2d_distance', 'cumulated_3d_distance', 'slopes (degr)' ]              
-        
-        # output for csv file
-        if self.ExportfromGPX_asCSV_checkbox.isChecked():         
-            self.write_results_as_csv( header_list, gpx_parsed_results )
-
-        # output for 2D pt shapefile            
-        if self.ExportfromGPX_asPtShp_checkbox.isChecked():
-            self.write_GPX_2D_ptshp( gpx_parsed_results )
-
-        if self.ExportfromGPX_asLnShp_checkbox.isChecked():
-            self.write_GPX_3D_lnshp( gpx_parsed_results )
-                    
-        QMessageBox.information( self, "Profile export", "Finished" )        
-        
-                      
-    def write_GPX_2D_ptshp( self, gpx_parsed_results ):
-                
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results as 2D point shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return           
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName( shape_driver_name )
-        if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
-            return             
-            
-        try:
-            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
-        except TypeError:
-            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
-                        
-        if ptshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
-            return         
-        
-        ptshp_layer = ptshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint )
-        if ptshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
-            return 
-                  
-        # creates required fields         
-        ptshp_layer.CreateField( ogr.FieldDefn( 'id', ogr.OFTInteger ) )
-        ptshp_layer.CreateField( ogr.FieldDefn( 'lat', ogr.OFTReal ) )
-        ptshp_layer.CreateField( ogr.FieldDefn( 'lon', ogr.OFTReal ) )
-        time_field = ogr.FieldDefn( 'time', ogr.OFTString )
-        time_field.SetWidth(20)  
-        ptshp_layer.CreateField( time_field ) 
-        ptshp_layer.CreateField( ogr.FieldDefn( 'elev', ogr.OFTReal ) )      
-        ptshp_layer.CreateField( ogr.FieldDefn( 'cum2dist', ogr.OFTReal ) )
-        ptshp_layer.CreateField( ogr.FieldDefn( 'cum3dist', ogr.OFTReal ) )        
-        ptshp_layer.CreateField( ogr.FieldDefn( 'slope', ogr.OFTReal ) )        
-        
-        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
-        
-        # loops through output records                       
-        for ndx, rec in enumerate( gpx_parsed_results ):
-            
-            pt_feature = ogr.Feature( ptshp_featureDefn )
-            
-            pt = ogr.Geometry(ogr.wkbPoint)
-            pt.SetPoint_2D( 0, rec[1], rec[0] )        
-            pt_feature.SetGeometry( pt )
-            
-            pt_feature.SetField('id', ndx+1 )
-            pt_feature.SetField('lon', rec[1] )   
-            pt_feature.SetField('lat', rec[0] )
-                    
-            pt_feature.SetField('time', str( rec[2] ) )
-            if rec[3] != '': pt_feature.SetField('elev', rec[3] ) 
-            pt_feature.SetField('cum2dist', rec[4] )
-            if rec[5] != '': pt_feature.SetField('cum3dist', rec[5] )
-            if rec[6] != '': pt_feature.SetField('slope', rec[6] )
-                                                              
-            ptshp_layer.CreateFeature( pt_feature )
-            
-            pt_feature.Destroy()
-            
-        ptshp_datasource.Destroy()
-                                
-       
-    def write_GPX_3D_lnshp( self, gpx_parsed_results ):
-     
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results as line shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return       
-    
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName( shape_driver_name )
-        if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
-            return             
-        
-        try:    
-            lnshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
-        except TypeError:
-            lnshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
-                        
-        if lnshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
-            return         
-        
-        lnshp_layer = lnshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbLineString25D )
-        if lnshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
-            return     
- 
-        # creates required fields         
-        lnshp_layer.CreateField( ogr.FieldDefn( 'id', ogr.OFTInteger ) )
-        time_beg_field = ogr.FieldDefn( 'time_beg', ogr.OFTString )
-        time_beg_field.SetWidth(20)  
-        lnshp_layer.CreateField( time_beg_field )
-        time_end_field = ogr.FieldDefn( 'time_end', ogr.OFTString )
-        time_end_field.SetWidth(20)  
-        lnshp_layer.CreateField( time_end_field )     
-        lnshp_layer.CreateField( ogr.FieldDefn( 'cum2dist', ogr.OFTReal ) )
-        lnshp_layer.CreateField( ogr.FieldDefn( 'cum3dist', ogr.OFTReal ) )
-        lnshp_layer.CreateField( ogr.FieldDefn( 'slope', ogr.OFTReal ) )     
-    
-        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
-        
-        # loops through output records                     
-        for ndx in range( len( gpx_parsed_results )-1 ):
-                
-            rec_a = gpx_parsed_results[ndx]
-            rec_b = gpx_parsed_results[ndx+1]
-                            
-            lon0, lat0, z0 = rec_a[1], rec_a[0], rec_a[3]
-            lon1, lat1, z1 = rec_b[1], rec_b[0], rec_b[3]
-            
-            if z0 == '' or z1 == '': continue
-
-            ln_feature = ogr.Feature( lnshp_featureDefn )            
-            segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (lon0, lat0, z0, lon1, lat1, z1))       
-            ln_feature.SetGeometry( segment_3d ) 
-            
-            ln_feature.SetField('id', ndx+1 )
-            ln_feature.SetField('time_beg', str( rec_a[2] ) ) 
-            ln_feature.SetField('time_end', str( rec_b[2] ) )           
-            ln_feature.SetField('cum2dist', rec_b[4] )  
-            if rec_b[5] != '': ln_feature.SetField( 'cum3dist', rec_b[5] )
-            if rec_b[6] != '': ln_feature.SetField( 'slope', rec_b[6] )  
-                            
-            lnshp_layer.CreateFeature( ln_feature )
-            
-            ln_feature.Destroy()
-            
-        lnshp_datasource.Destroy()        
 
 
     def update_point_layers_boxes( self ):
@@ -1719,24 +2545,36 @@ class qprof_QWidget( QWidget ):
             combobox.addItems( field_names )
 
 
-    def update_line_layers_boxes( self ):
+    def update_linepoly_layers_boxes( self ):
         
-        if len(self.current_line_layers) == 0:
-            return
+        def update_field_combo_boxes( ):
+            
+            for combobox in field_combobox_list:
+                combobox.clear()           
+ 
+            if shape_qgis_ndx < 0 or len( layer_list ) == 0: 
+                return
+
+            fields = layer_list[ shape_qgis_ndx ].dataProvider().fields()     
+            field_names = [ field.name() for field in fields.toList()]
+                   
+            for combobox in field_combobox_list:
+                combobox.addItems( ["none"] + field_names )            
         
-        shape_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
-        if shape_qgis_ndx < 0: 
-            return
-        
-        layer = self.current_line_layers[ shape_qgis_ndx ]
-        fields = layer.dataProvider().fields()     
-        field_names = [ field.name() for field in fields.toList()]
-                
-        for ndx, combobox in enumerate( self.flds_prj_line_comboBoxes ):
-            combobox.clear()
-            if ndx == 0:
-                combobox.addItems( ["none"])
-            combobox.addItems( field_names )
+        if self.sender() is self.prj_input_line_comboBox:
+            shape_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+            field_combobox_list = self.flds_prj_line_comboBoxes 
+            layer_list = self.current_line_layers           
+        elif self.sender() is self.inters_input_line_comboBox:
+            shape_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box            
+            field_combobox_list = self.flds_inters_line_comboBoxes   
+            layer_list = self.current_line_layers     
+        elif self.sender() is self.inters_input_polygon_comboBox:
+            shape_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box            
+            field_combobox_list = self.flds_inters_polygon_comboBoxes   
+            layer_list = self.current_polygon_layers   
+                    
+        update_field_combo_boxes()        
             
             
     def get_current_combobox_values( self, combobox_list ):
@@ -1782,9 +2620,9 @@ class qprof_QWidget( QWidget ):
 
         pts_in_prj_crs = []
         for pt in pts_in_orig_crs:
-            qgs_pt = qgs_point(pt._x,pt._y)
+            qgs_pt = qgs_point_2d(pt._x,pt._y)
             qgs_pt_prj_crs = project_qgs_point( qgs_pt, srcCrs, destCrs )
-            pts_in_prj_crs.append(  Point_3D( qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y() ) )        
+            pts_in_prj_crs.append(  Point3D( qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y() ) )        
         return pts_in_prj_crs
         
 
@@ -1813,19 +2651,19 @@ class qprof_QWidget( QWidget ):
         
         assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
         
-        return [ Point_3D(pt._x,pt._y,z) for (pt,z) in zip(struct_pts_in_prj_crs, struct_pts_z)] 
+        return [ Point3D(pt._x,pt._y,z) for (pt,z) in zip(struct_pts_in_prj_crs, struct_pts_z)] 
        
 
     def calculate_section_data( self ):
         
-        sect_pt_1, sect_pt_2 = self.profile_line._pts
+        sect_pt_1, sect_pt_2 = self.profile_line2d_prjcrs_undensif._pts
         
-        section_init_pt = Point_3D( sect_pt_1._x, sect_pt_1._y, 0.0 )
-        section_final_pt = Point_3D( sect_pt_2._x, sect_pt_2._y, 0.0 )
+        section_init_pt = Point3D( sect_pt_1._x, sect_pt_1._y, 0.0 )
+        section_final_pt = Point3D( sect_pt_2._x, sect_pt_2._y, 0.0 )
 
-        section_final_pt_up = Point_3D( section_final_pt._x, section_final_pt._y, 1000.0 ) # arbitrary point on the same vertical as sect_pt_2    
-        section_cartes_plane = cartes_plane_from_points(section_init_pt, section_final_pt, section_final_pt_up)    
-        section_vector = Segment_3D( section_init_pt, section_final_pt ).to_vector( )
+        section_final_pt_up = Point3D( section_final_pt._x, section_final_pt._y, 1000.0 ) # arbitrary point on the same vertical as sect_pt_2    
+        section_cartes_plane = CartesianPlane.from_points(section_init_pt, section_final_pt, section_final_pt_up)    
+        section_vector = Segment3D( section_init_pt, section_final_pt ).vector3d( )
         
         return { 'init_pt': section_init_pt, 'cartes_plane': section_cartes_plane, 'vector': section_vector }
                              
@@ -1846,15 +2684,14 @@ class qprof_QWidget( QWidget ):
                      'plunge field': unicode( self.proj_point_indivax_plunge_fld_comboBox.currentText()  )}          
 
 
-
     def check_struct_point_proj_parameters(self):
         
         # check if profile exists
-        if self.profile_line is None:                         
+        if self.profile_line2d_prjcrs_undensif is None:                         
             return False, "Profile not calculated"
         
         # check that section is made up of only two points
-        if self.profile_line.num_points() != 2:                   
+        if self.profile_line2d_prjcrs_undensif.num_points() != 2:                   
             return False, "Profile not made up by only two points"
                         
         # dem number
@@ -1873,9 +2710,7 @@ class qprof_QWidget( QWidget ):
 
         parameters_check_ok, parameters_check_msg = self.check_struct_point_proj_parameters()
         if not parameters_check_ok:
-            QMessageBox.critical( self, 
-                                  "Error", 
-                                  parameters_check_msg )            
+            self.warn( parameters_check_msg )          
             return            
 
         # get color for projected points
@@ -1891,7 +2726,7 @@ class qprof_QWidget( QWidget ):
         structural_pts_attrs = pt_geoms_attrs( structural_layer, structural_field_list ) 
                              
         # list of structural points with original crs
-        struct_pts_in_orig_crs = [ Point_3D( rec[0], rec[1] ) for rec in structural_pts_attrs ]
+        struct_pts_in_orig_crs = [ Point3D( rec[0], rec[1] ) for rec in structural_pts_attrs ]
         
         # IDs of structural points
         struct_pts_ids = [ rec[2] for rec in structural_pts_attrs ]
@@ -1900,7 +2735,7 @@ class qprof_QWidget( QWidget ):
         try:
             structural_planes = [ GeolPlane( rec[3], rec[4] ) for rec in structural_pts_attrs ]
         except:
-            QMessageBox.critical( self, "Error", "Check chosen fields for possible errors" )            
+            self.warn( "Check defined fields for possible errors" )          
             return
         
         struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs, 
@@ -1928,7 +2763,7 @@ class qprof_QWidget( QWidget ):
         self.profiles.add_plane_attitudes( map_struct_pts_on_section( structural_data, self.section_data, mapping_method  ) )
         self.plane_attitudes_colors.append( color )
         ### plot structural points in section ###
-        self.plot_profile_elements()
+        self.plot_profile_elements( self.vertical_exaggeration )
 
 
     def reset_struct_point_projection(self):
@@ -1938,56 +2773,43 @@ class qprof_QWidget( QWidget ):
             self.plane_attitudes_colors = []
         except:
             pass
-         
 
 
     def check_structural_line_projection_inputs( self ):
 
-        # dem parameters
-        try:
-            num_dems_in_profile = len( self.profiles.topo_profiles )
-        except:
-            return False, "Profile has not been calculated"
-        else:
-            if num_dems_in_profile == 0:
-                return False, "Profile has not been calculated"
-            elif num_dems_in_profile > 1:
-                return False, "One DEM (and only one DEM) has to be used in the profile section"
+        dem_check, msg = self.check_src_dem_for_geological_profile()        
+        if not dem_check:
+            return False, msg
                         
-        # check if profile exists
-        if self.profile_line is None:                          
-            return False, "Profile has not been calculated"
-        
-        # check that section is made up of only two points
-        if self.profile_line.num_points() != 2:                   
-            return False, "Current profile is not made up by only two points"
+        profile_check, msg = self.check_src_profile_for_geological_profile()
+        if not profile_check:
+            return False, msg
 
         # line structural layer with parameter fields
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
         if prj_struct_line_qgis_ndx < 0:            
-            return False, "No defined point layer for structural data"
+            return False, "No defined structural line layer"
 
         try:
             densify_distance = float( self.project_line_densify_distance_lineedit.text() )
         except:
-            return False, "No numeric value for densify line distance"
+            return False, "No valid numeric value for densify line distance"
         else:
-            if densify_distance == 0.0:
-                return False, "Densify line distance cannot be zero"                
+            if densify_distance <= 0.0:
+                return False, "Densify line distance must be larger than zero"                
                         
         return True, "OK"
 
                                                      
     def create_struct_line_projection(self):
 
-        input_params_valid = self.check_structural_line_projection_inputs()
-        if not input_params_valid[0]:         
-            QMessageBox.critical( self, 
-                                  "Error", 
-                                  input_params_valid[1] )            
+        # check input values
+        input_values_ok, msg = self.check_structural_line_projection_inputs()
+        if not input_values_ok:   
+            self.warn( msg )                
             return
-               
-        assert len( self.profiles.profile_dems ) == 1
+
+        # input dem parameters
         demLayer = self.profiles.profile_dems[0].layer      
         demParams = self.profiles.profile_dems[0].params
 
@@ -1997,72 +2819,54 @@ class qprof_QWidget( QWidget ):
         # get id field
         prj_struct_line_id_field_ndx = self.id_fld_line_prj_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
         
-        # get color 
-        color = self.project_line_color_comboBox.currentText()
-        
         # define structural layer        
         structural_line_layer = self.current_line_layers[ prj_struct_line_qgis_ndx ]
-        structural_line_layer_crs = structural_line_layer.crs()
-                   
+         
+        on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
+                  
         # read structural line values
-        id_list = field_values( structural_line_layer, prj_struct_line_id_field_ndx ) 
-        line_orig_crs_geom_data = line_geoms_attrs( structural_line_layer)
-        assert len( id_list ) == len( line_orig_crs_geom_data )
-        line_orig_geom_list3 = [ geom_data[0] for geom_data in line_orig_crs_geom_data ]
-        line_orig_crs_MultiLine_2D_list = [ xytuple_list2_to_MultiLine_2D( xy_list2 ) for xy_list2 in line_orig_geom_list3 ]
-        line_orig_crs_clean_MultiLine_2D_list = [ multiline_2d.remove_coincident_points() for multiline_2d in line_orig_crs_MultiLine_2D_list ]
-
-        # get project CRS information
-        on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
-                
-        # project input line layer to project CRS
-        if on_the_fly_projection:
-            line_proj_crs_MultiLine_2D_list = [ multiline2d.project_crs( structural_line_layer_crs, project_crs ) for multiline2d in line_orig_crs_clean_MultiLine_2D_list ]
-        else:
-            line_proj_crs_MultiLine_2D_list = line_orig_crs_clean_MultiLine_2D_list
+        id_list = field_values( structural_line_layer, prj_struct_line_id_field_ndx )                
+        line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list( structural_line_layer, on_the_fly_projection, project_crs )
                
         # densify with provided distance
         densify_proj_crs_distance = float( self.project_line_densify_distance_lineedit.text() )
-        densified_proj_crs_MultiLine_2D_list = [ multiline_2d.densify( densify_proj_crs_distance ) for multiline_2d in line_proj_crs_MultiLine_2D_list ]
+        densified_proj_crs_MultiLine2D_list = [ multiline_2d.densify( densify_proj_crs_distance ) for multiline_2d in line_proj_crs_MultiLine2D_list ]
                     
         # project to Dem CRS
         if on_the_fly_projection and demParams.crs != project_crs:
-            densified_dem_crs_MultiLine_2D_list = [ multiline_2d.project_crs( project_crs, demParams.crs ) for multiline_2d in densified_proj_crs_MultiLine_2D_list ]
+            densified_dem_crs_MultiLine2D_list = [ multiline_2d.crs_project( project_crs, demParams.crs ) for multiline_2d in densified_proj_crs_MultiLine2D_list ]
         else:
-            densified_dem_crs_MultiLine_2D_list = densified_proj_crs_MultiLine_2D_list
+            densified_dem_crs_MultiLine2D_list = densified_proj_crs_MultiLine2D_list
         
         # interpolate z values from Dem
-        z_list = [ self.interpolate_point_z( demLayer, demParams, pt_2d ) for multiline_2d in densified_dem_crs_MultiLine_2D_list for line_2d in multiline_2d._lines for pt_2d in line_2d._pts ]
+        z_list = [ self.interpolate_point_z( demLayer, demParams, pt_2d ) for multiline_2d in densified_dem_crs_MultiLine2D_list for line_2d in multiline_2d._lines for pt_2d in line_2d._pts ]
 
         # extract x-y pairs for creation of 3D points 
-        xy_list = [ ( pt_2d._x, pt_2d._y ) for multiline_2d in densified_proj_crs_MultiLine_2D_list for line_2d in multiline_2d._lines for pt_2d in line_2d._pts ]
-        
-        # debug: verify length of two lists             
-        assert len( z_list ) == len ( xy_list )  
-                    
+        xy_list = [ ( pt_2d._x, pt_2d._y ) for multiline_2d in densified_proj_crs_MultiLine2D_list for line_2d in multiline_2d._lines for pt_2d in line_2d._pts ]
+                            
         # replicate MultiLine list structure with 3D points with project CRS
         ndx = -1
         multiline_3d_proj_crs_list = []
-        for multiline_2d in densified_proj_crs_MultiLine_2D_list:
+        for multiline_2d in densified_proj_crs_MultiLine2D_list:
             multiline_3d_list = []
             for line_2d in multiline_2d._lines:
                 line_3d_pts_list = []
                 for pt_2d in line_2d._pts:
                     ndx += 1
-                    line_3d_pts_list.append( Point_3D( xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]) )
-                multiline_3d_list.append( Line_3D( line_3d_pts_list ) )
-            multiline_3d_proj_crs_list.append( MultiLine_3D( multiline_3d_list ) )
+                    line_3d_pts_list.append( Point3D( xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]) )
+                multiline_3d_list.append( Line3D( line_3d_pts_list ) )
+            multiline_3d_proj_crs_list.append( MultiLine3D( multiline_3d_list ) )
 
         # create projection vector        
         trend = float( self.common_axis_line_trend_SpinBox.value() )
         plunge = float( self.common_axis_line_plunge_SpinBox.value() )
-        axis_versor = GeolAxis( trend, plunge ).to_versor()
+        axis_versor = GeolAxis( trend, plunge ).versor_3d()
         l, m, n = axis_versor._x, axis_versor._y, axis_versor._z
         
         # calculation of Cartesian plane expressing section plane        
         self.section_data = self.calculate_section_data( )
                 
-        # project MultiLine_3D points to section
+        # project MultiLine3D points to section
         intersection_point_list = []
         for multiline_3d in multiline_3d_proj_crs_list:
             for line_3d in multiline_3d._lines:
@@ -2081,8 +2885,8 @@ class qprof_QWidget( QWidget ):
                 for pt_3d in line_3d._pts:
                     ndx += 1
                     line_3d_pts_list.append( intersection_point_list[ndx] ) 
-                multiline_3d_list.append( Line_3D( line_3d_pts_list ) )
-            multiline_3d_proj_crs_section_list.append( MultiLine_3D( multiline_3d_list ) )
+                multiline_3d_list.append( Line3D( line_3d_pts_list ) )
+            multiline_3d_proj_crs_section_list.append( MultiLine3D( multiline_3d_list ) )
         
 
         section_start_point, section_vector = self.section_data['init_pt'], self.section_data['vector']
@@ -2094,17 +2898,15 @@ class qprof_QWidget( QWidget ):
                 for pt_3d in line_3d._pts:
                     s = calculate_distance_with_sign( pt_3d, section_start_point, section_vector )
                     z = pt_3d._z
-                    line_2d_pts_list.append( Point_2D( s, z ) )
-                multiline_2d_list.append( Line_2D( line_2d_pts_list ))
-            curves_2d_list.append( MultiLine_2D( multiline_2d_list ) )
-         
-        assert len( curves_2d_list ) == len( line_orig_geom_list3 )
+                    line_2d_pts_list.append( Point2D( s, z ) )
+                multiline_2d_list.append( Line2D( line_2d_pts_list ))
+            curves_2d_list.append( MultiLine2D( multiline_2d_list ) )
+        
                        
         self.profiles.add_curves( curves_2d_list, id_list )
-        self.curve_colors.append( color )
                                        
         # plot new cross section
-        self.plot_profile_elements()
+        self.plot_profile_elements( self.vertical_exaggeration )
 
 
     def reset_structural_lines_projection(self):
@@ -2116,52 +2918,8 @@ class qprof_QWidget( QWidget ):
         except:
             pass
         
-                                         
-    def save_proj_points_results(self):
-        
-        try:
-            num_plane_attitudes_sets = len( self.profiles.plane_attitudes )
-        except:
-            QMessageBox.critical( self, "Saving results", "No available geological attitudes" )
-            return 
-        else:
-            if num_plane_attitudes_sets == 0:
-                QMessageBox.critical( self, "Saving results", "No available geological attitudes" )
-                return                              
-    
-        if not ( self.save_proj_point_results_asCSV_checkbox.isChecked() or \
-                 self.save_proj_point_results_asPtShp_checkbox.isChecked()):
-            QMessageBox.critical( self, "Saving results", "No output format is selected" )
-            return  
-        
-        # definition of field names
-        header_list = ['id', 
-                       'or_strpt_x',
-                       'or_strpt_y',
-                       'or_strpt_z', 
-                       'prj_strpt_x',
-                       'prj_strpt_y',
-                       'prj_strpt_z',
-                       's',
-                       'or_dipdir',
-                       'or_dipangle',
-                       'trc_dipangle',
-                       'trc_dipdir']
-                                               
-        parsed_crosssect_results = self.parse_crosssect_results_for_export( self.profiles.plane_attitudes )
 
-        # output for csv file
-        if self.save_proj_point_results_asCSV_checkbox.isChecked():
-            self.write_results_as_csv( header_list, parsed_crosssect_results )
-
-        # output for 3D pt shapefile            
-        if self.save_proj_point_results_asPtShp_checkbox.isChecked():
-            self.write_crosssect_result_ptshp( header_list, parsed_crosssect_results )
-                    
-        QMessageBox.information( self, "Saving projected attitudes", "Completed" )
-    
-    
-    def parse_crosssect_results_for_export( self, plane_attitudes_datasets ):
+    def parse_geologicalattitudes_results_for_export( self, plane_attitudes_datasets ):
 
         result_data = []  
               
@@ -2189,85 +2947,39 @@ class qprof_QWidget( QWidget ):
         return result_data
 
 
-    def parse_curves_for_export(self):
+    def parse_geologicalcurves_for_export(self):
         
         data_list = []
         for curve_set, id_set in zip( self.profiles.curves, self.profiles.curves_ids ):
-            for curve, id in zip( curve_set, id_set):
+            for curve, rec_id in zip( curve_set, id_set):
                 for line in curve._lines:
                     for pt in line._pts:
-                        data_list.append( [ id, pt._x, pt._y ] )
+                        data_list.append( [ rec_id, pt._x, pt._y ] )
         return data_list
      
-        
-    def save_proj_lines_results(self):
-        
-        try:
-            num_proj_lines_sets = len( self.profiles.curves )
-        except:
-            QMessageBox.critical( self, "Saving results", "No available geological traces" )
-            return 
-        else:
-            if num_proj_lines_sets == 0:
-                QMessageBox.critical( self, "Saving results", "No available geological traces to save" )
-                return 
-    
-        parsed_curves_for_export = self.parse_curves_for_export()
-        header_list = ['id', 's', 'z']
-        
-        self.write_results_as_csv( header_list, parsed_curves_for_export )
+
                
-               
-    def write_results_as_csv( self, header_list, parsed_crosssect_results ):
-        
-        fileName = QFileDialog.getSaveFileName(self, 
-                                               self.tr("Save results"),
-                                                "*.csv",
-                                                self.tr("csv (*.csv)"))
+    def write_geological_attitudes_ptshp( self, fileName, header_list, parsed_crosssect_results ):
 
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return   
-
-        header_list = [ unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
-        with open( unicode( fileName ), 'w') as f:
-            f.write( ','.join( header_list )+'\n' )
-            for rec in parsed_crosssect_results:
-                out_rec_string = ''
-                for val in rec:
-                    out_rec_string += str( val ) + ','
-                f.write( out_rec_string[:-1]+'\n' )
-    
-
-    def write_crosssect_result_ptshp( self, header_list, parsed_crosssect_results ):
-
-        fileName = QFileDialog.getSaveFileName(self,
-                                               self.tr("Save results as a 3D point shapefile"),
-                                                "*.shp",
-                                                self.tr("shapefile (*.shp)"))
-
-        if fileName is None or fileName == '':
-            QMessageBox.critical( self, "Saving results", "No file has been defined" )
-            return
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName( shape_driver_name )
         if shape_driver is None:
-            QMessageBox.critical( self, "Saving results", "%s driver is not available" % shape_driver_name )
+            self.warn( "%s driver is not available" % shape_driver_name )
             return
 
         try:
-            ptshp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
+            shp_datasource = shape_driver.CreateDataSource( unicode( fileName ) )
         except TypeError:
-            ptshp_datasource = shape_driver.CreateDataSource( str( fileName ) )
+            shp_datasource = shape_driver.CreateDataSource( str( fileName ) )
             
-        if ptshp_datasource is None:
-            QMessageBox.critical( self, "Saving results", "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
+        if shp_datasource is None:
+            self.warn( "Creation of %s shapefile failed" % os.path.split( fileName )[1] )
             return
 
-        ptshp_layer = ptshp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint25D )
+        ptshp_layer = shp_datasource.CreateLayer( 'profile', geom_type=ogr.wkbPoint25D )
         if ptshp_layer is None:
-            QMessageBox.critical( self, "Saving results", "Layer creation failed" )
+            self.warn( "Output layer creation failed" )
             return
 
         # creates required fields
@@ -2314,25 +3026,34 @@ class qprof_QWidget( QWidget ):
 
             pt_feature.Destroy()
 
-        ptshp_datasource.Destroy()
+        shp_datasource.Destroy()
 
     
-    def plot_profile_elements( self, elev_type="DEM" ):
-                               
+    def plot_profile_elements( self, aspect_ratio_numerator, elev_type="DEM", z_padding = 0.2, slope_padding = 0.2 ):
+         
+        def min_wo_nan( float_list ):
+            
+            return min( [f for f in float_list if not isnan(f)] )
+        
+        def max_wo_nan( float_list ):
+            
+            return max( [f for f in float_list if not isnan(f)] )
+        
+                                      
         # defines the extent for the plot window: s min and max     
         plot_s_min, plot_s_max = 0, self.profiles.get_max_s() 
 
         # defines z min and max values
         profile_z_min, profile_z_max = self.profiles.get_min_z(), self.profiles.get_max_z()
         delta_z = profile_z_max - profile_z_min 
-        plot_z_min, plot_z_max = profile_z_min - delta_z * 0.05, profile_z_max + delta_z * 0.05
+        plot_z_min, plot_z_max = profile_z_min - delta_z * z_padding, profile_z_max + delta_z * z_padding
 
         # defines slope min and max values
         slope_list = [ topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles ]
-        profiles_slope_min, profiles_slope_max = min( [ min(slist) for slist in slope_list ] ), max( [ max(slist) for slist in slope_list ] )
+        profiles_slope_min, profiles_slope_max = min_wo_nan( [ min_wo_nan(slist) for slist in slope_list ] ), max_wo_nan( [ max_wo_nan(slist) for slist in slope_list ] )
         delta_slope = profiles_slope_max - profiles_slope_min 
-        plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope*0.2, profiles_slope_max + delta_slope*0.2 
-
+        plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope*slope_padding, profiles_slope_max + delta_slope*slope_padding 
+        
         # map
         profile_window = MplWidget()  
 
@@ -2360,8 +3081,8 @@ class qprof_QWidget( QWidget ):
                                                                   self.selected_dem_colors,
                                                                   self.DEM_plot_height_filled_checkbox.isChecked() )
             
-            if self.DEM_exageration_1_1_checkbox.isChecked():
-                self.axes_elevation.set_aspect('equal')
+            
+            self.axes_elevation.set_aspect( aspect_ratio_numerator )
             
         if plot_slope_choice:
                         
@@ -2374,6 +3095,12 @@ class qprof_QWidget( QWidget ):
                                                               (plot_slope_min, plot_slope_max), 
                                                               self.selected_dem_colors,
                                                               self.DEM_plot_slope_filled_checkbox.isChecked() )
+            
+            
+        if len( self.profiles.intersection_lines ) > 0:
+            
+            for line_intersection_value in self.profiles.intersection_lines:
+                self.plot_profile_polygon_intersection_line( self.axes_elevation, line_intersection_value )
                         
         if len( self.profiles.plane_attitudes ) > 0: 
                        
@@ -2382,9 +3109,13 @@ class qprof_QWidget( QWidget ):
                    
         if len( self.profiles.curves ) > 0: 
 
-            for curve_set, color in zip( self.profiles.curves, self.curve_colors) :                
-                self.plot_curve_set( self.axes_elevation, curve_set, color )          
-                     
+            for curve_set, labels in zip( self.profiles.curves, self.profiles.curves_ids) :                
+                self.plot_projected_line_set(self.axes_elevation, curve_set, labels)          
+
+        if len( self.profiles.intersection_pts ) > 0:
+            
+            self.plot_profile_lines_intersection_points( self.axes_elevation, self.profiles.intersection_pts )
+
         profile_window.canvas.draw() 
         
         self.profile_windows.append( profile_window )
@@ -2434,7 +3165,25 @@ class qprof_QWidget( QWidget ):
                        
             return axes
                 
+
+    def plot_profile_lines_intersection_points( self, axes, profile_lines_intersection_points ):
+
+        for s, pt3d, intersection_id in profile_lines_intersection_points:
+            axes.plot( s, pt3d._z,'o', color="blue") 
+            if str(intersection_id).upper() != "NULL":
+                axes.annotate( str(intersection_id), ( s + 25, pt3d._z + 25 ) )   
+            
+
+    def line_intersection_reset(self):
         
+        self.profiles.intersection_pts = []
+        
+                            
+    def polygon_intersection_reset(self):
+        
+        self.profiles.intersection_lines = []
+
+
     def plot_structural_attitude( self, axes, section_length, structural_attitude_list, color ):
         
         # TODO:  manage case for possible nan z values
@@ -2469,16 +3218,347 @@ class qprof_QWidget( QWidget ):
                 elif self.plot_prj_add_trendplunge_label.isChecked():
                     label = "%03d/%02d" % ( src_dip_dir, src_dip_ang )
                     
-                axes.annotate( label, (s+15,z+15) )                    
+                axes.annotate( label, ( s + 15, z + 15 ) )                    
             
 
-    def plot_curve_set(self, axes, curve_set, color ):        
+    def plot_projected_line_set(self, axes, curve_set, labels ):
+               
+        colors = qprof_QWidget.colors_addit * ( int( len(curve_set) / len(qprof_QWidget.colors_addit) )  + 1 )
+        for multiline_2d, label, color in zip( curve_set, labels, colors ):
+            for line_2d in multiline_2d._lines:
+                plot_line( axes, line_2d.x_list(), line_2d.y_list(), color, name = label )
+                
+
+    def plot_profile_polygon_intersection_line(self, axes, intersection_line_value ):
         
-        for multiline_2d in curve_set:
-                for line_2d in multiline_2d._lines:
-                    plot_line( axes, line_2d.x_list(), line_2d.y_list(), color )
-                    
-                    
+        classification, line3d, s_list = intersection_line_value        
+        z_list = [ pt3d._z for pt3d in line3d._pts ]
+        
+        if self.polygon_classification_colors == None:
+            color = "red"
+        else:
+            color = self.polygon_classification_colors[unicode(classification)]
+            
+        plot_line( axes, s_list, z_list, color, linewidth=3.0, name = classification )
+                
+ 
+    def check_src_dem_for_geological_profile( self ):
+        
+        # dem parameters
+        try:
+            num_dems_in_profile = len( self.profiles.topo_profiles )
+        except:
+            return False, "Profile has not been calculated"
+        else:
+            if num_dems_in_profile == 0:
+                return False, "Profile has not been calculated"
+            elif num_dems_in_profile > 1:
+                return False, "One DEM (and only one DEM) has to be used in the profile section"    
+            
+        return True, "ok"    
+        
+  
+    def check_src_profile_for_geological_profile( self ):
+            
+        # check if profile exists
+        if self.profile_line2d_prjcrs_undensif is None:                          
+            return False, "Profile has not been calculated"
+        
+        # check that section is made up of only two points
+        if self.profile_line2d_prjcrs_undensif.num_points() != 2:                   
+            return False, "Current profile is not made up by only two points"
+        
+        return True, "ok"           
+
+
+    def check_intersection_polygon_inputs( self ):
+        
+        dem_check, msg = self.check_src_dem_for_geological_profile()        
+        if not dem_check:
+            return False, msg        
+
+        profile_check, msg = self.check_src_profile_for_geological_profile()
+        if not profile_check:
+            return False, msg        
+        
+        # polygon layer with parameter fields
+        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        if intersection_polygon_qgis_ndx < 0:            
+            return False, "No defined polygon layer"             
+                        
+        return True, "OK"        
+        
+                  
+    def check_intersection_line_inputs( self ):
+
+        dem_check, msg = self.check_src_dem_for_geological_profile()        
+        if not dem_check:
+            return False, msg
+                        
+        profile_check, msg = self.check_src_profile_for_geological_profile()
+        if not profile_check:
+            return False, msg
+        
+        # line structural layer with parameter fields
+        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        if intersection_line_qgis_ndx < 0:            
+            return False, "No defined geological line layer"             
+                        
+        return True, "OK"
+
+
+    def extract_multiline2d_list( self, structural_line_layer, on_the_fly_projection, project_crs ):
+        
+        line_orig_crs_geoms_attrs = line_geoms_attrs( structural_line_layer)
+    
+        
+        line_orig_geom_list3 = [ geom_data[0] for geom_data in line_orig_crs_geoms_attrs ]
+        line_orig_crs_MultiLine2D_list = [ xytuple_list2_to_MultiLine2D( xy_list2 ) for xy_list2 in line_orig_geom_list3 ]
+        line_orig_crs_clean_MultiLine2D_list = [ multiline_2d.remove_coincident_points() for multiline_2d in line_orig_crs_MultiLine2D_list ]
+
+        # get CRS information
+        structural_line_layer_crs = structural_line_layer.crs()
+                
+        # project input line layer to project CRS
+        if on_the_fly_projection:
+            line_proj_crs_MultiLine2D_list = [ multiline2d.crs_project( structural_line_layer_crs, project_crs ) for multiline2d in line_orig_crs_clean_MultiLine2D_list ]
+        else:
+            line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
+            
+        return line_proj_crs_MultiLine2D_list
+  
+
+    def do_polygon_intersection(self):
+        
+        # check input values
+        input_values_ok, msg = self.check_intersection_polygon_inputs()
+        if not input_values_ok:   
+            self.warn( msg )                
+            return
+ 
+        # get dem parameters
+        demLayer = self.profiles.profile_dems[0].layer      
+        demParams = self.profiles.profile_dems[0].params
+        
+        # profile line2d, in project CRS and densified 
+        profile_line2d_prjcrs_densif = self.profile_line2d_prjcrs_undensif.densify( self.sample_distance ) 
+        
+        # polygon layer
+        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        inters_polygon_classifaction_field_ndx = self.inters_polygon_classifaction_field_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box    
+        polygon_layer = self.current_polygon_layers[ intersection_polygon_qgis_ndx ]
+        polygon_layer_crs = polygon_layer.crs()
+        
+        on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
+        
+        if on_the_fly_projection and polygon_layer_crs != project_crs:        
+            profile_line2d_polycrs_densif = project_line_2d( profile_line2d_prjcrs_densif, project_crs, polygon_layer_crs )
+        else:
+            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
+        
+        profile_qgsgeometry = QgsGeometry.fromPolyline([QgsPoint(pt2d._x,pt2d._y) for pt2d in profile_line2d_polycrs_densif._pts ])
+        
+        intersection_polyline_polygon_crs_list = self.profile_polygon_intersection( profile_qgsgeometry, polygon_layer, inters_polygon_classifaction_field_ndx )
+        if len( intersection_polyline_polygon_crs_list ) == 0:
+            self.warn( "No intersection found")
+            return
+        
+        # transform polyline intersections into prj crs line2d & classification list
+        intersection_line2d_prj_crs_list = []
+        for intersection_polyline_polygon_crs in intersection_polyline_polygon_crs_list:
+            rec_classification, xy_tuple_list = intersection_polyline_polygon_crs
+            intersection_polygon_crs_line2d = xytuple_list_to_Line2D( xy_tuple_list )
+            if on_the_fly_projection and polygon_layer_crs != project_crs:
+                intersection_prj_crs_line2d = project_line_2d( intersection_polygon_crs_line2d, polygon_layer_crs, project_crs )
+            else:
+                intersection_prj_crs_line2d = intersection_polygon_crs_line2d
+            intersection_line2d_prj_crs_list.append( [rec_classification, intersection_prj_crs_line2d ] )
+            
+        
+        # create Point3D lists from intersection with source DEM     
+
+        polygon_classification_set = set()
+        sect_pt_1, sect_pt_2 = self.profile_line2d_prjcrs_undensif._pts       
+        formation_list = []
+        intersection_line3d_list = []
+        intersection_polygon_s_list2 = []
+        intersection_polygon_z_list2 = []
+        for polygon_classification, line2d in intersection_line2d_prj_crs_list:
+
+            polygon_classification_set.add( polygon_classification )            
+                        
+            intersection_line3d = Line3D( self.intersect_with_dem( demLayer, demParams, on_the_fly_projection, project_crs, line2d._pts ) )
+            
+            s0_list = intersection_line3d.incremental_length_2d()
+            s_start = sect_pt_1.distance( intersection_line3d._pts[0] )            
+            s_list = [ s + s_start for s in s0_list ]
+            
+            formation_list.append( polygon_classification )
+            intersection_line3d_list.append( intersection_line3d )
+            intersection_polygon_s_list2.append( s_list )
+
+        # create windows for user_definition of intersection colors in profile
+        if polygon_classification_set != set() and polygon_classification_set != set([None]):
+            
+            dialog = PolygonIntersectionRepresentationDialog( polygon_classification_set )    
+            if dialog.exec_():
+                polygon_classification_colors_dict = self.classification_colors( dialog )
+            else:
+                self.warn( "No color chosen" )
+                return                
+            if  len( polygon_classification_colors_dict ) == 0: 
+                self.warn( "No defined colors" )
+                return      
+            else:
+                self.polygon_classification_colors = polygon_classification_colors_dict
+        else:
+            self.polygon_classification_colors = None        
+        
+        self.profiles.add_intersections_lines( formation_list, intersection_line3d_list, intersection_polygon_s_list2 )
+
+        self.plot_profile_elements( self.vertical_exaggeration )
+
+
+    def classification_colors( self, dialog ):   
+
+        polygon_classification_colors_dict = dict() 
+        for classification_ndx in range( dialog.polygon_classifications_treeWidget.topLevelItemCount () ):
+            class_itemwidget = dialog.polygon_classifications_treeWidget.topLevelItem ( classification_ndx )
+            classification = unicode( class_itemwidget.text(0) )
+            polygon_classification_colors_dict[classification] = dialog.polygon_classifications_treeWidget.itemWidget( class_itemwidget, 1 ).currentText()
+        
+        return polygon_classification_colors_dict
+    
+
+    def profile_polygon_intersection(self, profile_qgsgeometry, polygon_layer, inters_polygon_classifaction_field_ndx ):
+                
+        intersection_polyline_polygon_crs_list = []
+        feature_iterator = polygon_layer.getFeatures()
+        for polygon_feature in feature_iterator:
+            # retrieve every feature with its geometry and attributes
+
+            # fetch geometry
+            poly_geom = polygon_feature.geometry()
+            
+            intersection_qgsgeometry = poly_geom.intersection( profile_qgsgeometry )
+            if intersection_qgsgeometry.length() == 0:
+                continue
+            
+            if inters_polygon_classifaction_field_ndx >= 0:
+                attrs = polygon_feature.attributes()
+                polygon_classification = attrs[inters_polygon_classifaction_field_ndx]
+            else:
+                polygon_classification = None
+            
+            intersection_polyline_polygon_crs_list.append([ polygon_classification,  intersection_qgsgeometry.asPolyline() ] )
+
+        return intersection_polyline_polygon_crs_list
+                           
+         
+    def do_line_intersection(self):        
+
+        # check input values
+        input_values_ok, msg = self.check_intersection_line_inputs()
+        if not input_values_ok:   
+            self.warn( msg )                
+            return
+        
+        # get dem parameters
+        demLayer = self.profiles.profile_dems[0].layer      
+        demParams = self.profiles.profile_dems[0].params
+
+        # get line structural layer
+        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        
+        # get id field
+        intersection_line_id_field_ndx = self.inters_input_id_fld_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        
+        # define structural layer        
+        structural_line_layer = self.current_line_layers[ intersection_line_qgis_ndx ]
+         
+        on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
+                          
+        # read structural line values
+        id_list = field_values( structural_line_layer, intersection_line_id_field_ndx )         
+        line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list( structural_line_layer, on_the_fly_projection, project_crs )
+
+        # calculated Point2D intersection list
+        intersection_point_id_list = self.calculate_profile_lines_intersection( line_proj_crs_MultiLine2D_list, id_list, self.profile_line2d_prjcrs_undensif )
+                                            
+        # sort intersection points by distance from profile start point 
+        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list( self.profile_line2d_prjcrs_undensif, intersection_point_id_list )
+
+        # create Point3D from intersection with source DEM
+        intersection_point_list = [ pt2d for pt2d, _ in intersection_point_id_list ]
+        intersection_id_list = [ id for _, id in intersection_point_id_list ]
+        intersection_point3d_list = self.intersect_with_dem( demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list )
+
+        self.profiles.add_intersections_pts( zip( distances_from_profile_start_list, intersection_point3d_list, intersection_id_list ) )
+
+        self.plot_profile_elements( self.vertical_exaggeration )
+        
+
+    def intersect_with_dem( self, demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list ):
+
+        # project to Dem CRS
+        if on_the_fly_projection and demParams.crs != project_crs:            
+            qgs_point2d_list = [ qgs_point_2d( point2D._x, point2D._y ) for point2D in intersection_point_list ]
+            dem_crs_intersection_qgispoint_list = [ project_qgs_point( qgsPt, project_crs, demParams.crs ) for qgsPt in qgs_point2d_list ]
+            dem_crs_intersection_point_list = [ Point2D( qgispt.x(), qgispt.y() ) for qgispt in dem_crs_intersection_qgispoint_list ]
+        else:
+            dem_crs_intersection_point_list = intersection_point_list
+
+        # interpolate z values from Dem
+        z_list = [ self.interpolate_point_z( demLayer, demParams, pt_2d ) for pt_2d in dem_crs_intersection_point_list ]
+
+        return [ Point3D( pt2d._x, pt2d._y, z ) for pt2d, z in zip( intersection_point_list, z_list ) ]
+
+    
+    def calculate_profile_lines_intersection(self, multilines2d_list, id_list, profile_line2d ):
+        
+        # debug
+        assert len( multilines2d_list ) == len( id_list )
+        
+        profile_segment2d_list = profile_line2d.to_segments()        
+        # debug
+        assert len( profile_segment2d_list ) == 1
+        profile_segment2d = profile_segment2d_list[0]
+        
+        intersection_list = []        
+        for multiline2d, multiline_id in zip( multilines2d_list, id_list ):
+            for line2d in multiline2d._lines:
+                for line_segment2d in line2d.to_segments():
+                    try:
+                        intersection_point2d = profile_segment2d.intersection_pt( line_segment2d )
+                    except ZeroDivisionError:
+                        continue
+                    if intersection_point2d is None:
+                        continue
+                    if line_segment2d.contains_pt( intersection_point2d ) and \
+                       profile_segment2d.contains_pt( intersection_point2d ):
+                        intersection_list.append( [ intersection_point2d, multiline_id ] )        
+        
+        return intersection_list
+        
+            
+    def intersection_distances_by_profile_start_list( self, profile_line, intersection_list ):
+
+        # convert the profile line
+        # from a Line2D to a Segment2D
+        profile_segment2d_list = profile_line.to_segments()        
+        # debug
+        assert len( profile_segment2d_list ) == 1
+        profile_segment2d = profile_segment2d_list[0]        
+    
+        # determine distances for each point in intersection list
+        # creating a list of float values
+        distance_from_profile_start_list = []
+        for intersection_res in intersection_list:
+            distance_from_profile_start_list.append( profile_segment2d._start_pt.distance( intersection_res[0]) )
+
+        return distance_from_profile_start_list
+        
+                         
     def closeEvent( self, event ):
         
         try:
@@ -2490,19 +3570,24 @@ class qprof_QWidget( QWidget ):
             self.disconnect_digitize_maptool()
         except:
             pass
- 
+                
         try:       
-            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_point_lyr_combobox ) 
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_polygon_lyr_combobox )
         except:
             pass
-                    
+                  
         try:       
             QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_line_lyr_combobox )
         except:
             pass
-           
+
+        try:       
+            QgsMapLayerRegistry.instance().layerWasAdded.disconnect( self.refresh_struct_point_lyr_combobox )
+        except:
+            pass
+                   
         try:
-            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_point_lyr_combobox ) 
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_polygon_lyr_combobox ) 
         except:
             pass               
             
@@ -2510,6 +3595,11 @@ class qprof_QWidget( QWidget ):
             QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_line_lyr_combobox )
         except:
             pass
+        
+        try:
+            QgsMapLayerRegistry.instance().layerRemoved.disconnect( self.refresh_struct_point_lyr_combobox ) 
+        except:
+            pass  
      
 
         
@@ -2642,14 +3732,388 @@ class SourceLineLayerDialog( QDialog ):
         line_layer_field_list = self.line_shape.dataProvider().fields().toList( )        
         for field in line_layer_field_list:
             self.Trace2D_order_field_comboBox.addItem( field.name() )      
+ 
+    
+    
+class LoadPointListDialog( QDialog ):
+    
+    def __init__(self, parent=None):
+        
+        super( LoadPointListDialog, self ).__init__(parent)  
+
+        layout = QGridLayout()
+                                              
+        layout.addWidget( QLabel( self.tr("Point list, with at least two points.") ), 0, 0, 1, 1) 
+        layout.addWidget( QLabel( self.tr("Each point is defined by a x-y coordinates pair, comma-separated, on a single row") ), 1, 0, 1, 1) 
+        layout.addWidget( QLabel( self.tr("Example:\n549242.7, 242942.2\n578370.3, 322634.5") ), 2, 0, 1, 1) 
+        
+        self.point_list_qtextedit = QTextEdit()        
+        layout.addWidget( self.point_list_qtextedit, 3, 0, 1, 1)         
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+        
+        layout.addLayout( buttonLayout, 4, 0, 1, 3 )
+
+        self.setLayout( layout )        
+        
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+        
+        self.setWindowTitle("Point list")
+       
+
+
+class PolygonIntersectionRepresentationDialog( QDialog ):
+    
+    colors = ["darkseagreen", "darkgoldenrod","darkviolet", "hotpink", "powderblue", "yellowgreen", "palevioletred", 
+                  "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow","magenta","blue","cyan","chartreuse" ] 
+
+    
+    def __init__(self, polygon_classification_set, parent=None):
+        
+        super( PolygonIntersectionRepresentationDialog, self ).__init__(parent)        
+        
+        self.polygon_classifications = list( polygon_classification_set )
+                                       
+        self.polygon_classifications_treeWidget = QTreeWidget()
+        self.polygon_classifications_treeWidget.setColumnCount( 2 )
+        self.polygon_classifications_treeWidget.setColumnWidth ( 0, 200 )
+        self.polygon_classifications_treeWidget.headerItem().setText( 0, "Name" )
+        self.polygon_classifications_treeWidget.headerItem().setText( 1, "Plot color" )
+        self.polygon_classifications_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.polygon_classifications_treeWidget.setDragEnabled(False)
+        self.polygon_classifications_treeWidget.setDragDropMode(QAbstractItemView.NoDragDrop)
+        self.polygon_classifications_treeWidget.setAlternatingRowColors(True)
+        self.polygon_classifications_treeWidget.setTextElideMode( Qt.ElideLeft )
+         
+        self.refresh_classification_colors_treewidget()
+        
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+        
+        layout = QGridLayout()
+
+        layout.addWidget( self.polygon_classifications_treeWidget, 0, 0, 1, 3 )                 
+        layout.addLayout( buttonLayout, 1, 0, 1, 3 )
+        
+        self.setLayout(layout)
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+        
+        self.setWindowTitle("Polygon intersection colors")
+         
+
+    def refresh_classification_colors_treewidget( self ):
+
+        self.polygon_classifications_treeWidget.clear() 
+                                    
+        for classification_id in self.polygon_classifications:
             
-              
+            tree_item = QTreeWidgetItem( self.polygon_classifications_treeWidget )
+            tree_item.setText(0, unicode( classification_id ) )
+            combo_box = QComboBox()
+            combo_box.setSizeAdjustPolicy ( 0 )
+            combo_box.addItems( PolygonIntersectionRepresentationDialog.colors )
+            self.polygon_classifications_treeWidget.setItemWidget( tree_item, 1, combo_box )       
 
+
+
+class TopographicProfileExportDialog( QDialog ):
+    
+    def __init__(self, selected_dem_list=[], parent=None):
         
+        super( TopographicProfileExportDialog, self ).__init__(parent)  
+
+        layout = QVBoxLayout()
+        
+        ##
+        # Profile source
+                                                      
+        source_groupBox = QGroupBox( self.tr( "Profile sources") )
+        
+        source_layout = QGridLayout()
+        
+        self.src_allselecteddems_QRadioButton = QRadioButton( self.tr( "All selected DEMs") )
+        source_layout.addWidget( self.src_allselecteddems_QRadioButton, 1,0,1,2 )
+        self.src_allselecteddems_QRadioButton.setChecked( True )
+        
+        self.src_singledem_QRadioButton = QRadioButton( self.tr( "Single DEM") )
+        source_layout.addWidget( self.src_singledem_QRadioButton, 2,0,1,1 )
+        
+        self.src_singledemlist_QComboBox = QComboBox()
+        for qgsRasterLayer in selected_dem_list:
+            self.src_singledemlist_QComboBox.addItem( qgsRasterLayer.name() )
+        source_layout.addWidget( self.src_singledemlist_QComboBox, 2,1,1,1 )
+                
+        self.src_singlegpx_QRadioButton = QRadioButton( self.tr( "GPX file") )
+        source_layout.addWidget( self.src_singlegpx_QRadioButton, 3,0,1,1 ) 
+        
+        source_groupBox.setLayout( source_layout ) 
+        
+        layout.addWidget( source_groupBox ) 
+        
+        
+        ##
+        # Output type
+
+        output_type_groupBox = QGroupBox( self.tr( "Output format") )
+        
+        output_type_layout = QGridLayout()
+
+        self.outtype_shapefile_point_QRadioButton = QRadioButton( self.tr( "shapefile - point") )
+        output_type_layout.addWidget( self.outtype_shapefile_point_QRadioButton, 0,0,1,1 )
+        self.outtype_shapefile_point_QRadioButton.setChecked( True )        
+                
+        self.outtype_shapefile_line_QRadioButton = QRadioButton( self.tr( "shapefile - line") )
+        output_type_layout.addWidget( self.outtype_shapefile_line_QRadioButton, 1,0,1,1 )
+   
+        self.outtype_csv_QRadioButton = QRadioButton( self.tr( "csv") )
+        output_type_layout.addWidget( self.outtype_csv_QRadioButton, 2,0,1,1 )
+        
+        output_type_groupBox.setLayout( output_type_layout )         
+                
+        layout.addWidget( output_type_groupBox )    
+         
+        
+        ##
+        # Output name/path
+
+        output_path_groupBox = QGroupBox( self.tr( "Output path") )
+        
+        output_path_layout = QGridLayout()
+        
+        self.outpath_QLineEdit = QLineEdit()
+        output_path_layout.addWidget( self.outpath_QLineEdit, 0,0,1,1 )
+        
+        self.outpath_QPushButton = QPushButton( self.tr( "Choose" ) )
+        self.outpath_QPushButton.clicked.connect( self.define_outpath )
+        output_path_layout.addWidget( self.outpath_QPushButton, 0,1,1,1 )
+        
+        output_path_groupBox.setLayout( output_path_layout )         
+                
+        layout.addWidget( output_path_groupBox )    
+
+
+        decide_QWiget = QWidget()
+        
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+                
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+        
+        decide_QWiget.setLayout( buttonLayout )
+        
+        layout.addWidget( decide_QWiget )
+
+        self.setLayout( layout )        
+        
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+        
+        self.setWindowTitle("Export topographic profile")
+        
+    
+    def define_outpath(self):
+    
+        if self.outtype_shapefile_line_QRadioButton.isChecked( ) or self.outtype_shapefile_point_QRadioButton.isChecked():
+            outfile_path = new_file_path( self, "Path", "*.shp", "Shapefile" )
+        elif self.outtype_csv_QRadioButton.isChecked( ):
+            outfile_path = new_file_path( self, "Path", "*.csv", "Csv" )
+        else:
+            self.warn( self.tr( "Output type definiton error")) 
+            return           
+        
+        self.outpath_QLineEdit.setText( outfile_path )
+        
+          
+
+class PointDataExportDialog( QDialog ):
+
+    def __init__(self, parent=None):
+
+        super( PointDataExportDialog, self ).__init__(parent)
+
+        layout = QVBoxLayout()
+
+        ##
+        # Output type
+
+        output_type_groupBox = QGroupBox( self.tr( "Output format") )
+
+        output_type_layout = QGridLayout()
+
+        self.outtype_shapefile_point_QRadioButton = QRadioButton( self.tr( "shapefile - point") )
+        output_type_layout.addWidget( self.outtype_shapefile_point_QRadioButton, 0,0,1,1 )
+        self.outtype_shapefile_point_QRadioButton.setChecked( True )
+
+        self.outtype_csv_QRadioButton = QRadioButton( self.tr( "csv") )
+        output_type_layout.addWidget( self.outtype_csv_QRadioButton, 1,0,1,1 )
+
+        output_type_groupBox.setLayout( output_type_layout )
+
+        layout.addWidget( output_type_groupBox )
+
+
+        ##
+        # Output name/path
+
+        output_path_groupBox = QGroupBox( self.tr( "Output path") )
+
+        output_path_layout = QGridLayout()
+
+        self.outpath_QLineEdit = QLineEdit()
+        output_path_layout.addWidget( self.outpath_QLineEdit, 0,0,1,1 )
+
+        self.outpath_QPushButton = QPushButton( self.tr( "Choose" ) )
+        self.outpath_QPushButton.clicked.connect( self.define_outpath )
+        output_path_layout.addWidget( self.outpath_QPushButton, 0,1,1,1 )
+
+        output_path_groupBox.setLayout( output_path_layout )
+
+        layout.addWidget( output_path_groupBox )
+
+
+        decide_QWiget = QWidget()
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        decide_QWiget.setLayout( buttonLayout )
+
+        layout.addWidget( decide_QWiget )
+
+        self.setLayout( layout )
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+
+        self.setWindowTitle("Export")
+
+
+    def define_outpath(self):
+
+        if self.outtype_shapefile_point_QRadioButton.isChecked():
+            outfile_path = new_file_path( self, "Path", "*.shp", "Shapefile" )
+        elif self.outtype_csv_QRadioButton.isChecked( ):
+            outfile_path = new_file_path( self, "Path", "*.csv", "Csv" )
+        else:
+            self.warn( self.tr( "Output type definiton error"))
+            return
+
+        self.outpath_QLineEdit.setText( outfile_path )
 
 
 
-        
-        
-        
-        
+class LineDataExportDialog( QDialog ):
+
+    def __init__(self, parent=None):
+
+        super( LineDataExportDialog, self ).__init__(parent)
+
+        layout = QVBoxLayout()
+
+        ##
+        # Output type
+
+        output_type_groupBox = QGroupBox( self.tr( "Output format") )
+
+        output_type_layout = QGridLayout()
+
+        self.outtype_shapefile_line_QRadioButton = QRadioButton( self.tr( "shapefile - line") )
+        output_type_layout.addWidget( self.outtype_shapefile_line_QRadioButton, 0,0,1,1 )
+        self.outtype_shapefile_line_QRadioButton.setChecked( True )
+
+        self.outtype_csv_QRadioButton = QRadioButton( self.tr( "csv") )
+        output_type_layout.addWidget( self.outtype_csv_QRadioButton, 1,0,1,1 )
+
+        output_type_groupBox.setLayout( output_type_layout )
+
+        layout.addWidget( output_type_groupBox )
+
+
+        ##
+        # Output name/path
+
+        output_path_groupBox = QGroupBox( self.tr( "Output path") )
+
+        output_path_layout = QGridLayout()
+
+        self.outpath_QLineEdit = QLineEdit()
+        output_path_layout.addWidget( self.outpath_QLineEdit, 0,0,1,1 )
+
+        self.outpath_QPushButton = QPushButton( self.tr( "Choose" ) )
+        self.outpath_QPushButton.clicked.connect( self.define_outpath )
+        output_path_layout.addWidget( self.outpath_QPushButton, 0,1,1,1 )
+
+        output_path_groupBox.setLayout( output_path_layout )
+
+        layout.addWidget( output_path_groupBox )
+
+
+        decide_QWiget = QWidget()
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        decide_QWiget.setLayout( buttonLayout )
+
+        layout.addWidget( decide_QWiget )
+
+        self.setLayout( layout )
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+
+        self.setWindowTitle("Export")
+
+
+    def define_outpath(self):
+
+        if self.outtype_shapefile_line_QRadioButton.isChecked():
+            outfile_path = new_file_path( self, "Path", "*.shp", "Shapefile" )
+        elif self.outtype_csv_QRadioButton.isChecked( ):
+            outfile_path = new_file_path( self, "Path", "*.csv", "Csv" )
+        else:
+            self.warn( self.tr( "Output type definiton error"))
+            return
+
+        self.outpath_QLineEdit.setText( outfile_path )
+

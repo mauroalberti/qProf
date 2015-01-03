@@ -6,9 +6,9 @@ from math import *
 
 import numpy as np
 
-from .spatial import Point_3D, GeolPlane, CartesianPlane, Segment_3D, Vector_3D, GeolAxis, ParamLine 
+from .spatial import Point3D, GeolPlane, CartesianPlane, Segment3D, Vector3D, GeolAxis, ParamLine 
 from .profiles import PlaneAttitude
-from .errors import ConnectionError  
+from .errors import ConnectionException  
 
 
 def calculate_distance_with_sign( projected_point, section_init_pt, section_vector ):
@@ -16,16 +16,16 @@ def calculate_distance_with_sign( projected_point, section_init_pt, section_vect
     assert projected_point._z != np.nan
     assert projected_point._z is not None            
     
-    projected_vector = Segment_3D( section_init_pt, projected_point ).to_vector()            
+    projected_vector = Segment3D( section_init_pt, projected_point ).vector3d()            
     cos_alpha = section_vector.vectors_cos_angle( projected_vector )
     
     return projected_vector.length() * cos_alpha
     
 
-def get_intersection_slope( intersection_versor, section_vector ):
+def get_intersection_slope( intersection_versor_3d, section_vector ):
     
-    slope_radians = abs( intersection_versor.slope_radians() )
-    scalar_product_for_downward_sense = section_vector.scalar_product( intersection_versor.to_down_vector() )
+    slope_radians = abs( intersection_versor_3d.slope_radians() )
+    scalar_product_for_downward_sense = section_vector.scalar_product( intersection_versor_3d.to_down_vector() )
     if scalar_product_for_downward_sense > 0.0:
         intersection_downward_sense = "right"
     elif scalar_product_for_downward_sense == 0.0:
@@ -38,24 +38,24 @@ def get_intersection_slope( intersection_versor, section_vector ):
 
 def calculate_intersection_versor( section_cartes_plane, structural_cartes_plane ):
     
-    return section_cartes_plane.intersection_versor( structural_cartes_plane )
+    return section_cartes_plane.intersection_versor_3d( structural_cartes_plane )
     
     
-def calculate_nearest_intersection( intersection_versor, section_cartes_plane, structural_cartes_plane, structural_pt ):
+def calculate_nearest_intersection( intersection_versor_3d, section_cartes_plane, structural_cartes_plane, structural_pt ):
     
-    dummy_inters_point = section_cartes_plane.intersection_point( structural_cartes_plane )            
-    dummy_structural_vector = Segment_3D( dummy_inters_point, structural_pt ).to_vector()        
-    dummy_distance = dummy_structural_vector.scalar_product( intersection_versor )        
-    offset_vector = intersection_versor.scale( dummy_distance ) 
+    dummy_inters_point = section_cartes_plane.intersection_point_3d( structural_cartes_plane )            
+    dummy_structural_vector = Segment3D( dummy_inters_point, structural_pt ).vector3d()        
+    dummy_distance = dummy_structural_vector.scalar_product( intersection_versor_3d )        
+    offset_vector = intersection_versor_3d.scale( dummy_distance ) 
            
-    return Point_3D( dummy_inters_point._x + offset_vector._x,
+    return Point3D( dummy_inters_point._x + offset_vector._x,
                      dummy_inters_point._y + offset_vector._y,
                      dummy_inters_point._z + offset_vector._z )
 
 
 def calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt ):
     
-    axis_versor = map_axis.to_versor()
+    axis_versor = map_axis.versor_3d()
     l, m, n = axis_versor._x, axis_versor._y, axis_versor._z
     axis_param_line = ParamLine( structural_pt, l, m, n )
     return axis_param_line.intersect_cartes_plane( section_cartes_plane )
@@ -71,25 +71,25 @@ def map_measure_to_section( structural_rec, section_data, map_axis = None ):
     structural_cartes_plane = structural_plane.to_cartes_plane( structural_pt ) 
 
     ## intersection versor       
-    intersection_versor = calculate_intersection_versor( section_cartes_plane, structural_cartes_plane )
+    intersection_versor_3d = calculate_intersection_versor( section_cartes_plane, structural_cartes_plane )
 
     # calculate slope of geological plane onto section plane
-    slope_radians, intersection_downward_sense = get_intersection_slope( intersection_versor, section_vector )
+    slope_radians, intersection_downward_sense = get_intersection_slope( intersection_versor_3d, section_vector )
         
     # intersection point
     if map_axis is None:    
-        intersection_point = calculate_nearest_intersection( intersection_versor, section_cartes_plane, structural_cartes_plane, structural_pt )
+        intersection_point_3d = calculate_nearest_intersection( intersection_versor_3d, section_cartes_plane, structural_cartes_plane, structural_pt )
     else:
-        intersection_point = calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt )
+        intersection_point_3d = calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt )
          
     # horizontal distance between projected structural point and profile start
-    signed_distance_from_section_start = calculate_distance_with_sign( intersection_point, section_init_pt, section_vector ) 
+    signed_distance_from_section_start = calculate_distance_with_sign( intersection_point_3d, section_init_pt, section_vector ) 
            
     ## solution for current structural point        
     return PlaneAttitude( structural_pt_id,
                           structural_pt,
                           structural_plane,
-                          intersection_point,
+                          intersection_point_3d,
                           slope_radians,
                           intersection_downward_sense,
                           signed_distance_from_section_start )
@@ -113,14 +113,17 @@ def map_struct_pts_on_section( structural_data, section_data, mapping_method ):
         assert len( mapping_method['individual_axes_values'] ) == len( structural_data )
         result = []
         for structural_rec, (trend, plunge) in zip( structural_data, mapping_method['individual_axes_values']):
-            map_axis = GeolAxis( trend, plunge )
-            result.append( map_measure_to_section(structural_rec, section_data, map_axis ) )
+            try:
+                map_axis = GeolAxis( trend, plunge )
+                result.append( map_measure_to_section(structural_rec, section_data, map_axis ) )
+            except:
+                continue
         return result
         
 
-class Intersection_Parameters(object):
+class IntersectionParameters(object):
     """
-    Intersection_Parameters class.
+    IntersectionParameters class.
     Manages the metadata for spdata results (DEM source filename, source point, plane attitude.
     
     """
@@ -345,21 +348,21 @@ class Intersections(object):
             conns = self.neighbours[from_id]
             num_conn = len(conns)
             if num_conn == 0:
-                raise ConnectionError, 'no connected intersection'  
+                raise ConnectionException, 'no connected intersection'  
             elif num_conn == 1:
                 if self.links[conns[0]-1]['conn_from'] == 0 and self.links[conns[0]-1]['conn_to'] != from_id:
                     to_id = conns[0]
                 else:
-                    raise ConnectionError, 'no free connection'
+                    raise ConnectionException, 'no free connection'
             elif num_conn == 2:
                 if self.links[conns[0]-1]['conn_from'] == 0 and self.links[conns[0]-1]['conn_to'] != from_id:
                     to_id = conns[0]
                 elif self.links[conns[1]-1]['conn_from'] == 0 and self.links[conns[1]-1]['conn_to'] != from_id:
                     to_id = conns[1]
                 else:
-                    raise ConnectionError, 'no free connection' 
+                    raise ConnectionException, 'no free connection' 
             else:
-                raise ConnectionError, 'multiple connection'
+                raise ConnectionException, 'multiple connection'
             
             # set connection
             self.links[to_id-1]['conn_from'] = from_id

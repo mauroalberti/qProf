@@ -16,6 +16,8 @@ from osgeo import ogr
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+from matplotlib import rcParams
+
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis, QgsGeometry
 from qgis.gui import QgsRubberBand
 
@@ -40,7 +42,7 @@ from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_po
 from geosurf.string_utils import clean_string
 from geosurf.utils import to_float
 
-from geosurf.qt_utils import new_file_path
+from geosurf.qt_utils import new_file_path, old_file_path
             
 from mpl.mpl_widget import MplWidget, plot_line, plot_filled_line
 from mpl.utils import valid_intervals
@@ -100,7 +102,7 @@ class qprof_QWidget( QWidget ):
         self.main_widget.addTab( self.setup_topoprofile_tab(), "Topography" )         
         self.main_widget.addTab( self.setup_project_section_tab(), "Projections" )
         self.main_widget.addTab( self.setup_intersect_section_tab(), "Intersections" )
-        self.main_widget.addTab( self.setup_importexport_section_tab(), "Export" )
+        self.main_widget.addTab( self.setup_export_section_tab(), "Export" )
         self.main_widget.addTab( self.setup_about_tab(), "Help/About" )
         
         self.prj_input_line_comboBox.currentIndexChanged[int].connect( self.update_linepoly_layers_boxes )
@@ -199,23 +201,37 @@ class qprof_QWidget( QWidget ):
         self.DEM_exageration_ratio_Qlineedit.setText( "1" )
         plotDEM_Layout.addWidget( self.DEM_exageration_ratio_Qlineedit, 0, 3, 1, 1 )
                         
-        self.DEM_plot_height_checkbox = QCheckBox( self.tr( "height"))
+        self.DEM_plot_height_checkbox = QCheckBox( self.tr( "Height"))
         self.DEM_plot_height_checkbox.setChecked( True ) 
         plotDEM_Layout.addWidget( self.DEM_plot_height_checkbox, 1, 0, 1, 1 )  
 
         self.DEM_plot_height_filled_checkbox = QCheckBox( self.tr( "(filled)"))
-        plotDEM_Layout.addWidget( self.DEM_plot_height_filled_checkbox, 1, 1, 1, 1 ) 
+        plotDEM_Layout.addWidget( self.DEM_plot_height_filled_checkbox, 1, 3, 1, 1 ) 
 
-        self.DEM_plot_slope_checkbox = QCheckBox( self.tr( "slope (degrees)"))
-        plotDEM_Layout.addWidget( self.DEM_plot_slope_checkbox, 1, 2, 1, 1 ) 
+        self.DEM_plot_slope_checkbox = QCheckBox( self.tr( "Slope (degrees)"))
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_checkbox, 2, 0, 1, 1 ) 
        
+        self.DEM_plot_slope_absolute_qradiobutton = QRadioButton( self.tr( "absolute"))
+        self.DEM_plot_slope_absolute_qradiobutton.setChecked(True);
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_absolute_qradiobutton, 2, 1, 1, 1 ) 
+
+        self.DEM_plot_slope_directional_qradiobutton = QRadioButton( self.tr( "directional"))
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_directional_qradiobutton, 2, 2, 1, 1 ) 
+                       
         self.DEM_plot_slope_filled_checkbox = QCheckBox( self.tr( "(filled)"))
-        plotDEM_Layout.addWidget( self.DEM_plot_slope_filled_checkbox, 1, 3, 1, 1 ) 
-        
+        plotDEM_Layout.addWidget( self.DEM_plot_slope_filled_checkbox, 2, 3, 1, 1 ) 
+ 
+        self.swap_profile_horiz_checkbox = QCheckBox( self.tr( "Reverse profile direction"))
+        plotDEM_Layout.addWidget( self.swap_profile_horiz_checkbox, 3, 0, 1, 2 ) 
+
+        self.swap_xaxis_checkbox = QCheckBox( self.tr( "Reverse x axes direction"))
+        plotDEM_Layout.addWidget( self.swap_xaxis_checkbox, 3, 2, 1, 2 )
+
+                                       
         self.CreateProfDEM_pushbutton = QPushButton(self.tr("Create profile")) 
         self.CreateProfDEM_pushbutton.clicked.connect( self.create_topo_profiles_from_DEMs )
                        
-        plotDEM_Layout.addWidget( self.CreateProfDEM_pushbutton, 2, 0, 1, 4 )
+        plotDEM_Layout.addWidget( self.CreateProfDEM_pushbutton, 4, 0, 1, 4 )
      
         plotDEM_QGroupBox.setLayout( plotDEM_Layout )
 
@@ -648,7 +664,7 @@ class qprof_QWidget( QWidget ):
         return intersect_widget       
 
 
-    def setup_importexport_section_tab(self):
+    def setup_export_section_tab(self):
                 
                      
         impexp_widget = QWidget()  
@@ -660,26 +676,31 @@ class qprof_QWidget( QWidget ):
         export_QGroupBox = QGroupBox( impexp_widget )
         export_QGroupBox.setTitle('Export')
          
-        export_inner_Layout = QVBoxLayout()
+        export_inner_Layout = QGridLayout()
         
-        self.export_topographic_profile_QPushButton = QPushButton("Topographic profile")
-        export_inner_Layout.addWidget(self.export_topographic_profile_QPushButton )  
+          
+        self.export_image_QPushButton = QPushButton("Figure")
+        export_inner_Layout.addWidget(self.export_image_QPushButton, 1, 0, 1, 4 )  
+        self.export_image_QPushButton.clicked.connect( self.do_export_image)              
+        
+        self.export_topographic_profile_QPushButton = QPushButton("Topographic profile data")
+        export_inner_Layout.addWidget(self.export_topographic_profile_QPushButton, 2, 0, 1, 4 )  
         self.export_topographic_profile_QPushButton.clicked.connect( self.do_export_topo_profiles )      
         
-        self.export_project_geol_attitudes_QPushButton = QPushButton("Projected geological attitudes")
-        export_inner_Layout.addWidget(self.export_project_geol_attitudes_QPushButton )  
+        self.export_project_geol_attitudes_QPushButton = QPushButton("Projected geological attitude data")
+        export_inner_Layout.addWidget(self.export_project_geol_attitudes_QPushButton, 3, 0, 1, 4 )  
         self.export_project_geol_attitudes_QPushButton.clicked.connect( self.do_export_project_geol_attitudes ) 
                 
-        self.export_project_geol_lines__QPushButton = QPushButton("Projected geological lines")
-        export_inner_Layout.addWidget(self.export_project_geol_lines__QPushButton )  
+        self.export_project_geol_lines__QPushButton = QPushButton("Projected geological line data")
+        export_inner_Layout.addWidget(self.export_project_geol_lines__QPushButton, 4, 0, 1, 4 )  
         self.export_project_geol_lines__QPushButton.clicked.connect( self.do_export_project_geol_lines ) 
                 
-        self.export_line_intersections_QPushButton = QPushButton("Line intersections")
-        export_inner_Layout.addWidget(self.export_line_intersections_QPushButton )  
+        self.export_line_intersections_QPushButton = QPushButton("Line intersection data")
+        export_inner_Layout.addWidget(self.export_line_intersections_QPushButton, 5, 0, 1, 4 )  
         self.export_line_intersections_QPushButton.clicked.connect( self.do_export_line_intersections ) 
                 
-        self.export_polygon_intersections_QPushButton = QPushButton("Polygon intersections")
-        export_inner_Layout.addWidget(self.export_polygon_intersections_QPushButton )  
+        self.export_polygon_intersections_QPushButton = QPushButton("Polygon intersection data")
+        export_inner_Layout.addWidget(self.export_polygon_intersections_QPushButton, 6, 0, 1, 4 )  
         self.export_polygon_intersections_QPushButton.clicked.connect( self.do_export_polygon_intersections )         
                 
         export_QGroupBox.setLayout( export_inner_Layout )        
@@ -689,7 +710,8 @@ class qprof_QWidget( QWidget ):
         impexp_widget.setLayout(impexp_layout) 
         
         return impexp_widget      
-    
+
+   
 
     def do_export_topo_profiles(self):
         
@@ -1146,15 +1168,17 @@ class qprof_QWidget( QWidget ):
         and the created profiles will be in the project CRS.
         When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click. 
         <br /><br />When using a line layer, multiple lines will be merged into a single line, based on the 
-        chosen order field when available, or otherwise on the internal line order.
+        chosen order field when available, or otherwise based on the internal line order.
         Some artifacts in derived profiles can be due to erroneous line ordering, not corrected by 
         defining an order in an integer field (order values start from 1).
-        <br /><br />When calculating a profile from DEM, you must define the 'Line densify distance',
+        <br /><br />When calculating a profile from DEM, you may define the 'Line densify distance',
         i.e. the distance between consecutive sampling point automatically added
         when the original vertices of the used path are distanced more than this value.
         It is suggested to use a value comparable to the resolution of the used DEM,
-        for instance 30 m for Aster DEMs. 
-        <br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees),
+        for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
+        of the DEM with the highest spatial resolution.
+        br />The profile can be swap around the horizontal (x) axis or on the profile line. 
+        <br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), abosulte or relative,
         and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
         <br />
         <h4>Projections</h4>
@@ -1183,10 +1207,14 @@ class qprof_QWidget( QWidget ):
         An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
         
         <br />
-        <h4>Export</h4>         
-        Results can be exported ad shapefiles or csv files. Depending on the data type,
+        <h4>Export</h4>
+        <br /><br />The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
+        be saved in a text file and loaded for applying them to further plots.         
+        <br /><br />Result data can be exported ad shapefiles or csv files. Depending on the data type,
         the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for 
         the QGis project.
+        <br /><br />Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute. To change to aboslute value,
+        apply the absolute function on the relative field in a GIS or spreadsheet software.
         <br />
         <br />
         <br />
@@ -1610,16 +1638,16 @@ class qprof_QWidget( QWidget ):
 
         try:
             if profile_line.num_points() < 2:
-                return False, "No line defined"
+                return False, "No profile line defined"
         except:
-                return False, "No line defined"            
+                return False, "No profile line defined"            
         
         sampling_distance_state = self.check_trace_sampling_distance( sample_distance )
         if not sampling_distance_state[0]:
             return False, sampling_distance_state[1]
         
         if not ( plot_height_choice or plot_slope_choice ):
-            return False, "Neither height or slope options are selected"
+            return False, "Neither height or slope plot options are selected"
 
         return True, ''
    
@@ -1682,7 +1710,10 @@ class qprof_QWidget( QWidget ):
                                         
         plot_height_choice = self.DEM_plot_height_checkbox.isChecked()
         plot_slope_choice = self.DEM_plot_slope_checkbox.isChecked() 
-                        
+        
+        if self.swap_profile_horiz_checkbox.isChecked():
+            profile_line = self.profile_line2d_prjcrs_undensif.swap_horiz()
+
         # check profile creation parameters 
         input_parameters_state_ok, msg = self.check_profile_creation_parameters(selected_dems,
                                                                                 profile_line, 
@@ -1695,7 +1726,7 @@ class qprof_QWidget( QWidget ):
             return
                                  
         try:               
-            self.profiles = self.calculate_elevations_from_DEMs( float( self.sample_distance )  )        
+            self.profiles = self.calculate_elevations_from_DEMs( profile_line, float( self.sample_distance )  )        
         except VectorIOException, msg:
             self.profiles = None
             self.warn( msg )
@@ -1704,12 +1735,12 @@ class qprof_QWidget( QWidget ):
         self.plot_profile_elements( self.vertical_exaggeration )        
 
                                                                         
-    def calculate_elevations_from_DEMs(self, sample_distance ):
+    def calculate_elevations_from_DEMs(self, profile_line, sample_distance ):
 
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
 
-        resampled_line_2d = self.profile_line2d_prjcrs_undensif.densify( sample_distance ) # line resampled by sample distance
+        resampled_line_2d = profile_line.densify( sample_distance ) # line resampled by sample distance
        
         # calculate 3D profiles from DEMs
         dem_3Dlines = self.get_DEM_3Dlines( resampled_line_2d, on_the_fly_projection, project_crs )
@@ -1944,7 +1975,7 @@ class qprof_QWidget( QWidget ):
             pt_feature.SetField(field_names[1], rec[1] )   
             pt_feature.SetField(field_names[2], rec[2] ) 
             pt_feature.SetField(field_names[3], rec[3] )  
-            for dem_ndx, dem_name in enumerate( dem_names ):
+            for dem_ndx in range( len(dem_names) ):
                 dem_height = rec[3+dem_ndx*3+1]
                 if dem_height != '': 
                     pt_feature.SetField(field_names[3+dem_ndx*3+1], dem_height)             
@@ -3048,8 +3079,12 @@ class qprof_QWidget( QWidget ):
         delta_z = profile_z_max - profile_z_min 
         plot_z_min, plot_z_max = profile_z_min - delta_z * z_padding, profile_z_max + delta_z * z_padding
 
-        # defines slope min and max values
-        slope_list = [ topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles ]
+        # defines slope value lists and the min and max values
+        if self.DEM_plot_slope_absolute_qradiobutton.isChecked():
+            slope_list = [ topo_profile.profile_3d.slopes_absolute_list() for topo_profile in self.profiles.topo_profiles ]
+        else:   
+            slope_list = [ topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles ]
+
         profiles_slope_min, profiles_slope_max = min_wo_nan( [ min_wo_nan(slist) for slist in slope_list ] ), max_wo_nan( [ max_wo_nan(slist) for slist in slope_list ] )
         delta_slope = profiles_slope_max - profiles_slope_min 
         plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope*slope_padding, profiles_slope_max + delta_slope*slope_padding 
@@ -3081,12 +3116,13 @@ class qprof_QWidget( QWidget ):
                                                                   self.selected_dem_colors,
                                                                   self.DEM_plot_height_filled_checkbox.isChecked() )
             
-            
             self.axes_elevation.set_aspect( aspect_ratio_numerator )
             
         if plot_slope_choice:
                         
-            if len(mpl_code_list) == 2: subplot_code = mpl_code_list[1]            
+            if len(mpl_code_list) == 2: 
+                subplot_code = mpl_code_list[1]  
+                          
             self.axes_slopes = self.plot_topo_profile_lines( subplot_code, 
                                                               profile_window, 
                                                               self.profiles.topo_profiles, 
@@ -3095,8 +3131,7 @@ class qprof_QWidget( QWidget ):
                                                               (plot_slope_min, plot_slope_max), 
                                                               self.selected_dem_colors,
                                                               self.DEM_plot_slope_filled_checkbox.isChecked() )
-            
-            
+                                        
         if len( self.profiles.intersection_lines ) > 0:
             
             for line_intersection_value in self.profiles.intersection_lines:
@@ -3128,6 +3163,9 @@ class qprof_QWidget( QWidget ):
                                   plot_x_range, 
                                   plot_y_range  )
 
+        if self.swap_xaxis_checkbox.isChecked():
+            axes.invert_xaxis()
+                
         # label = unicode(dem_name)
         for topo_profile, dem_color in zip( topo_profiles, dem_colors ): 
             
@@ -3135,7 +3173,11 @@ class qprof_QWidget( QWidget ):
                 y_list = topo_profile.z_list()
                 plot_y_min = plot_y_range[0]
             elif topo_type == 'slope':
-                y_list = topo_profile.slope_list()
+                if self.DEM_plot_slope_absolute_qradiobutton.isChecked():
+                    y_list = topo_profile.slope_absolute_list() 
+                else:   
+                    y_list = topo_profile.slope_list()
+                
                 plot_y_min = 0.0
             
             if filled_choice:    
@@ -3557,7 +3599,107 @@ class qprof_QWidget( QWidget ):
             distance_from_profile_start_list.append( profile_segment2d._start_pt.distance( intersection_res[0]) )
 
         return distance_from_profile_start_list
-        
+ 
+
+         
+    def do_export_image(self):
+                
+
+        try:
+            profile_window = self.profile_windows[-1]        
+        except:
+            self.warn("No profile available")
+            return              
+              
+                    
+        dialog = FigureExportDialog()
+
+        if dialog.exec_():
+    
+            try:
+                fig_width_inches = float(dialog.figure_width_inches_QLineEdit.text())
+            except:
+                self.warn("Error in figure width value")
+                return
+            
+            try:
+                fig_resolution_dpi = int(dialog.figure_resolution_dpi_QLineEdit.text())
+            except:
+                self.warn("Error in figure resolution value")
+                return
+            
+            try:
+                fig_font_size_pts = float(dialog.figure_fontsize_pts_QLineEdit.text())
+            except:
+                self.warn("Error in font size value")
+               
+            try:
+                fig_outpath = unicode(dialog.figure_outpath_QLineEdit.text())
+            except:
+                self.warn("Error in figure output path")
+                return
+            
+            try:
+                top_space_value = float(dialog.top_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure top space value")
+                return
+            
+            try:
+                left_space_value = float(dialog.left_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure left space value")
+                return
+            
+            try:
+                right_space_value = float(dialog.right_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure right space value")
+                return
+
+            try:
+                bottom_space_value = float(dialog.bottom_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure bottom space value")
+                return
+
+            try:
+                blank_width_space = float(dialog.blank_width_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure blank widht space value")
+                return
+
+            try:
+                blank_height_space = float(dialog.blank_height_space_value_QDoubleSpinBox.value())
+            except:
+                self.warn("Error in figure blank height space value")
+                return
+                                                                                
+        else:
+            
+            self.warn( "No export figure defined" )
+            return
+
+        figure = profile_window.canvas.fig
+
+        fig_current_width, fig_current_height = figure.get_size_inches()
+        fig_scale_factor = fig_width_inches / fig_current_width
+        figure.set_size_inches(fig_width_inches, fig_scale_factor*fig_current_height)
+
+        for axis in figure.axes:            
+            for label in (axis.get_xticklabels() + axis.get_yticklabels()):
+                label.set_fontsize(fig_font_size_pts)
+                
+        figure.subplots_adjust(wspace=blank_width_space, hspace=blank_height_space, left=left_space_value, right=right_space_value, top=top_space_value, bottom=bottom_space_value)
+
+        try:
+            figure.savefig(str(fig_outpath), dpi = fig_resolution_dpi)
+        except:
+            self.warn("Error with image saving")
+        else:
+            self.info("Image saved")
+
+    
                          
     def closeEvent( self, event ):
         
@@ -3834,6 +3976,251 @@ class PolygonIntersectionRepresentationDialog( QDialog ):
 
 
 
+
+class FigureExportDialog(QDialog):
+ 
+    def __init__(self, parent=None):
+        
+        super( FigureExportDialog, self ).__init__(parent)  
+        
+        layout = QVBoxLayout() 
+
+        # main parameters gropbox
+        
+        main_params_groupBox = QGroupBox("Main graphic parameters")
+        
+        main_params_layout = QGridLayout()           
+    
+        main_params_layout.addWidget( QLabel(self.tr("Figure width (inches)")), 0, 0, 1, 1 )     
+        self.figure_width_inches_QLineEdit = QLineEdit("10")
+        main_params_layout.addWidget( self.figure_width_inches_QLineEdit, 0, 1, 1, 1 )     
+
+        main_params_layout.addWidget( QLabel(self.tr("Resolution (dpi)")), 0, 2, 1, 1 )     
+        self.figure_resolution_dpi_QLineEdit = QLineEdit("200")
+        main_params_layout.addWidget( self.figure_resolution_dpi_QLineEdit, 0, 3, 1, 1 )  
+
+        main_params_layout.addWidget( QLabel(self.tr("Font size (pts)")), 0, 4, 1, 1 )     
+        self.figure_fontsize_pts_QLineEdit = QLineEdit("12")
+        main_params_layout.addWidget( self.figure_fontsize_pts_QLineEdit, 0, 5, 1, 1 )  
+
+        main_params_groupBox.setLayout( main_params_layout ) 
+        
+        layout.addWidget( main_params_groupBox ) 
+        
+        
+        # additional parameters groupbox
+        
+        add_params_groupBox = QGroupBox( self.tr( "Subplot configuration tools parameters") )
+        
+        add_params_layout = QGridLayout()
+        
+        add_params_layout.addWidget(QLabel("Top space"), 0, 2, 1, 1)
+        self.top_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.top_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.top_space_value_QDoubleSpinBox.setDecimals(2)        
+        self.top_space_value_QDoubleSpinBox.setSingleStep(0.01)        
+        self.top_space_value_QDoubleSpinBox.setValue(0.96)
+        add_params_layout.addWidget(self.top_space_value_QDoubleSpinBox, 0, 3, 1, 1)
+
+        add_params_layout.addWidget(QLabel("Left space"), 1, 0, 1, 1)
+        self.left_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.left_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.left_space_value_QDoubleSpinBox.setDecimals(2)
+        self.left_space_value_QDoubleSpinBox.setSingleStep(0.01)                 
+        self.left_space_value_QDoubleSpinBox.setValue(0.1)
+        add_params_layout.addWidget(self.left_space_value_QDoubleSpinBox, 1, 1, 1, 1)
+                
+        add_params_layout.addWidget(QLabel("Right space"), 1, 4, 1, 1)
+        self.right_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.right_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.right_space_value_QDoubleSpinBox.setDecimals(2)
+        self.right_space_value_QDoubleSpinBox.setSingleStep(0.01)   
+        self.right_space_value_QDoubleSpinBox.setValue(0.96)
+        add_params_layout.addWidget(self.right_space_value_QDoubleSpinBox, 1, 5, 1, 1)
+                
+        add_params_layout.addWidget(QLabel("Bottom space"), 2, 2, 1, 1)
+        self.bottom_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.bottom_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.bottom_space_value_QDoubleSpinBox.setDecimals(2)
+        self.bottom_space_value_QDoubleSpinBox.setSingleStep(0.01)   
+        self.bottom_space_value_QDoubleSpinBox.setValue(0.06)
+        add_params_layout.addWidget(self.bottom_space_value_QDoubleSpinBox, 2, 3, 1, 1)
+        
+        add_params_layout.addWidget(QLabel("Blank width space between subplots"), 3, 0, 1, 2)
+        self.blank_width_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.blank_width_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.blank_width_space_value_QDoubleSpinBox.setDecimals(2)
+        self.blank_width_space_value_QDoubleSpinBox.setSingleStep(0.01)   
+        self.blank_width_space_value_QDoubleSpinBox.setValue(0.1)
+        add_params_layout.addWidget(self.blank_width_space_value_QDoubleSpinBox, 3, 2, 1, 1)
+                
+        add_params_layout.addWidget(QLabel("Blank height space between subplots"), 3, 3, 1, 2)
+        self.blank_height_space_value_QDoubleSpinBox = QDoubleSpinBox()
+        self.blank_height_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
+        self.blank_height_space_value_QDoubleSpinBox.setDecimals(2)
+        self.blank_height_space_value_QDoubleSpinBox.setSingleStep(0.01)   
+        self.blank_height_space_value_QDoubleSpinBox.setValue(0.1)
+        add_params_layout.addWidget(self.blank_height_space_value_QDoubleSpinBox, 3, 5, 1, 1)
+        
+        add_params_layout.setRowMinimumHeight (3, 50)
+        
+        add_params_groupBox.setLayout( add_params_layout ) 
+        
+        layout.addWidget( add_params_groupBox ) 
+
+
+        # graphic parameters import and export
+        
+        graphic_params_io_groupBox = QGroupBox( "Graphic parameters save/load" )
+        
+        graphic_params_io_layout = QHBoxLayout() 
+        
+        self.graphic_params_save_QPushButton = QPushButton("Save")
+        self.graphic_params_save_QPushButton.clicked.connect( self.output_graphic_params_save )
+        graphic_params_io_layout.addWidget( self.graphic_params_save_QPushButton )
+ 
+        self.graphic_params_load_QPushButton = QPushButton("Load")
+        self.graphic_params_load_QPushButton.clicked.connect( self.output_graphic_params_load )
+        graphic_params_io_layout.addWidget( self.graphic_params_load_QPushButton )
+               
+        graphic_params_io_groupBox.setLayout( graphic_params_io_layout ) 
+        
+        layout.addWidget( graphic_params_io_groupBox ) 
+        
+                
+        
+        # output file parameters
+        
+        output_file_groupBox = QGroupBox( self.tr( "Output file") )
+        
+        output_file_layout = QGridLayout()           
+                   
+        self.figure_outpath_QLineEdit = QLineEdit()
+        output_file_layout.addWidget( self.figure_outpath_QLineEdit, 3, 0, 1, 1 )
+
+        self.figure_outpath_QPushButton = QPushButton( self.tr( "Choose" ) )
+        self.figure_outpath_QPushButton.clicked.connect( self.define_figure_outpath )
+        output_file_layout.addWidget( self.figure_outpath_QPushButton, 3, 1, 1, 1 )
+ 
+        output_file_groupBox.setLayout( output_file_layout ) 
+        
+        layout.addWidget( output_file_groupBox )  
+
+                                
+        
+        # execution buttons
+        
+        decide_QWiget = QWidget()
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        decide_QWiget.setLayout( buttonLayout )
+
+        layout.addWidget( decide_QWiget )
+
+        self.setLayout( layout )
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self,  SLOT("accept()") )
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+        
+        
+        self.setWindowTitle("Export figure")
+        
+
+    def output_graphic_params_save(self):
+        
+        output_file_path = new_file_path( self, "Define output configuration file", "*.txt", "txt" )
+        
+        if not output_file_path:
+            return
+        
+        out_configuration_string = """figure width = %f
+resolution (dpi) = %d
+font size (pts ) = %f
+top space = %f
+left space = %f        
+right space = %f        
+bottom space = %f  
+blank width space = %f
+blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
+                              int(self.figure_resolution_dpi_QLineEdit.text()),
+                              float(self.figure_fontsize_pts_QLineEdit.text()),
+                              float(self.top_space_value_QDoubleSpinBox.value()),
+                              float(self.left_space_value_QDoubleSpinBox.value()),
+                              float(self.right_space_value_QDoubleSpinBox.value()),
+                              float(self.bottom_space_value_QDoubleSpinBox.value()),
+                              float(self.blank_width_space_value_QDoubleSpinBox.value()),
+                              float(self.blank_height_space_value_QDoubleSpinBox.value()))  
+
+        with open(output_file_path, "w") as ofile:
+            ofile.write(out_configuration_string)
+            
+        self.info("Graphic parameters saved")
+
+    
+    def output_graphic_params_load(self):
+        
+        input_file_path = old_file_path(self, "Choose input configuration file", "*.txt", "txt")
+        
+        if not input_file_path:
+            return
+        
+        with open(input_file_path, "r") as ifile:
+            config_lines = ifile.readlines()
+        
+        try:
+            figure_width_inches = float(config_lines[0].split("=")[1])
+            figure_resolution_dpi = int(config_lines[1].split("=")[1])
+            figure_fontsize_pts = float(config_lines[2].split("=")[1])
+            top_space_value = float(config_lines[3].split("=")[1])
+            left_space_value = float(config_lines[4].split("=")[1])
+            right_space_value = float(config_lines[5].split("=")[1])
+            bottom_space_value = float(config_lines[6].split("=")[1])
+            blank_width_space = float(config_lines[7].split("=")[1])
+            blank_height_space = float(config_lines[8].split("=")[1])
+        except:
+            self.warn("Error in configuration file")
+            return
+                    
+        self.figure_width_inches_QLineEdit.setText(str(figure_width_inches))
+        self.figure_resolution_dpi_QLineEdit.setText(str(figure_resolution_dpi))
+        self.figure_fontsize_pts_QLineEdit.setText(str(figure_fontsize_pts))
+        self.top_space_value_QDoubleSpinBox.setValue(top_space_value)
+        self.left_space_value_QDoubleSpinBox.setValue(left_space_value)
+        self.right_space_value_QDoubleSpinBox.setValue(right_space_value)
+        self.bottom_space_value_QDoubleSpinBox.setValue(bottom_space_value)
+        self.blank_width_space_value_QDoubleSpinBox.setValue(blank_width_space)
+        self.blank_height_space_value_QDoubleSpinBox.setValue(blank_height_space)
+                              
+                              
+                                     
+    def define_figure_outpath(self):
+
+        outfile_path = new_file_path( self, "Path", "*.svg; *.pdf; *.tif", "svg; pdf; tif" )
+
+        self.figure_outpath_QLineEdit.setText( outfile_path )
+        
+
+    def info(self, msg):
+        
+        QMessageBox.information( self,  "qProf", msg )
+        
+        
+    def warn( self, msg):
+    
+        QMessageBox.warning( self,  "qProf", msg )
+        
+                 
+    
 class TopographicProfileExportDialog( QDialog ):
     
     def __init__(self, selected_dem_list=[], parent=None):

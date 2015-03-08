@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
-from mpl_toolkits.mplot3d import Axes3D
 
 from .utils import valid_intervals
 
@@ -74,9 +73,6 @@ class MplWidget( QWidget ):
         self.window_tabs = QTabWidget()
         self.window_tabs.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)        
         self.window_tabs.addTab( self.ntb, "View" )
-        
-        #TO BE ADDED IN SUBSEQUENT RELEASE
-        #self.window_tabs.addTab( inputWidget, "Rendering" )         
 
         # create a vertical box layout
         self.vbl = QVBoxLayout()       
@@ -116,18 +112,5 @@ def plot_filled_line( axes, x_list, y_list, plot_y_min, facecolor, alpha = 0.1 )
                           facecolor = facecolor, 
                           alpha = alpha )
 
-  
-def view_3D_surface( surface_3d ):
-           
-    X, Y, Z = surface_3d
-        
-    # tripcolor plot.
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1, projection='3d')
-    ax.plot_trisurf( X, Y, Z, cmap=cm.jet, linewidth=0.1 )
-    ax.autoscale(enable=True, axis='both', tight=True)
-    plt.show()
-    
-    
     
          

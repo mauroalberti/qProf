@@ -170,7 +170,12 @@ class TopoProfile( object ):
         
         return self.profile_3d.slopes_list()
     
-            
+
+    def slope_absolute_list( self ):
+        
+        return self.profile_3d.slopes_absolute_list()
+    
+                
     def length_2d( self ):
         
         return self.profile_3d.length_2d()

@@ -285,7 +285,12 @@ class Line2D( object ):
         
         return Line2D( self._pts )
     
-            
+
+    def swap_horiz(self):
+        
+        return Line2D(self._pts[::-1])
+    
+                    
     def add_pt(self, pt_2d ):
         
         return Line2D( self._pts + [ pt_2d ] )
@@ -887,7 +892,16 @@ class Line3D(object):
         slopes_list.append( np.nan ) # slope value for last point is unknown         
         return slopes_list        
  
- 
+
+    def slopes_absolute_list( self ):
+  
+        slopes_list = []
+        for ndx in range( self.num_points() - 1 ):            
+            vector = Segment3D( self._pts[ndx], self._pts[ndx+1] ).vector3d()
+            slopes_list.append( abs( degrees( vector.slope_radians() ) ) ) 
+        slopes_list.append( np.nan ) # slope value for last point is unknown         
+        return slopes_list 
+     
   
 class MultiLine3D(object):
     # MultiLine3D is a list of Line3D objects

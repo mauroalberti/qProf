@@ -233,18 +233,6 @@ def project_qgs_point( qgsPt, srcCrs, destCrs ):
     
     return QgsCoordinateTransform( srcCrs, destCrs ).transform( qgsPt )
 
-
-def project_line_2d( srcLine, srcCrs, destCrs ):
-    
-    destLine = Line2D()    
-    for pt in srcLine._pts:        
-        srcPt = QgsPoint (pt._x, pt._y)
-        destPt = project_qgs_point( srcPt, srcCrs, destCrs )
-        destLine = destLine.add_pt( Point2D( destPt.x(), destPt.y() ) )
-        
-    return destLine
-
-
     
 def project_xy_list( src_crs_xy_list, srcCrs, destCrs ):
     

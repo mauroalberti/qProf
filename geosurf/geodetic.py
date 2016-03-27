@@ -5,6 +5,8 @@ from math import sqrt, radians, sin, cos
 
 from .spatial import Point4D
 
+
+
 WGS84 = { 'semi-major axis': 6378137.0, 
           'first eccentricity squared': 6.69437999014e-3}
    

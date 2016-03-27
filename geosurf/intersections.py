@@ -7,7 +7,7 @@ from math import *
 import numpy as np
 
 from .spatial import Point3D, GeolPlane, CartesianPlane, Segment3D, Vector3D, GeolAxis, ParamLine 
-from .profiles import PlaneAttitude
+from .profile import PlaneAttitude
 from .errors import ConnectionException  
 
 

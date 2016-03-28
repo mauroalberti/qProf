@@ -205,7 +205,7 @@ class qprof_QWidget(QWidget):
         ## create profile section
         
         plotDEM_QGroupBox = QGroupBox(profileDEM_QWidget)
-        plotDEM_QGroupBox.setTitle('Create')
+        plotDEM_QGroupBox.setTitle('Plot topographic profile')
         
         plotDEM_Layout = QGridLayout()                
 
@@ -216,42 +216,52 @@ class qprof_QWidget(QWidget):
         self.profile_densify_distance_lineedit = QLineEdit()
         plotDEM_Layout.addWidget(self.profile_densify_distance_lineedit, 0, 1, 1, 1)
 
-        plotDEM_Layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 2, 1, 1)  
+        plotDEM_Layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 1, 0, 1, 1)
         self.DEM_exageration_ratio_Qlineedit = QLineEdit()
         self.DEM_exageration_ratio_Qlineedit.setText("1")
-        plotDEM_Layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 3, 1, 1)
+        plotDEM_Layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 1, 1, 1, 1)
+
+        plotDEM_Layout.addWidget(QLabel(self.tr("Plot min value")), 0, 2, 1, 1)
+        self.plot_min_value_QLineedit = QLineEdit()
+        self.plot_min_value_QLineedit.setText("[automatic]")
+        plotDEM_Layout.addWidget(self.plot_min_value_QLineedit, 0, 3, 1, 1)
+
+        plotDEM_Layout.addWidget(QLabel(self.tr("Plot max value")), 1, 2, 1, 1)
+        self.plot_max_value_QLineedit = QLineEdit()
+        self.plot_max_value_QLineedit.setText("[automatic]")
+        plotDEM_Layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)
                         
         self.DEM_plot_height_checkbox = QCheckBox(self.tr("Height"))
         self.DEM_plot_height_checkbox.setChecked(True) 
-        plotDEM_Layout.addWidget(self.DEM_plot_height_checkbox, 1, 0, 1, 1)  
+        plotDEM_Layout.addWidget(self.DEM_plot_height_checkbox, 2, 0, 1, 1)
 
         self.DEM_plot_height_filled_checkbox = QCheckBox(self.tr("(filled)"))
-        plotDEM_Layout.addWidget(self.DEM_plot_height_filled_checkbox, 1, 3, 1, 1) 
+        plotDEM_Layout.addWidget(self.DEM_plot_height_filled_checkbox, 2, 3, 1, 1)
 
         self.DEM_plot_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
-        plotDEM_Layout.addWidget(self.DEM_plot_slope_checkbox, 2, 0, 1, 1) 
+        plotDEM_Layout.addWidget(self.DEM_plot_slope_checkbox, 3, 0, 1, 1)
        
         self.DEM_plot_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
         self.DEM_plot_slope_absolute_qradiobutton.setChecked(True);
-        plotDEM_Layout.addWidget(self.DEM_plot_slope_absolute_qradiobutton, 2, 1, 1, 1) 
+        plotDEM_Layout.addWidget(self.DEM_plot_slope_absolute_qradiobutton, 3, 1, 1, 1)
 
         self.DEM_plot_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
-        plotDEM_Layout.addWidget(self.DEM_plot_slope_directional_qradiobutton, 2, 2, 1, 1) 
+        plotDEM_Layout.addWidget(self.DEM_plot_slope_directional_qradiobutton, 3, 2, 1, 1)
                        
         self.DEM_plot_slope_filled_checkbox = QCheckBox(self.tr("(filled)"))
-        plotDEM_Layout.addWidget(self.DEM_plot_slope_filled_checkbox, 2, 3, 1, 1) 
+        plotDEM_Layout.addWidget(self.DEM_plot_slope_filled_checkbox, 3, 3, 1, 1)
  
         self.swap_profile_horiz_checkbox = QCheckBox(self.tr("Reverse profile direction"))
-        plotDEM_Layout.addWidget(self.swap_profile_horiz_checkbox, 3, 0, 1, 2) 
+        plotDEM_Layout.addWidget(self.swap_profile_horiz_checkbox, 4, 0, 1, 2)
 
         self.swap_xaxis_checkbox = QCheckBox(self.tr("Reverse x axes direction"))
-        plotDEM_Layout.addWidget(self.swap_xaxis_checkbox, 3, 2, 1, 2)
+        plotDEM_Layout.addWidget(self.swap_xaxis_checkbox, 4, 2, 1, 2)
 
                                        
         self.CreateProfDEM_pushbutton = QPushButton(self.tr("Create profile")) 
         self.CreateProfDEM_pushbutton.clicked.connect(self.create_topo_profiles_from_DEMs)
                        
-        plotDEM_Layout.addWidget(self.CreateProfDEM_pushbutton, 4, 0, 1, 4)
+        plotDEM_Layout.addWidget(self.CreateProfDEM_pushbutton, 5, 0, 1, 4)
      
         plotDEM_QGroupBox.setLayout(plotDEM_Layout)
 
@@ -1729,11 +1739,12 @@ class qprof_QWidget(QWidget):
         if self.profiles is None:
             self.profiles = self.calculate_profiles()
 
-        statistics = map(lambda p: self.get_statistics(p), self.profiles.topo_profiles)
-
-        dialog = StatisticsDialog(statistics)
-        dialog.exec_()
-
+        if self.profiles is not None:
+            statistics = map(lambda p: self.get_statistics(p), self.profiles.topo_profiles)
+            dialog = StatisticsDialog(statistics)
+            dialog.exec_()
+        else:
+            self.warn('Unable to calculate statistics')
 
 
     def create_topo_profiles_from_DEMs(self):

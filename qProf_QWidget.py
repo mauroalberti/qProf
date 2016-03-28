@@ -29,7 +29,7 @@ from geosurf.spatial import merge_lines, GeolPlane, GeolAxis, CartesianPlane, Pa
 from geosurf.spatial import xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
                             
 from geosurf.geo_io import QGisRasterParameters
-from geosurf.profile import Profile_Set, TopoLine3d, ProfileDEM
+from geosurf.profile import Profile_Elements, TopoLine3D, DEMParams
 from geosurf.geodetic import TrackPointGPX
 from geosurf.intersections import map_struct_pts_on_section, calculate_distance_with_sign
 from geosurf.errors import VectorInputException, GPXIOException, VectorIOException
@@ -1697,6 +1697,27 @@ class qprof_QWidget(QWidget):
         return True
 
 
+    def get_statistics(self, topo_profile):
+
+        dem_name = topo_profile.dem_name
+        profile_line3d = topo_profile.profile_3d
+
+        z_min = profile_line3d.z_min()
+        z_max = profile_line3d.z_max()
+        z_mean = profile_line3d.z_mean()
+        z_var = profile_line3d.z_var()
+        z_std = profile_line3d.z_std()
+
+        stats = dict(dem_name=dem_name,
+                     z_min=z_min,
+                     z_max=z_max,
+                     z_mean=z_mean,
+                     z_var=z_var,
+                     z_std=z_std)
+
+        return stats
+
+
     def calculate_statistics(self):
 
          # get profile creation parameters
@@ -1707,6 +1728,12 @@ class qprof_QWidget(QWidget):
         # calculates profiles if they do not exist
         if self.profiles is None:
             self.profiles = self.calculate_profiles()
+
+        statistics = map(lambda p: self.get_statistics(p), self.profiles.topo_profiles)
+
+        dialog = StatisticsDialog(statistics)
+        dialog.exec_()
+
 
 
     def create_topo_profiles_from_DEMs(self):
@@ -1753,13 +1780,13 @@ class qprof_QWidget(QWidget):
             profiles_lines3d.append(profile_3d)
 
         # setup profiles properties
-        dem_profiles = Profile_Set(self.sample_distance)
-        dem_profiles.profile_dems = [ProfileDEM(dem, params) for (dem, params) in zip(self.selected_dems, self.selected_dem_parameters)]
-        dem_profiles.profile_line = resampled_line_2d
+        profiles = Profile_Elements(self.sample_distance)
+        profiles.dems_params = [DEMParams(dem, params) for (dem, params) in zip(self.selected_dems, self.selected_dem_parameters)]
+        profiles.resamp_src_line = resampled_line_2d
         for dem_name, line_3d in zip([dem.name() for dem in self.selected_dems], profiles_lines3d):
-            dem_profiles.add_topo_profile(TopoLine3d(dem_name, line_3d))
+            profiles.add_topo_profile(TopoLine3D(dem_name, line_3d))
         
-        return dem_profiles
+        return profiles
 
 
     def parse_DEM_results_for_export(self, profiles):
@@ -2771,9 +2798,9 @@ class qprof_QWidget(QWidget):
             self.warn("Check defined fields for possible errors")          
             return
         
-        struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs, 
-                                                        structural_layer_crs, 
-                                                        self.profiles.profile_dems[0])
+        struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
+                                                        structural_layer_crs,
+                                                        self.profiles.dems_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2843,8 +2870,8 @@ class qprof_QWidget(QWidget):
             return
 
         # input dem parameters
-        demLayer = self.profiles.profile_dems[0].layer      
-        demParams = self.profiles.profile_dems[0].params
+        demLayer = self.profiles.dems_params[0].layer
+        demParams = self.profiles.dems_params[0].params
 
         # get line structural layer
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
@@ -3381,8 +3408,8 @@ class qprof_QWidget(QWidget):
             return
  
         # get dem parameters
-        demLayer = self.profiles.profile_dems[0].layer      
-        demParams = self.profiles.profile_dems[0].params
+        demLayer = self.profiles.dems_params[0].layer
+        demParams = self.profiles.dems_params[0].params
         
         # profile line2d, in project CRS and densified 
         profile_line2d_prjcrs_densif = self.source_profile.densify(self.sample_distance)
@@ -3508,8 +3535,8 @@ class qprof_QWidget(QWidget):
             return
         
         # get dem parameters
-        demLayer = self.profiles.profile_dems[0].layer      
-        demParams = self.profiles.profile_dems[0].params
+        demLayer = self.profiles.dems_params[0].layer
+        demParams = self.profiles.dems_params[0].params
 
         # get line structural layer
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
@@ -4506,3 +4533,40 @@ class LineDataExportDialog(QDialog):
 
         self.outpath_QLineEdit.setText(outfile_path)
 
+
+class StatisticsDialog(QDialog):
+
+    def __init__(self, profiles_stats, parent=None):
+
+        super(StatisticsDialog, self).__init__(parent)
+
+        self.profiles_stats = profiles_stats
+
+        layout = QVBoxLayout()
+
+        self.text_widget = QTextEdit()
+        self.text_widget.setReadOnly(True)
+
+        stat_report = self.report_stats(profiles_stats)
+
+        self.text_widget.setPlainText(stat_report)
+
+        layout.addWidget(self.text_widget)
+
+        self.setLayout(layout)
+
+        self.setWindowTitle("Statistics")
+
+
+    def report_stats(self, profiles_stats):
+
+        report = ''
+        for prof_stat in profiles_stats:
+            report += 'dem: %s\n\n' % (prof_stat['dem_name'])
+            report += 'min: %s\n' % (prof_stat['z_min'])
+            report += 'max: %s\n' % (prof_stat['z_max'])
+            report += 'mean: %s\n' % (prof_stat['z_mean'])
+            report += 'variance: %s\n' % (prof_stat['z_var'])
+            report += 'standard deviation: %s\n\n\n' % (prof_stat['z_std'])
+
+        return report

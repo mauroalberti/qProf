@@ -3,18 +3,18 @@ from __future__  import division
 
 
 
-class Profile_Set(object):
+class Profile_Elements(object):
     
     def __init__(self, max_spacing):
 
-        self.max_spacing = max_spacing # max spacing along profile; float
+        self.max_spacing = max_spacing  # max spacing along profile; float
         self.init_elements()
         
 
     def init_elements(self):
         
-        self.profile_dems = []
-        self.profile_line = None                
+        self.dems_params = []
+        self.resamp_src_line = None
         self.topo_profiles = []
         self.plane_attitudes = []
         self.curves = []
@@ -122,7 +122,7 @@ class Profile_Set(object):
         self.curves_ids.append(ids_list)
 
 
-class ProfileDEM(object):
+class DEMParams(object):
     
     def __init__(self, layer, params):
 
@@ -130,7 +130,7 @@ class ProfileDEM(object):
         self.params = params
         
                      
-class TopoLine3d(object):
+class TopoLine3D(object):
     
     def __init__(self, dem_name, line3d):
         
@@ -147,6 +147,26 @@ class TopoLine3d(object):
         
         return self.profile_3d.z_max()
         
+
+    def mean_z(self):
+
+        return self.profile_3d.z_mean()
+
+
+    def median_z(self):
+
+        return self.profile_3d.z_median()
+
+
+    def var_z(self):
+
+        return self.profile_3d.z_var()
+
+
+    def std_z(self):
+
+        return self.profile_3d.z_std()
+
 
     def x_list(self):
         

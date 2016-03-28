@@ -906,12 +906,12 @@ class Line3D(object):
         return np.nanmedian(self.zs())
 
 
-    def z_variance(self):
+    def z_var(self):
 
         return np.nanvar(self.zs())
 
 
-    def z_stand_dev(self):
+    def z_std(self):
 
         return np.nanstd(self.zs())
 

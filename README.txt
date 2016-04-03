@@ -1,4 +1,4 @@
-This is qProf, a Quantum Gis plugin to calculate profiles from DEM/GPX files, and for plotting geological traces in cross-sections. 
+qProf is a Quantum Gis plugin for creating topographic profiles from DEM/GPX files, and adding geological attitudes, line and polygon intersections.
 
 Contacts:
 Mauro Alberti - alberti.m65@gmail.com

@@ -251,10 +251,10 @@ class qprof_QWidget(QWidget):
         self.DEM_plot_slope_filled_checkbox = QCheckBox(self.tr("(filled)"))
         plotDEM_Layout.addWidget(self.DEM_plot_slope_filled_checkbox, 3, 3, 1, 1)
  
-        self.swap_profile_horiz_checkbox = QCheckBox(self.tr("Reverse profile direction"))
+        self.swap_profile_horiz_checkbox = QCheckBox(self.tr("Reverse profile line"))
         plotDEM_Layout.addWidget(self.swap_profile_horiz_checkbox, 4, 0, 1, 2)
 
-        self.swap_xaxis_checkbox = QCheckBox(self.tr("Reverse x axes direction"))
+        self.swap_xaxis_checkbox = QCheckBox(self.tr("Reverse x-axis direction"))
         plotDEM_Layout.addWidget(self.swap_xaxis_checkbox, 4, 2, 1, 2)
 
                                        
@@ -1735,9 +1735,14 @@ class qprof_QWidget(QWidget):
         if not verified:
             return
 
+        # reverse profile line orientation if required
+        if not self.swap_profile_horiz_checkbox.isChecked():
+            self.used_profile_line = self.source_profile
+        else:
+            self.used_profile_line = self.source_profile.swap_horiz()
+
         # calculates profiles if they do not exist
-        if self.profiles is None:
-            self.profiles = self.calculate_profiles()
+        self.profiles = self.calculate_profiles()
 
         if self.profiles is not None:
             statistics = map(lambda p: self.get_statistics(p), self.profiles.topo_profiles)
@@ -1777,24 +1782,26 @@ class qprof_QWidget(QWidget):
         plot_slope_choice = self.DEM_plot_slope_checkbox.isChecked()
         if not (plot_height_choice or plot_slope_choice):
             self.warn("Neither height or slope plot options are selected")
-        if self.swap_profile_horiz_checkbox.isChecked():
-            src_profile_line = self.source_profile.swap_horiz()
+
+        if not self.swap_profile_horiz_checkbox.isChecked():
+            self.used_profile_line = self.source_profile
+        else:
+            self.used_profile_line = self.source_profile.swap_horiz()
 
         # calculates profiles if they do not exist
-        if self.profiles is None:
-            self.profiles = self.calculate_profiles()
+        self.profiles = self.calculate_profiles()
 
         # plot profiles
         if self.profiles is not None:
             self.plot_profile_elements(self.vertical_exaggeration)
 
-                                                                        
+
     def calculate_dem_profiles(self):
 
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
 
-        resampled_line_2d = self.source_profile.densify(self.sample_distance) # line resampled by sample distance
+        resampled_line_2d = self.used_profile_line.densify(self.sample_distance) # line resampled by sample distance
        
         # calculate 3D profiles from DEMs
         profiles_lines3d = []
@@ -2739,7 +2746,7 @@ class qprof_QWidget(QWidget):
 
     def calculate_section_data(self):
         
-        sect_pt_1, sect_pt_2 = self.source_profile._pts
+        sect_pt_1, sect_pt_2 = self.used_profile_line._pts
         
         section_init_pt = Point3D(sect_pt_1._x, sect_pt_1._y, 0.0)
         section_final_pt = Point3D(sect_pt_2._x, sect_pt_2._y, 0.0)
@@ -2770,11 +2777,11 @@ class qprof_QWidget(QWidget):
     def check_struct_point_proj_parameters(self):
         
         # check if profile exists
-        if self.source_profile is None:
+        if self.used_profile_line is None:
             return False, "Profile not calculated"
         
         # check that section is made up of only two points
-        if self.source_profile.num_points() != 2:
+        if self.used_profile_line.num_points() != 2:
             return False, "Profile not made up by only two points"
                         
         # dem number
@@ -3373,11 +3380,11 @@ class qprof_QWidget(QWidget):
     def check_src_profile_for_geological_profile(self):
             
         # check if profile exists
-        if self.source_profile is None:
+        if self.used_profile_line is None:
             return False, "Profile has not been calculated"
         
         # check that section is made up of only two points
-        if self.source_profile.num_points() != 2:
+        if self.used_profile_line.num_points() != 2:
             return False, "Current profile is not made up by only two points"
         
         return True, "ok"           
@@ -3453,7 +3460,7 @@ class qprof_QWidget(QWidget):
         demParams = self.profiles.dems_params[0].params
         
         # profile line2d, in project CRS and densified 
-        profile_line2d_prjcrs_densif = self.source_profile.densify(self.sample_distance)
+        profile_line2d_prjcrs_densif = self.used_profile_line.densify(self.sample_distance)
         
         # polygon layer
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
@@ -3490,7 +3497,7 @@ class qprof_QWidget(QWidget):
         # create Point3D lists from intersection with source DEM     
 
         polygon_classification_set = set()
-        sect_pt_1, sect_pt_2 = self.source_profile._pts
+        sect_pt_1, sect_pt_2 = self.used_profile_line._pts
         formation_list = []
         intersection_line3d_list = []
         intersection_polygon_s_list2 = []
@@ -3595,10 +3602,10 @@ class qprof_QWidget(QWidget):
         line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list(structural_line_layer, on_the_fly_projection, project_crs)
 
         # calculated Point2D intersection list
-        intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list, id_list, self.source_profile)
+        intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list, id_list, self.used_profile_line)
                                             
         # sort intersection points by distance from profile start point 
-        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.source_profile, intersection_point_id_list)
+        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.used_profile_line, intersection_point_id_list)
 
         # create Point3D from intersection with source DEM
         intersection_point_list = [pt2d for pt2d, _ in intersection_point_id_list]

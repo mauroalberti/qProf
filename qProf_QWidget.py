@@ -1755,12 +1755,24 @@ class qprof_QWidget(QWidget):
             return
 
         # get profile plot parameters
+
+        try:
+            self.plot_min_value_user = float(self.plot_min_value_QLineedit.text())
+        except:
+            self.plot_min_value_user = None
+
+        try:
+            self.plot_max_value_user = float(self.plot_max_value_QLineedit.text())
+        except:
+            self.plot_max_value_user = None
+
         try:
             self.vertical_exaggeration = float(self.DEM_exageration_ratio_Qlineedit.text())
             assert self.vertical_exaggeration > 0
         except:
             self.warn("Vertical exaggeration must be numeric and positive")
             return
+
         plot_height_choice = self.DEM_plot_height_checkbox.isChecked()
         plot_slope_choice = self.DEM_plot_slope_checkbox.isChecked()
         if not (plot_height_choice or plot_slope_choice):
@@ -3099,11 +3111,11 @@ class qprof_QWidget(QWidget):
 
         shp_datasource.Destroy()
 
-    
+
     def plot_profile_elements(self, aspect_ratio_numerator, elev_type="DEM", z_padding = 0.2, slope_padding = 0.2):
          
         def min_wo_nan(float_list):
-            
+
             return min([f for f in float_list if not isnan(f)])
         
         def max_wo_nan(float_list):
@@ -3115,20 +3127,38 @@ class qprof_QWidget(QWidget):
         plot_s_min, plot_s_max = 0, self.profiles.get_max_s() 
 
         # defines z min and max values
-        profile_z_min, profile_z_max = self.profiles.get_min_z(), self.profiles.get_max_z()
-        delta_z = profile_z_max - profile_z_min 
-        plot_z_min, plot_z_max = profile_z_min - delta_z * z_padding, profile_z_max + delta_z * z_padding
+        if self.plot_min_value_user is None or \
+         self.plot_max_value_user is None:
+            profile_z_min = self.profiles.get_min_z()
+            profile_z_max = self.profiles.get_max_z()
+            delta_z = profile_z_max - profile_z_min
 
-        # defines slope value lists and the min and max values
-        if self.DEM_plot_slope_absolute_qradiobutton.isChecked():
-            slope_list = [topo_profile.profile_3d.slopes_absolute_list() for topo_profile in self.profiles.topo_profiles]
-        else:   
-            slope_list = [topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles]
+        if self.plot_min_value_user is None:
+            plot_z_min = profile_z_min - delta_z * z_padding
+        else:
+            plot_z_min = self.plot_min_value_user
 
-        profiles_slope_min, profiles_slope_max = min_wo_nan([min_wo_nan(slist) for slist in slope_list]), max_wo_nan([max_wo_nan(slist) for slist in slope_list])
-        delta_slope = profiles_slope_max - profiles_slope_min 
-        plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope*slope_padding, profiles_slope_max + delta_slope*slope_padding 
-        
+        if self.plot_max_value_user is None:
+            plot_z_max = profile_z_max + delta_z * z_padding
+        else:
+            plot_z_max = self.plot_max_value_user
+
+        if plot_z_max < plot_z_min:
+            self.warn("Error: maximum plot value lower than minimum plot value")
+            return
+
+        # if slopes to be calculated and plotted
+        if self.DEM_plot_slope_checkbox.isChecked():
+            # defines slope value lists and the min and max values
+            if self.DEM_plot_slope_absolute_qradiobutton.isChecked():
+                slope_list = [topo_profile.profile_3d.slopes_absolute_list() for topo_profile in self.profiles.topo_profiles]
+            else:
+                slope_list = [topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles]
+
+            profiles_slope_min, profiles_slope_max = min_wo_nan([min_wo_nan(slist) for slist in slope_list]), max_wo_nan([max_wo_nan(slist) for slist in slope_list])
+            delta_slope = profiles_slope_max - profiles_slope_min
+            plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope*slope_padding, profiles_slope_max + delta_slope*slope_padding
+
         # map
         profile_window = MplWidget()  
 

@@ -3419,7 +3419,7 @@ class qprof_QWidget(QWidget):
             return False, msg
         
         # line structural layer with parameter fields
-        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 in order to account for initial text in combo box
         if intersection_line_qgis_ndx < 0:            
             return False, "No defined geological line layer"             
                         
@@ -3550,31 +3550,43 @@ class qprof_QWidget(QWidget):
     
 
     def profile_polygon_intersection(self, profile_qgsgeometry, polygon_layer, inters_polygon_classifaction_field_ndx):
-                
+
         intersection_polyline_polygon_crs_list = []
-        feature_iterator = polygon_layer.getFeatures()
-        for polygon_feature in feature_iterator:
-            # retrieve every feature with its geometry and attributes
+
+        if polygon_layer.selectedFeatureCount() > 0:
+            features = polygon_layer.selectedFeatures()
+        else:
+            features = polygon_layer.getFeatures()
+
+        for polygon_feature in features:
+            # retrieve every (selected) feature with its geometry and attributes
 
             # fetch geometry
             poly_geom = polygon_feature.geometry()
-            
+
             intersection_qgsgeometry = poly_geom.intersection(profile_qgsgeometry)
-            if intersection_qgsgeometry.length() == 0:
+
+            if intersection_qgsgeometry.isEmpty():
                 continue
-            
+
             if inters_polygon_classifaction_field_ndx >= 0:
                 attrs = polygon_feature.attributes()
                 polygon_classification = attrs[inters_polygon_classifaction_field_ndx]
             else:
                 polygon_classification = None
-            
-            intersection_polyline_polygon_crs_list.append([polygon_classification,  intersection_qgsgeometry.asPolyline()])
+
+            if intersection_qgsgeometry.isMultipart():
+                lines = intersection_qgsgeometry.asMultiPolyline()
+            else:
+                lines = [intersection_qgsgeometry.asPolyline()]
+
+            for line in lines:
+                intersection_polyline_polygon_crs_list.append([polygon_classification,  line])
 
         return intersection_polyline_polygon_crs_list
                            
          
-    def do_line_intersection(self):        
+    def do_line_intersection(self):
 
         # check input values
         input_values_ok, msg = self.check_intersection_line_inputs()
@@ -3590,7 +3602,7 @@ class qprof_QWidget(QWidget):
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
         
         # get id field
-        intersection_line_id_field_ndx = self.inters_input_id_fld_line_comboBox.currentIndex() - 1 # minus 1 to account for initial text in combo box
+        intersection_line_id_field_ndx = self.inters_input_id_fld_line_comboBox.currentIndex() - 1 # minus 1 in order to account for initial text in combo box
         
         # define structural layer        
         structural_line_layer = self.current_line_layers[intersection_line_qgis_ndx]

@@ -41,4 +41,3 @@ def old_file_path( parent, show_msg, filter_extension, filter_text ):
     else:
         return input_filename   
     
-        

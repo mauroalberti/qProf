@@ -132,10 +132,13 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
     lines = []
     progress_ids = [] 
     dummy_progressive = 0 
-      
-    line_iterator = line_layer.getFeatures()
-   
-    for feature in line_iterator:
+
+    if line_layer.selectedFeatureCount() > 0:
+        features = line_layer.selectedFeatures()
+    else:
+        features = line_layer.getFeatures()
+
+    for feature in features:
         try:
             progress_ids.append(int(feature[curr_field_ndx]))
         except:
@@ -166,11 +169,15 @@ def multipolyline_to_xytuple_list2(qgspolyline):
 def field_values(layer, curr_field_ndx): 
     
     values = []
-    iterator = layer.getFeatures()
-    
-    for feature in iterator:
+
+    if layer.selectedFeatureCount() > 0:
+        features = layer.selectedFeatures()
+    else:
+        features = layer.getFeatures()
+
+    for feature in features:
         values.append(feature.attributes()[curr_field_ndx]) 
-            
+
     return values
     
     
@@ -330,8 +337,7 @@ class MapDigitizeTool(QgsMapTool):
 
 
     def deactivate(self):
-        
-        #self.emit(SIGNAL("deactivate"))
+
         QgsMapTool.deactivate(self)
 
 
@@ -344,9 +350,3 @@ class MapDigitizeTool(QgsMapTool):
         
         self.cursor = QCursor(cursor)
 
-
-
-    
-    
-    
-    

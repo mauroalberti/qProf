@@ -18,6 +18,8 @@ from PyQt4.QtGui import *
 
 from matplotlib import rcParams
 
+import webbrowser
+
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis, QgsGeometry
 from qgis.gui import QgsRubberBand
 
@@ -1181,86 +1183,24 @@ class qprof_QWidget(QWidget):
     
            
     def setup_about_tab(self):
+ 
+        help_QGroupBox = QGroupBox( self.tr("Help") )  
         
-        about_widget = QWidget()  
-        about_layout = QVBoxLayout()
-        
-        htmlText = """
-        <h3>qProf</h3>
-        Created by M. Alberti (www.malg.eu) and M. Zanieri.
-        <br />Concept: M. Zanieri and M. Alberti, implementation: M. Alberti.
-        <br />We thank S. Peduzzi for his vigorous testing.
-        <br />Plugin for creating profiles from DEM and GPX files, and as an aid in creating geological cross-sections.       
-        <br />
-        <h4>Topography</h4>
-        It is possible to create a topographic profile from one or more DEMs and a line digitized or stored in a layer, or directly 
-        from a GPX file storing track points. Data sources can be projected in different CRS,
-        and the created profiles will be in the project CRS.
-        When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click. 
-        <br /><br />When using a line layer, multiple lines will be merged into a single line, based on the 
-        chosen order field when available, or otherwise based on the internal line order.
-        Some artifacts in derived profiles can be due to erroneous line ordering, not corrected by 
-        defining an order in an integer field (order values start from 1).
-        <br /><br />When calculating a profile from DEM, you may define the 'Line densify distance',
-        i.e. the distance between consecutive sampling point automatically added
-        when the original vertices of the used path are distanced more than this value.
-        It is suggested to use a value comparable to the resolution of the used DEM,
-        for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
-        of the DEM with the highest spatial resolution.
-        br />The profile can be swap around the horizontal (x) axis or on the profile line. 
-        <br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), abosulte or relative,
-        and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
-        <br />
-        <h4>Projections</h4>
-        Having defined and calculated a profile as previously described,
-        it is also possible to project geological attitudes or traces on the section.
-         <br /> <br /><u>Projection of geological attitudes</u>
-        <br /><br />The geological attitudes source is a point layer: just selected points will be projected, 
-        unless, in case of no selection, all points will be projected.
-        <br /> <br />Required fields are the geological point <i>id</i> and its surface orientation, expressed by <i>dip direction</i> and 
-        <i>dip angle</i> values.
-        <br />The geological attitudes can be projected on the section plane according to three
-        methods: 1) nearest point; 2) projection along a common axis; 3) projection along individual 
-        axes, for each geological record.
-        <br /> <br />When choosing the <i>Along axis projection - individual axes</i> option, <i>trend</i> and <i>plunge</i> fields,
-        storing the fold axis values along which to project each observation, are required in the source point layer. 
-        <br /><br />The results can be exported both as a csv file or as a 3D point shapefile.
+        helpLayout = QVBoxLayout( ) 
                 
-        <br /> <br /><u>Projection of trace lines</u>
-        <br /><br />Geological traces can be projected on the section plane, based on a fold axis for which 
-        trend and plunge values have to be defined.
+        self.help_pButton = QPushButton( "Open help in browser" )
+        self.help_pButton.clicked[bool].connect( self.open_html_help ) 
+        self.help_pButton.setEnabled( True )       
+        helpLayout.addWidget( self.help_pButton ) 
+                
+        help_QGroupBox.setLayout( helpLayout )  
+              
+        return help_QGroupBox
 
-        <br />
-        <h4>Intersections</h4>
-        It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>") 
-        or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
-        An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
-        
-        <br />
-        <h4>Export</h4>
-        <br /><br />The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
-        be saved in a text file and loaded for applying them to further plots.         
-        <br /><br />Result data can be exported ad shapefiles or csv files. Depending on the data type,
-        the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for 
-        the QGis project.
-        <br /><br />Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute. To change to aboslute value,
-        apply the absolute function on the relative field in a GIS or spreadsheet software.
-        <br />
-        <br />
-        <br />
-        
-        
-        
-        
-        """
-        
-        aboutQTextBrowser = QTextBrowser(about_widget)        
-        aboutQTextBrowser.insertHtml(htmlText)
-         
-        about_layout.addWidget(aboutQTextBrowser)  
-        about_widget.setLayout(about_layout) 
-        
-        return about_widget
+
+    def open_html_help( self ):        
+
+        webbrowser.open('{}/help/help.html'.format(os.path.dirname(__file__)), new = True )
 
 
     def refresh_struct_point_lyr_combobox(self):

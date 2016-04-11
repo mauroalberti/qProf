@@ -1767,11 +1767,11 @@ class qprof_QWidget(QWidget):
         elev_list = [topo_profile.z_list() for topo_profile in profiles.topo_profiles]              
         cumdist_2D_list = profiles.topo_profiles[0].get_increm_dist_2d()
         cumdist_3d_list = [topo_profile.get_increm_dist_3d() for topo_profile in profiles.topo_profiles]
-        slope_list = [topo_profile.slope_list() for topo_profile in profiles.topo_profiles]
+        slopes = [topo_profile.slope_list() for topo_profile in profiles.topo_profiles]
 
         elev_list_zip = zip(*elev_list)
         cumdist_3d_list_zip = zip(*cumdist_3d_list) 
-        slope_list_zip = zip(*slope_list)  
+        slope_list_zip = zip(*slopes)
 
         result_data = []
         rec_id = 0
@@ -1873,8 +1873,7 @@ class qprof_QWidget(QWidget):
         
         
     def write_topography_allDEMs_csv(self, fileName, header_list, export_data, sep=","):
-        
-        #header_list = [unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
+
         with open(unicode(fileName), 'w') as f:
             f.write(sep.join(header_list)+'\n')
             for rec in export_data:

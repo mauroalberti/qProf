@@ -2372,31 +2372,50 @@ class qprof_QWidget(QWidget):
                                  
         doc = xml.dom.minidom.parse(source_gpx_path)
 
-        # get track point values (lat, lon, elev, time)
-        trk_measures = []
+        # define track name
+        try:
+            trkname = doc.getElementsByTagName('trk')[0].getElementsByTagName('name')[0].firstChild.data
+        except:
+            trkname = ''
+
+        # get raw track point values (lat, lon, elev, time)
+        track_raw_data = []
         for trk_node in doc.getElementsByTagName('trk'):
-            trkname = trk_node.getElementsByTagName('name')[0].firstChild.data
-            trksegments = trk_node.getElementsByTagName('trkseg')
-            for trksegment in trksegments:
-                trk_pts = trksegment.getElementsByTagName('trkpt')
-                for tkr_pt in trk_pts:               
-                    gpx_trackpoint = TrackPointGPX(tkr_pt.getAttribute("lat"),
-                                                    tkr_pt.getAttribute("lon"),
-                                                    tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
-                                                    tkr_pt.getElementsByTagName("time")[0].childNodes[0].data)
-                    trk_measures.append(gpx_trackpoint)
-        
+            for trksegment in trk_node.getElementsByTagName('trkseg'):
+                for tkr_pt in trksegment.getElementsByTagName('trkpt'):
+                    track_raw_data.append((tkr_pt.getAttribute("lat"),
+                                       tkr_pt.getAttribute("lon"),
+                                       tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
+                                       tkr_pt.getElementsByTagName("time")[0].childNodes[0].data))
+
+        # filters out consecutive values with equal positions
+        track_data = []
+        for n, val in enumerate(track_raw_data):
+            if n == 0:
+                track_data.append(val)
+            else:
+                lat_curr, lon_curr = val[0], val[1]
+                lat_prev, lon_prev = track_data[-1][0], track_data[-1][1]
+                if lat_curr != lat_prev or lon_curr != lon_prev:
+                    track_data.append(val)
+
+        # create list of TrackPointGPX elements
+        track_points = []
+        for val in track_data:
+            gpx_trackpoint = TrackPointGPX(*val)
+            track_points.append(gpx_trackpoint)
+
         # check for the presence of track points
-        if len(trk_measures) == 0:
+        if len(track_points) == 0:
             raise GPXIOException, "No track point found in this file"            
         
         # calculate delta elevations between consecutive points
         delta_elev_values = [np.nan]
-        for ndx in range(1, len (trk_measures)):
-            delta_elev_values.append(trk_measures[ndx].elev - trk_measures[ndx-1].elev)        
+        for ndx in range(1, len (track_points)):
+            delta_elev_values.append(track_points[ndx].elev - track_points[ndx-1].elev)
         
         # covert values into ECEF values (x, y, z in ECEF global coordinate system)        
-        trk_ECEFpoints = [trk_value.toPoint4D() for trk_value in  trk_measures]
+        trk_ECEFpoints = [trk_value.toPoint4D() for trk_value in  track_points]
         
         # calculate 3D distances between consecutive points
         dist_3D_values = [np.nan]
@@ -2431,10 +2450,10 @@ class qprof_QWidget(QWidget):
             
         # define GPX names, elevations and slopes
         dataset_name = [trkname]
-        lat_values = [track.lat for track in trk_measures]
-        lon_values = [track.lon for track in trk_measures]
-        time_values = [track.time for track in trk_measures]        
-        elevations = [track.elev for track in trk_measures]           
+        lat_values = [track.lat for track in track_points]
+        lon_values = [track.lon for track in track_points]
+        time_values = [track.time for track in track_points]
+        elevations = [track.elev for track in track_points]
         
         # define variable for plotting                
         profiles = dict( lats=lat_values,

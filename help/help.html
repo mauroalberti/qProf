@@ -6,21 +6,30 @@
 
 <body style="margin: 20px 30px 10px 30px;">
 
-<h3>qProf - help</h3>
+<h1>qProf - help</h1>
 
+<div>
+The purpose of this plugin is to help the creation of geological sections.
+Georeferenced data such as topography, geological attitudes, geological outcrops can be combined to
+	produce geological section.
+</div>
+
+<h2>Development</h2>
+<div>
 Created by M. Alberti (www.malg.eu) and M. Zanieri.
 <br />Concept: M. Zanieri and M. Alberti, implementation: M. Alberti.
 <br />We thank S. Peduzzi for his vigorous testing.
-<br />Plugin for creating profiles from DEM and GPX files, and as an aid in creating geological cross-sections.       
-<br />
+</div>
 
-<h4>Module purpose</h4>
+<h2>Workflow</h2>
 
-The purpose of this plugin is to help in the creation of geological sections. 
-Source data such as topography, geological attitudes, geological outcrops can be used in a GIS as source for the creation of a geological section. 
-Topography is expressed by DEM and the geological data by point, line or polygon layers that store the geological attributes in the layer attribute tables. 
+Input topographic data are represented by one or more DEMs. Geological data are expressed by point, line or polygon layers that store
+the geological attributes in the layer attribute tables.
+The first, required step consists in the definition of the topographic profile.
+Afterwards the processings can be devoted to the projection of geological information on the profile section, or to the
+extraction of the intersection of line or polygonal elements with the define profile line.
 
-<h4>Topography</h4>
+<h2>Topography</h2>
 
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_01.png" style="align:middle; max_width: 80%"/>
@@ -46,11 +55,14 @@ br />The profile can be swap around the horizontal (x) axis or on the profile li
 <br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), abosulte or relative,
 and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
 <br />
-<h4>Projections</h4>
+
+<h2>Projections</h2>
 Having defined and calculated a profile as previously described,
 it is also possible to project geological attitudes or traces on the section.
- <br /> <br /><u>Projection of geological attitudes</u>
-<br /><br />The geological attitudes source is a point layer: just selected points will be projected, 
+
+<h3>Projection of geological attitudes</h3>
+
+The geological attitudes source is a point layer: just selected points will be projected,
 unless, in case of no selection, all points will be projected.
 <br /> <br />Required fields are the geological point <i>id</i> and its surface orientation, expressed by <i>dip direction</i> and 
 <i>dip angle</i> values.
@@ -61,18 +73,19 @@ axes, for each geological record.
 storing the fold axis values along which to project each observation, are required in the source point layer. 
 <br /><br />The results can be exported both as a csv file or as a 3D point shapefile.
         
-<br /> <br /><u>Projection of trace lines</u>
-<br /><br />Geological traces can be projected on the section plane, based on a fold axis for which 
+<h3>Projection of trace lines</h3>
+Geological traces can be projected on the section plane, based on a fold axis for which
 trend and plunge values have to be defined.
 
 <br />
-<h4>Intersections</h4>
+<h2>Intersections</h2>
 It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>") 
 or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
 An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
 
 <br />
-<h4>Export</h4>
+<h2>Result export</h2>
+
 The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
 be saved in a text file and loaded for applying them to further plots.         
 <br /><br />Result data can be exported ad shapefiles or csv files. Depending on the data type,

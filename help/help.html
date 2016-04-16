@@ -6,45 +6,94 @@
 
 <body style="margin: 20px 30px 10px 30px;">
 
-<h1>qProf - help</h1>
+<h1>qProf plugin help</h1>
 
 <div>
-The purpose of this plugin is to help the creation of geological sections.
-Georeferenced data such as topography, geological attitudes, geological outcrops can be combined to
-	produce geological section.
+	The purpose of this plugin is to help create geological profiles. Georeferenced data describing topography, geological outcrops and attitudes can be used.
+	<br /><br />
+	This plugin was realized by M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri.
+	<br />The original concept is by M. Zanieri, while the implementation is by M. Alberti.
+	<br />Some people contributed with their suggestions and testing, among them we want to thank S. Peduzzi, for his vigorous testing.
 </div>
+<br />
+<div>A few posts describing the plugin are:
+	<br /><br /><b>In Italian</b>:
+	<ul>
+		<li><a href="http://gisoftw.blogspot.it/2013/03/qprof-un-nuovo-plugin-quantumgis-per-la.html">qProf: un nuovo plugin QuantumGIS per la creazione di profili topografici</a> (2013-03-16)</li>
+	<li><a href="http://qgis4dummies.wikidot.com/qprof">Qprof</a> (2015-06-04)</li>
+	</ul>
+	<br /><b>In English</b>:
+	<ul>
+		<li><a href="http://gisoftw.blogspot.it/2013/10/plotting-geological-planes-in-profiles.html">Plotting geological planes in profiles with Quantum GIS</a> (2013-10-26) </li>
+		<li><a href="http://gisoftw.blogspot.it/2014/03/qprof-supports-on-fly-reprojection-and.html">qProf supports on-the-fly reprojection and multiples profile lines</a> (2014-03-02)</li>
+		<li><a href="http://www.geokincern.com/?p=1452">Construction of geological cross sections in QGIS</a> (2016-03-01)</li>
+	</ul>
+	<br /><b>In French</b>:
+	<ul>
+		<li><a href="http://www.gis-blog.fr/2013/04/02/plugin-qprof-qgis/">Plugin qProf - Qgis</a> (2013-04-02)</li>
+	</ul>
 
-<h2>Development</h2>
+
+</div>
+<br />
+<h2>1. General workflow</h2>
+
 <div>
-Created by M. Alberti (www.malg.eu) and M. Zanieri.
-<br />Concept: M. Zanieri and M. Alberti, implementation: M. Alberti.
-<br />We thank S. Peduzzi for his vigorous testing.
+	To construct a geological profile, the first step consists in the construction of a topographic profile, with input data
+	represented by one or more DEMs.
+</div>
+<br />
+<div>
+	Subsequently, we process geological data, expressed by point, line or polygon layers with useful
+	geological attributes stored in the their attribute tables.
+	<br />The subsequent processings can be:
+	<ul>
+		<li>the projection of geological attitudes on the profile section;</li>
+		<li>the projection of geological lines;</li>
+		<li>the intersection of geological lines (e.g., faults) on the profile section;</li>
+		<li>the intersection of geological polygonal elements (e.g., outcrops) on the profile section.</li>
+	</ul>
+</div>
+<div>
+	Last step is the export of the produced datasets as graphics and/or GIS data, for further elaborations in graphic or
+	geological software.
 </div>
 
-<h2>Workflow</h2>
+<br />
 
-Input topographic data are represented by one or more DEMs. Geological data are expressed by point, line or polygon layers that store
-the geological attributes in the layer attribute tables.
-The first, required step consists in the definition of the topographic profile.
-Afterwards the processings can be devoted to the projection of geological information on the profile section, or to the
-extraction of the intersection of line or polygonal elements with the define profile line.
+<h2>2. Topographic profile creation</h2>
 
-<h2>Topography</h2>
+<div>
+	It is possible to create a topographic profile in two ways:
+	<ol>
+		<li>from one or more DEMs and a line element, digitized or stored in a layer;
+		<li>directly from a GPX file storing track points.</li>
+	</ol>
+	In the former case, data sources can be projected in different CRS, while the <u>created profile will be
+	in the project CRS</u>.
+	<br />In the latter case, i.e. when creating a profile from a GPX file, the original latitude-longitude values are automatically converted
+	to cartesian metric values, and from those the topographic profile is constructed.
+</div>
+
+<h3>2.1 Topographic profile creation from DEM(s)</h3>
 
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_01.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 1. Example of estimation of a fault attitude in the western border of Mt. Alpi zone (southern Italy). 
-	<br />Points are drawn on the slope map derived by a DEM, with elevations extracted from DEM ("dem_w4u3" in this case).
+	<br /><br />Fig. 1. The plugin interface for topographic profile creation from DEM(s).
 </div>
 
-It is possible to create a topographic profile from one or more DEMs and a line digitized or stored in a layer, or directly 
-from a GPX file storing track points. Data sources can be projected in different CRS,
-and the created profiles will be in the project CRS.
-When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click. 
-<br /><br />When using a line layer, multiple lines will be merged into a single line, based on the 
-chosen order field when available, or otherwise based on the internal line order.
-Some artifacts in derived profiles can be due to erroneous line ordering, not corrected by 
-defining an order in an integer field (order values start from 1).
+<div>
+	It is possible to calculate the profile elevation statistics, that can be used as a help in the definition of the
+	profile plot minimum and maximum elevations. Otherwise, automatic values will be applied.
+</div>
+<div>
+	When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click.
+	<br /><br />When using a line layer, multiple lines will be merged into a single line, based on the
+	chosen order field when available, or otherwise based on the internal line order.
+	Some artifacts in derived profiles can be due to erroneous line ordering, not corrected by
+	defining an order in an integer field (order values start from 1).
+</div>
+
 <br /><br />When calculating a profile from DEM, you may define the 'Line densify distance',
 i.e. the distance between consecutive sampling point automatically added
 when the original vertices of the used path are distanced more than this value.
@@ -52,18 +101,38 @@ It is suggested to use a value comparable to the resolution of the used DEM,
 for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
 of the DEM with the highest spatial resolution.
 br />The profile can be swap around the horizontal (x) axis or on the profile line. 
-<br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), abosulte or relative,
+<br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), absolute or relative,
 and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
 <br />
 
-<h2>Projections</h2>
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_02.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 2. Topographic profile extracted in the eastern border of Mt. Alpi zone (southern Italy).
+</div>
+
+<h3>2.2 Topographic profile creation from GPX</h3>
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_03.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 3. The plugin interface for topographic profile creation from GPX files.
+</div>
+
+<h2>3. Geological element projections on the profile</h2>
+
 Having defined and calculated a profile as previously described,
 it is also possible to project geological attitudes or traces on the section.
 
-<h3>Projection of geological attitudes</h3>
+<h3>3.1 Projection of geological attitudes</h3>
 
 The geological attitudes source is a point layer: just selected points will be projected,
 unless, in case of no selection, all points will be projected.
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_04.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 4. The plugin interface for geological attitude projections on the profile.
+</div>
+
+
 <br /> <br />Required fields are the geological point <i>id</i> and its surface orientation, expressed by <i>dip direction</i> and 
 <i>dip angle</i> values.
 <br />The geological attitudes can be projected on the section plane according to three
@@ -72,25 +141,75 @@ axes, for each geological record.
 <br /> <br />When choosing the <i>Along axis projection - individual axes</i> option, <i>trend</i> and <i>plunge</i> fields,
 storing the fold axis values along which to project each observation, are required in the source point layer. 
 <br /><br />The results can be exported both as a csv file or as a 3D point shapefile.
-        
-<h3>Projection of trace lines</h3>
+
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_05.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 5. Example of geological attitudes projection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+</div>
+
+<h3>3.2 Projection of geological lines</h3>
 Geological traces can be projected on the section plane, based on a fold axis for which
 trend and plunge values have to be defined.
 
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_06.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 6. The plugin interface for geological lines projections on the profile.
+</div>
+
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_07.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 7. Example of geological line projections on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+</div>
+
 <br />
-<h2>Intersections</h2>
+<h2>4. Intersections of geological elements</h2>
 It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>") 
 or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
 An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
 
-<br />
-<h2>Result export</h2>
+<h3>4.1 Intersection of line elements</h3>
 
-The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
-be saved in a text file and loaded for applying them to further plots.         
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_08.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 8. The plugin interface for intersection of line elements.
+</div>
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_09.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 9. Example of geological line intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+</div>
+
+<h3>4.2 Intersection of polygon elements</h3>
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_10.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 10. The plugin interface for intersection of polygon elements.
+</div>
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_11.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 11. Example of geological polygon intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+</div>
+
+<br />
+<h2>5. Result export</h2>
+
+<div>
+	The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
+be saved in a text file and loaded for applying them to further plots.
 <br /><br />Result data can be exported ad shapefiles or csv files. Depending on the data type,
-the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for 
+the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for
 the QGis project.
+</div>
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_12.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 12. The plugin interface for result export.
+</div>
+
+
 <br /><br />Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute. To change to aboslute value,
 apply the absolute function on the relative field in a GIS or spreadsheet software.
 <br />
@@ -99,7 +218,7 @@ apply the absolute function on the relative field in a GIS or spreadsheet softwa
 <div style="font-size: 85%; font-style: italic;">
 -----
 <br /><br /><br />
-Doc version 2016-04-10, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
+Doc version 2016-04-16, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
 </div>
 
 <br /><br /><br /><br />

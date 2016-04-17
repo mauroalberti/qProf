@@ -4,7 +4,7 @@
 <title>qProf</title>
 </head>
 
-<body style="margin: 20px 30px 10px 30px;">
+<body style="margin: 20px 30px 10px 30; font-family: Calibri, Candara, Segoe, 'Segoe UI', Optima, Arial, sans-serif;">
 
 <h1>qProf plugin help</h1>
 
@@ -41,11 +41,18 @@
 <div>
 	To construct a geological profile, the first step consists in the construction of a topographic profile, with input data
 	represented by one or more DEMs.
+	</div>
+<br />
+<div>
+	While for constructing topographic profiles lines made up by more than just two points may be used,
+	for further geological projections or intersections it is required that the profile line is made up by just two points,
+	i.e., its start and end point. This constraint will probably be relaexed in future versions at least for geological
+	intersection processings.
 </div>
 <br />
 <div>
-	Subsequently, we process geological data, expressed by point, line or polygon layers with useful
-	geological attributes stored in the their attribute tables.
+	Subsequently, for profiles created by lines with jst two points, we can process geological data, expressed by point,
+	line or polygon layers with useful 	geological attributes stored in the their attribute tables.
 	<br />The subsequent processings can be:
 	<ul>
 		<li>the projection of geological attitudes on the profile section;</li>
@@ -137,8 +144,8 @@ a on-the-fly-digitized line or a list of points.</div>
 <br />
 <h3>2.2 Topographic profile creation from GPX</h3>
 <div>
-	Topographic pofiles can be created also using as a source GPX files.
-	Beware that in the current version, profile lines with only two points (start and end points) may be used for geological
+	Topographic profiles can be created also using a GPX file as a source.
+	Beware that in the current version, only profile lines with just two points (start and end points) may be used for further geological
 	data projections and intersections. So if you just want to create a topographic profile, GPX profile sources are fine.
 	In future releases, the only-two-points constraint for geological intersections should be removed.
 </div>
@@ -146,48 +153,64 @@ a on-the-fly-digitized line or a list of points.</div>
 	<img src="images/Fig_03.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 3. The plugin interface for topographic profile creation from GPX files.
 </div>
-
+<br />
 <h2>3. Geological element projections on the profile</h2>
 
-Having defined and calculated a profile as previously described,
-it is also possible to project geological attitudes or traces on the section.
+Having already created a topographic profile as previously described,
+it is then possible to perform on the same profile the projection of geological attitudes or traces.
 
 <h3>3.1 Projection of geological attitudes</h3>
 
-The geological attitudes source is a point layer: just selected points will be projected,
-unless, in case of no selection, all points will be projected.
-
+<div>
+	The source for geological attitudes is a point layer. Only selected points will be projected, unless,
+	in case of no point selection, all layer points will be projected.
+</div>
+<br />
+<div>Required fields are the geological point <i>id</i> and its surface orientation, expressed by <i>dip direction</i> and
+	<i>dip angle</i> values.
+</div>
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_04.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 4. The plugin interface for geological attitude projections on the profile.
 </div>
-
-
-<br /> <br />Required fields are the geological point <i>id</i> and its surface orientation, expressed by <i>dip direction</i> and 
-<i>dip angle</i> values.
-<br />The geological attitudes can be projected on the section plane according to three
-methods: 1) nearest point; 2) projection along a common axis; 3) projection along individual 
-axes, for each geological record.
-<br /> <br />When choosing the <i>Along axis projection - individual axes</i> option, <i>trend</i> and <i>plunge</i> fields,
-storing the fold axis values along which to project each observation, are required in the source point layer. 
-<br /><br />The results can be exported both as a csv file or as a 3D point shapefile.
-
-
+<br />
+<div>
+	The geological attitudes can be projected on the section plane according to three methods:
+	<ol>
+		<li>nearest point;</li>
+		<li>projection along a common axis;</li>
+		<li> projection along individual axes, for each geological record.</li>
+	</ol>
+	When choosing the <i>axes from</i> option, <i>trend</i> and <i>plunge</i> fields,
+	storing the fold axis values along which to project each observation, are required in the source point layer.
+</div>
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_05.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 5. Example of geological attitudes projection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+	<br /><br />Fig. 5. Example of geological attitudes projection along a profile in the eastern sector of Mt. Alpi zone (Basilicata, Southern Italy).
 </div>
 
-<h3>3.2 Projection of geological lines</h3>
-Geological traces can be projected on the section plane, based on a fold axis for which
-trend and plunge values have to be defined.
+<br />
 
+<h3>3.2 Projection of geological lines</h3>
+
+<div>
+	Geological traces can be projected on the section plane, based on a fold axis for which
+	trend and plunge values have to be defined.
+</div>
+<br />
+<div>
+	The "<i>Line densify distance</i>" option describes the distance used to densify the lines to plot, when original
+	points are separated by distances larger than the densify distance.
+</div>
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_06.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 6. The plugin interface for geological lines projections on the profile.
 </div>
-
-
+<br />
+<div>
+	The "<i>Id field</i> is used to label the project lines in the resulting plot, as evident in Fig. 7.
+</div>
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_07.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 7. Example of geological line projections on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
@@ -195,32 +218,26 @@ trend and plunge values have to be defined.
 
 <br />
 <h2>4. Intersections of geological elements</h2>
-It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>") 
-or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
-An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.
-
-<h3>4.1 Intersection of line elements</h3>
-
+<div>
+	It is possible to determine the intersections of the profile (composed by just two points) with lines ("<i>Intersect line layer</i>")
+	or with polygons ("<i>Intersect polygon layer</i>"), representing geological features.
+</div>
+<br />
+<div>
+	An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid in plot visualization.</div>
+<br />
+<div>
+	Previously created intersection can be removed by using the "<i>Reset intersections</i>" button.
+</div>
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_08.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 8. The plugin interface for intersection of line elements.
+	<br /><br />Fig. 8. Example of geological line intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
 </div>
-
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_09.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 9. Example of geological line intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
-</div>
-
-<h3>4.2 Intersection of polygon elements</h3>
-
-<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_10.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 10. The plugin interface for intersection of polygon elements.
-</div>
-
-<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_11.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 11. Example of geological polygon intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
+	<br /><br />Fig. 9. Example of geological polygon intersection on a profile in the Mt. Alpi zone (Basilicata, Southern Italy).
 </div>
 
 <br />
@@ -228,19 +245,22 @@ An <i>Id</i> field and a <i>Classification</i> field can be provided, as an aid 
 
 <div>
 	The last created figure can be saved as PDF, svg or tif. The export graphic parameters can
-be saved in a text file and loaded for applying them to further plots.
-<br /><br />Result data can be exported ad shapefiles or csv files. Depending on the data type,
-the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for
-the QGis project.
-</div>
-<br />
-<div>Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute.
-To change to absolute value, apply the absolute function on the relative field in a GIS or spreadsheet software.
+	be saved in a text file and loaded for applying them to further plots.
 	</div>
 <br />
+<div>
+	Result data can be exported ad point/line shapefiles and/or csv files, depending on the particular type of exported data.
+	The exported data will have the same CRS as the current QGis project.
+</div>
+<br />
+<div>
+	Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute.
+	To change to absolute value, apply the absolute function on the relative field in a GIS or spreadsheet software.
+</div>
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_12.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 12. The plugin interface for result export.
+	<img src="images/Fig_10.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 10. The plugin interface for result export.
 </div>
 
 
@@ -249,11 +269,11 @@ To change to absolute value, apply the absolute function on the relative field i
 <br />
 <div style="font-size: 85%; font-style: italic;">
 -----
-<br /><br /><br />
+<br /><br />
 Doc version 2016-04-17, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
 </div>
 
-<br /><br /><br /><br />
+<br /><br />
 
 </body>
 

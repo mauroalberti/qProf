@@ -69,8 +69,8 @@
 		<li>from one or more DEMs and a line element, digitized or stored in a layer;
 		<li>directly from a GPX file storing track points.</li>
 	</ol>
-	In the former case, data sources can be projected in different CRS, while the <u>created profile will be
-	in the project CRS</u>.
+	In the former case, data sources can be projected in different CRS, while the
+	<u>created profile will be in the assigned project CRS</u>.
 	<br />In the latter case, i.e. when creating a profile from a GPX file, the original latitude-longitude values are automatically converted
 	to cartesian metric values, and from those the topographic profile is constructed.
 </div>
@@ -78,7 +78,7 @@
 <h3>2.1 Topographic profile creation from DEM(s)</h3>
 
 <div>One or more DEM(s) sources have to be defined, as well a source profile line. The line can derive from a source line layer,
-a to-digitize line or a list of points.</div>
+a on-the-fly-digitized line or a list of points.</div>
 
 <br />
 <div>
@@ -90,40 +90,58 @@ a to-digitize line or a list of points.</div>
 <br />
 <div>
 	When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click.
-
+</div>
+<br />
+<div>
+	It is also possible to define the profile as a list point coordinates.
+	Each point is defined by a x-y coordinates pair, comma-separated, on a single row, for instance:
+	<br /><i>549242.7, 242942.2</i>
+	<br /><i>578370.3, 322634.5</i>
+</div>
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_01.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 1. The plugin interface for topographic profile creation from DEM(s).
 </div>
-
-	</div>
 <br />
 <div>
-	It is possible to calculate the profile elevation statistics, that can be used as a help in the definition of the
-	profile plot minimum and maximum elevations. Otherwise, automatic values will be applied.
+	The elevation statistics along the profile for each chosen DEM may be calculate with the "<i>Calculate profile statistics</i>" button.
+	These statistics can be used as a help in the definition of the profile plot minimum and maximum elevations ("<i>plot z min value</i>"
+	and "<i>plot z max value</i>" options). Otherwise, automatic values will be applied.
 </div>
 <br />
-<div>You may define the 'Line densify distance', i.e. the distance between consecutive sampling point automatically added
-when the original vertices of the used path have distances larger than this value.
-It is advisable to use a value comparable to the resolution of the used DEM,
-for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
-of the DEM with the highest spatial resolution.
+<div>
+	You may define the "<i>Line densify distance</i>" option, i.e. the distance between consecutive sampling point automatically added
+	when the original vertices of the used path have distances larger than this value.
+	It is advisable to use a value comparable to the resolution of the used DEM,
+	for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
+	of the DEM with the highest spatial resolution.
     </div>
 <br />
-<div>The profile can be swap around the horizontal (x) axis or on the profile line.</div>
-
+<div>
+	By using "<i>Invert profile line orientation</i>", the profile line will have its orientation inverted, i.e., the start will become
+	the end and the former end will become the profile start.
+	<br />With the option "<i>Flip x-axis direction</i>", the start of the x-axis in the plot will be at the right, not at the left,
+	so that distances will increase from left to right.
+</div>
 <br />
-<br />After having calculated the profile, you can plot its elevations and slopes (as degrees), absolute or relative,
-and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
+<div>
+	The profile plot is created by using the "<i>Create profile</i>" button. Sometimes the plot creation may require more than just a few
+	seconds, so please be patient... ;)
+</div>
 <br />
-
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_02.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 2. Topographic profile extracted in the eastern border of Mt. Alpi zone (southern Italy).
 </div>
-
+<br />
 <h3>2.2 Topographic profile creation from GPX</h3>
-
+<div>
+	Topographic pofiles can be created also using as a source GPX files.
+	Beware that in the current version, profile lines with only two points (start and end points) may be used for geological
+	data projections and intersections. So if you just want to create a topographic profile, GPX profile sources are fine.
+	In future releases, the only-two-points constraint for geological intersections should be removed.
+</div>
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_03.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 3. The plugin interface for topographic profile creation from GPX files.
@@ -215,22 +233,24 @@ be saved in a text file and loaded for applying them to further plots.
 the output geometric formats can be line or point. The exported data CRS will be the same CRS defined for
 the QGis project.
 </div>
-
+<br />
+<div>Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute.
+To change to absolute value, apply the absolute function on the relative field in a GIS or spreadsheet software.
+	</div>
+<br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_12.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 12. The plugin interface for result export.
 </div>
 
 
-<br /><br />Note: the slope is saved as relative (positive when upward, negative when downward), even if plotted as absolute. To change to aboslute value,
-apply the absolute function on the relative field in a GIS or spreadsheet software.
-<br />
+
 <br />
 <br />
 <div style="font-size: 85%; font-style: italic;">
 -----
 <br /><br /><br />
-Doc version 2016-04-16, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
+Doc version 2016-04-17, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
 </div>
 
 <br /><br /><br /><br />

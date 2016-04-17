@@ -253,10 +253,10 @@ class qprof_QWidget(QWidget):
         self.DEM_plot_slope_filled_checkbox = QCheckBox(self.tr("(filled)"))
         plotDEM_Layout.addWidget(self.DEM_plot_slope_filled_checkbox, 3, 3, 1, 1)
  
-        self.swap_profile_horiz_checkbox = QCheckBox(self.tr("Reverse profile line"))
+        self.swap_profile_horiz_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
         plotDEM_Layout.addWidget(self.swap_profile_horiz_checkbox, 4, 0, 1, 2)
 
-        self.swap_xaxis_checkbox = QCheckBox(self.tr("Reverse x-axis direction"))
+        self.swap_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
         plotDEM_Layout.addWidget(self.swap_xaxis_checkbox, 4, 2, 1, 2)
 
                                        

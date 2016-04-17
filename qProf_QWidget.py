@@ -223,12 +223,12 @@ class qprof_QWidget(QWidget):
         self.DEM_exageration_ratio_Qlineedit.setText("1")
         plotDEM_Layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 1, 1, 1, 1)
 
-        plotDEM_Layout.addWidget(QLabel(self.tr("Plot min value")), 0, 2, 1, 1)
+        plotDEM_Layout.addWidget(QLabel(self.tr("Plot z min value")), 0, 2, 1, 1)
         self.plot_min_value_QLineedit = QLineEdit()
         self.plot_min_value_QLineedit.setText("[automatic]")
         plotDEM_Layout.addWidget(self.plot_min_value_QLineedit, 0, 3, 1, 1)
 
-        plotDEM_Layout.addWidget(QLabel(self.tr("Plot max value")), 1, 2, 1, 1)
+        plotDEM_Layout.addWidget(QLabel(self.tr("Plot z max value")), 1, 2, 1, 1)
         self.plot_max_value_QLineedit = QLineEdit()
         self.plot_max_value_QLineedit.setText("[automatic]")
         plotDEM_Layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)

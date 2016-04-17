@@ -77,31 +77,43 @@
 
 <h3>2.1 Topographic profile creation from DEM(s)</h3>
 
+<div>One or more DEM(s) sources have to be defined, as well a source profile line. The line can derive from a source line layer,
+a to-digitize line or a list of points.</div>
+
+<br />
+<div>
+    When using a line layer, all the elements will be used, irrespective of eventual selections in the layer.
+    Multiple lines will be merged into a single line, based on the chosen order field when available,
+    or otherwise based on the internal line order. Some errors in derived profiles can be due to erroneous line ordering,
+    not adjusted via the choice of a correct sequential order stored in an integer field (order values start from 1).
+</div>
+<br />
+<div>
+	When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click.
+
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/Fig_01.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 1. The plugin interface for topographic profile creation from DEM(s).
 </div>
 
+	</div>
+<br />
 <div>
 	It is possible to calculate the profile elevation statistics, that can be used as a help in the definition of the
 	profile plot minimum and maximum elevations. Otherwise, automatic values will be applied.
 </div>
-<div>
-	When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click.
-	<br /><br />When using a line layer, multiple lines will be merged into a single line, based on the
-	chosen order field when available, or otherwise based on the internal line order.
-	Some artifacts in derived profiles can be due to erroneous line ordering, not corrected by
-	defining an order in an integer field (order values start from 1).
-</div>
-
-<br /><br />When calculating a profile from DEM, you may define the 'Line densify distance',
-i.e. the distance between consecutive sampling point automatically added
-when the original vertices of the used path are distanced more than this value.
-It is suggested to use a value comparable to the resolution of the used DEM,
+<br />
+<div>You may define the 'Line densify distance', i.e. the distance between consecutive sampling point automatically added
+when the original vertices of the used path have distances larger than this value.
+It is advisable to use a value comparable to the resolution of the used DEM,
 for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
 of the DEM with the highest spatial resolution.
-br />The profile can be swap around the horizontal (x) axis or on the profile line. 
-<br /><br />After having calculated the profile, you can plot its elevations and slopes (as degrees), absolute or relative,
+    </div>
+<br />
+<div>The profile can be swap around the horizontal (x) axis or on the profile line.</div>
+
+<br />
+<br />After having calculated the profile, you can plot its elevations and slopes (as degrees), absolute or relative,
 and save the results as a csv file, a 2D point shapefile or a 3D line shapefile.
 <br />
 

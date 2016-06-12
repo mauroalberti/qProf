@@ -172,7 +172,7 @@ class qprof_QWidget(QWidget):
         self.LoadLineLayer_checkbox.setChecked(True)
         inputLine_Layout.addWidget(self.LoadLineLayer_checkbox, 0, 1, 1, 1)   
                
-        self.DigitizeLine_checkbox = QRadioButton(self.tr("digitization"))
+        self.DigitizeLine_checkbox = QRadioButton(self.tr("map digitization"))
         inputLine_Layout.addWidget(self.DigitizeLine_checkbox, 0, 2, 1, 1)
         
         self.PointListforLine_checkbox = QRadioButton(self.tr("point list"))
@@ -181,11 +181,21 @@ class qprof_QWidget(QWidget):
         self.DefineLine_pushbutton = QPushButton(self.tr("Define profile line"))  
         self.DefineLine_pushbutton.clicked.connect(self.define_line) 
         inputLine_Layout.addWidget(self.DefineLine_pushbutton, 1, 0, 1, 4)
-                        
+
+        # trace sampling distance
+        inputLine_Layout.addWidget(QLabel(self.tr("Line densify distance")), 2, 0, 1, 1)
+        self.profile_densify_distance_lineedit = QLineEdit()
+        inputLine_Layout.addWidget(self.profile_densify_distance_lineedit, 2, 1, 1, 1)
+
+        # geodesic length
+        inputLine_Layout.addWidget(QLabel(self.tr("Use geodesic length")), 2, 2, 1, 1)
+        self.use_geodesic_combobox = QComboBox()
+        self.use_geodesic_combobox.addItems(["none", "WGS84"])
+        inputLine_Layout.addWidget(self.use_geodesic_combobox, 2, 3, 1, 1)
+
         inputLine_QGroupBox.setLayout(inputLine_Layout)
         
         profileDEM_Layout.addWidget(inputLine_QGroupBox)
-                  
 
         ## Profile statistics
 
@@ -212,11 +222,6 @@ class qprof_QWidget(QWidget):
         plotDEM_Layout = QGridLayout()                
 
         # profile options
-        
-        # trace sampling distance                 
-        plotDEM_Layout.addWidget(QLabel(self.tr("Line densify distance")), 0, 0, 1, 1)         
-        self.profile_densify_distance_lineedit = QLineEdit()
-        plotDEM_Layout.addWidget(self.profile_densify_distance_lineedit, 0, 1, 1, 1)
 
         plotDEM_Layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 1, 0, 1, 1)
         self.DEM_exageration_ratio_Qlineedit = QLineEdit()
@@ -1291,9 +1296,26 @@ class qprof_QWidget(QWidget):
          
         return selected_dems, selected_dem_colors
         
- 
+
+    def reset_profile_defs(self):
+
+        self.source_profile = None
+
+        try:
+            self.disconnect_digitize_maptool()
+        except:
+            pass
+
+        try:
+            self.rubberband.reset(QGis.Line)
+        except:
+            pass
+
+
     def define_line(self):
-        
+
+        self.reset_profile_defs()
+
         if self.DigitizeLine_checkbox.isChecked():
             self.digitize_line()
         elif self.LoadLineLayer_checkbox.isChecked():
@@ -1327,11 +1349,6 @@ class qprof_QWidget(QWidget):
     def digitize_line(self):
 
         self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
-
-        try:
-            self.rubberband.reset(QGis.Line)
-        except:
-            pass
 
         self.previous_maptool = self.mapcanvas.mapTool()            # Save the standard map tool for restoring it at the end
         self.digitize_maptool = MapDigitizeTool(self.mapcanvas)        #  mouse listener
@@ -1412,18 +1429,7 @@ class qprof_QWidget(QWidget):
 
 
     def load_line_layer(self):
-        
-        try:
-            self.disconnect_digitize_maptool()
-        except:
-            pass
-        
-        try:
-            self.rubberband.reset(QGis.Line)
-        except:
-            pass
-        
-        
+
         current_line_layers = loaded_line_layers()   
 
         if len(current_line_layers) == 0:
@@ -2414,11 +2420,11 @@ class qprof_QWidget(QWidget):
             delta_elev_values.append(track_points[ndx].elev - track_points[ndx-1].elev)
         
         # covert values into ECEF values (x, y, z in ECEF global coordinate system)        
-        trk_ECEFpoints = [trk_value.toPoint4D() for trk_value in  track_points]
+        trk_ECEFpoints = [trk_value.toPoint4D() for trk_value in track_points]
         
         # calculate 3D distances between consecutive points
         dist_3D_values = [np.nan]
-        for ndx in range(1, len (trk_ECEFpoints)):
+        for ndx in range(1, len(trk_ECEFpoints)):
             dist_3D_values.append(trk_ECEFpoints[ndx].distance(trk_ECEFpoints[ndx-1])) 
                     
         # calculate slope along track

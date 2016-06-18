@@ -89,7 +89,7 @@ class MplWidget( QWidget ):
             
 def plot_line( axes, x_list, y_list, linecolor, name="", linewidth=1 ):
     
-    line, = axes.plot( x_list, y_list,'-', color=linecolor, linewidth=linewidth )
+    line, = axes.plot(x_list, y_list,'-', color=linecolor, linewidth=linewidth )
 
     if name is not None and name != "": 
         axes.annotate(name, xy=(x_list[0], y_list[0]),  xycoords='data',

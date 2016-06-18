@@ -21,7 +21,7 @@ from matplotlib import rcParams
 import webbrowser
 
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QgsMapLayer, QGis, QgsGeometry
-from qgis.gui import QgsRubberBand
+from qgis.gui import QgsRubberBand, QgsColorButtonV2
 
 from geosurf.qt_utils import lastUsedDir, setLastUsedDir
 
@@ -1259,7 +1259,7 @@ class qprof_QWidget(QWidget):
             self.warn("No DEM chosen")
             return
             
-        if  len(selected_dems) == 0: 
+        if len(selected_dems) == 0:
             self.warn("No selected DEM")
             return      
         else:
@@ -1292,7 +1292,12 @@ class qprof_QWidget(QWidget):
             curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem (dem_qgis_ndx) 
             if curr_DEM_item.checkState (0) == 2:
                 selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
-                selected_dem_colors.append(dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 1).currentText())  
+                qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
+                red = qcolor.red()/255.0
+                green = qcolor.green()/255.0
+                blue = qcolor.blue() / 255.0
+                mpl_color = (red, green, blue)
+                selected_dem_colors.append(mpl_color)
          
         return selected_dems, selected_dem_colors
         
@@ -3808,10 +3813,13 @@ class SourceDEMsDialog(QDialog):
 
                                        
         self.listDEMs_treeWidget = QTreeWidget()
-        self.listDEMs_treeWidget.setColumnCount(2)
-        self.listDEMs_treeWidget.setColumnWidth (0, 200)
-        self.listDEMs_treeWidget.headerItem().setText(0, "Name")
-        self.listDEMs_treeWidget.headerItem().setText(1, "Plot color")
+        self.listDEMs_treeWidget.setColumnCount(3)
+        self.listDEMs_treeWidget.setColumnWidth(0, 50)
+        self.listDEMs_treeWidget.setColumnWidth(1, 150)
+        self.listDEMs_treeWidget.setColumnWidth(2, 80)
+        self.listDEMs_treeWidget.headerItem().setText(0, "Select")
+        self.listDEMs_treeWidget.headerItem().setText(1, "Name")
+        self.listDEMs_treeWidget.headerItem().setText(2, "Color")
         self.listDEMs_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.listDEMs_treeWidget.setDragEnabled(False)
         self.listDEMs_treeWidget.setDragDropMode(QAbstractItemView.NoDragDrop)
@@ -3851,11 +3859,11 @@ class SourceDEMsDialog(QDialog):
         for raster_layer in self.singleband_raster_layers_in_project:
             
             tree_item = QTreeWidgetItem(self.listDEMs_treeWidget)
-            tree_item.setText(0, raster_layer.name())
-            combo_box = QComboBox()
-            combo_box.setSizeAdjustPolicy (0)
-            combo_box.addItems(qprof_QWidget.colors)
-            self.listDEMs_treeWidget.setItemWidget(tree_item, 1, combo_box)       
+            tree_item.setText(1, raster_layer.name())
+            color_button = QgsColorButtonV2()
+            color_button.setColor(QColor('red'))
+
+            self.listDEMs_treeWidget.setItemWidget(tree_item, 2, color_button)
             tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
             tree_item.setCheckState(0, 0)
 

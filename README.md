@@ -3,3 +3,4 @@ qProf is a Quantum Gis plugin for creating topographic profiles from DEM/GPX fil
 Contacts:
 Mauro Alberti - alberti.m65@gmail.com
 Marco Zanieri - marcozanieri@gmail.com
+

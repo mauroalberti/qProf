@@ -303,22 +303,26 @@ class MapDigitizeTool(QgsMapTool):
 
     def __init__(self, canvas):
         
-        QgsMapTool.__init__(self,canvas)
+        QgsMapTool.__init__(self, canvas)
         self.canvas = canvas
         self.cursor = QCursor(Qt.CrossCursor)
                 
 
     def canvasMoveEvent(self, event):
+
+        print "canvas - tool moved"
         
         self.emit(SIGNAL("moved"), {'x': event.pos().x(), 'y': event.pos().y()})
 
 
     def canvasReleaseEvent(self, event):
-        
+
+        print "canvas - tool released"
+
         if event.button() == Qt.RightButton:
-            button_type =  "rightClicked"
+            button_type = "rightClicked"
         elif event.button() == Qt.LeftButton:
-            button_type =  "leftClicked"
+            button_type = "leftClicked"
         else:
             return      
         
@@ -331,6 +335,8 @@ class MapDigitizeTool(QgsMapTool):
 
 
     def activate(self):
+
+        print "canvas - activated"
         
         QgsMapTool.activate(self)
         self.canvas.setCursor(self.cursor)
@@ -347,6 +353,8 @@ class MapDigitizeTool(QgsMapTool):
 
 
     def setCursor(self, cursor):
+
+        print "canvas - set cursor"
         
         self.cursor = QCursor(cursor)
 

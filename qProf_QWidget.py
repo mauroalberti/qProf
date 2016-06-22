@@ -652,8 +652,7 @@ class qprof_QWidget(QWidget):
         intersect_toolbox.addItem (polygon_intersect_QWidget, "Intersect polygon layer") 
 
         # END Polygon intersection section
-        
-               
+
         
         intersect_layout.addWidget(intersect_toolbox) 
         
@@ -704,7 +703,6 @@ class qprof_QWidget(QWidget):
         export_QGroupBox.setLayout(export_inner_Layout)        
         impexp_layout.addWidget(export_QGroupBox)        
 
-       
         impexp_widget.setLayout(impexp_layout) 
         
         return impexp_widget
@@ -772,6 +770,7 @@ class qprof_QWidget(QWidget):
             min_dem_proposed_resolution = min_dem_resolution
         self.profile_densify_distance_lineedit.setText(str(min_dem_proposed_resolution))
 
+
     def define_line(self):
 
         self.reset_profile_defs()
@@ -783,9 +782,11 @@ class qprof_QWidget(QWidget):
         elif self.PointListforLine_checkbox.isChecked():
             self.load_point_list()
 
+
     def get_dem_parameters(self, dem):
 
         return QGisRasterParameters(*raster_qgis_params(dem))
+
 
     def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs):
 
@@ -829,6 +830,7 @@ class qprof_QWidget(QWidget):
         except:
             pass
 
+
     def load_line_layer(self):
 
         current_line_layers = loaded_line_layers()
@@ -861,6 +863,7 @@ class qprof_QWidget(QWidget):
 
         self.source_profile = profile_projected_line_2d.remove_coincident_successive_points()
 
+
     def get_line_trace(self, line_shape, order_field_ndx):
 
         try:
@@ -869,6 +872,7 @@ class qprof_QWidget(QWidget):
             return False, error_msg
         return True, (profile_orig_lines, mergeorder_ids)
 
+
     def create_line_in_project_crs(self, profile_processed_line, line_layer_crs, on_the_fly_projection,
                                    project_crs):
 
@@ -876,6 +880,7 @@ class qprof_QWidget(QWidget):
             return profile_processed_line
         else:
             return line2d_change_crs(profile_processed_line, line_layer_crs, project_crs)
+
 
     def get_selected_dems_params(self, dialog):
 
@@ -894,12 +899,14 @@ class qprof_QWidget(QWidget):
 
         return selected_dems, selected_dem_colors
 
+
     def get_line_layer_params(self, dialog):
 
         line_layer = dialog.line_shape
         order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
         return line_layer, order_field_ndx
+
 
     def digitize_line(self):
 
@@ -917,6 +924,7 @@ class qprof_QWidget(QWidget):
 
         self.profile_canvas_points = []
 
+
     def get_point_list(self, dialog):
 
         raw_point_string = dialog.point_list_qtextedit.toPlainText()
@@ -930,6 +938,7 @@ class qprof_QWidget(QWidget):
         assert line2d.num_points() >= 2
         return line2d
 
+
     def connect_digitize_maptool(self):
 
         print "connected maptool"
@@ -938,16 +947,19 @@ class qprof_QWidget(QWidget):
         QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
         QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
 
+
     def disconnect_digitize_maptool(self):
 
         QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
         QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
         QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
 
+
     def xy_from_canvas(self, position):
 
         mapPos = self.mapcanvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])
         return mapPos.x(), mapPos.y()
+
 
     def refresh_rubberband(self, xy_list):
 
@@ -956,6 +968,7 @@ class qprof_QWidget(QWidget):
         self.rubberband.reset(QGis.Line)
         for x, y in xy_list:
             self.rubberband.addPoint(QgsPoint(x, y))
+
 
     def canvas_refresh_profile_line(self, position):
 
@@ -967,10 +980,12 @@ class qprof_QWidget(QWidget):
         x, y = self.xy_from_canvas(position)
         self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
 
+
     def profile_add_point(self, position):
 
         x, y = self.xy_from_canvas(position)
         self.profile_canvas_points.append([x, y])
+
 
     def canvas_add_point_to_profile(self, position):
 
@@ -982,6 +997,7 @@ class qprof_QWidget(QWidget):
 
         self.profile_add_point(position)
 
+
     def canvas_end_profile_line(self, position):
 
         print "canvas_end_profile_line"
@@ -991,10 +1007,12 @@ class qprof_QWidget(QWidget):
         self.source_profile = Line2D([Point2D(x, y) for x, y in self.profile_canvas_points])
         self.profile_canvas_points = []
 
+
     def restore_previous_map_tool(self):
 
         self.mapcanvas.unsetMapTool(self.digitize_maptool)
         self.mapcanvas.setMapTool(self.previous_maptool)
+
 
     def load_point_list(self):
 
@@ -1007,6 +1025,7 @@ class qprof_QWidget(QWidget):
             return
 
         self.source_profile = line2d
+
 
     def closeEvent(self, event):
 
@@ -1022,6 +1041,7 @@ class qprof_QWidget(QWidget):
         except:
             pass
 
+    """
     def define_topo_input(self):
 
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
@@ -1043,7 +1063,7 @@ class qprof_QWidget(QWidget):
                     return
 
                 try:
-                    self.sample_distance_raw = dialog.profile_densify_distance_lineedit.text()
+                    self.sample_distance_raw = self.profile_densify_distance_lineedit.text()
                 except:
                     self.warn("sample distance not defined")
                     return
@@ -1059,6 +1079,7 @@ class qprof_QWidget(QWidget):
             return
 
         return None
+    """
 
 
     def do_export_topo_profiles(self):
@@ -1628,13 +1649,15 @@ class qprof_QWidget(QWidget):
         if self.selected_dems == []:
             self.warn("DEM(s) not yet defined")
             return False
+
         try:
             assert self.source_profile.num_points() > 1
         except:
             self.warn("Profile line not yet defined")
             return False
+
         try:
-            self.sample_distance = float(self.sample_distance_raw)
+            self.sample_distance = float(self.profile_densify_distance_lineedit.text())
             assert self.sample_distance > 0
         except:
             self.sample_distance = None
@@ -1644,7 +1667,7 @@ class qprof_QWidget(QWidget):
         return True
 
 
-    def get_statistics(self, topo_profile):
+    def get_profile_statistics(self, topo_profile):
 
         dem_name = topo_profile.dem_name
         profile_line3d = topo_profile.profile_3d
@@ -1672,17 +1695,12 @@ class qprof_QWidget(QWidget):
         if not verified:
             return
 
-        # reverse profile line orientation if required
-        if not self.plotProfile_swap_horiz_checkbox.isChecked():
-            self.used_profile_line = self.source_profile
-        else:
-            self.used_profile_line = self.source_profile.swap_horiz()
-
-        # calculates profiles if they do not exist
+        # calculates profiles
+        self.used_profile_line = self.source_profile
         self.profiles = self.calculate_profiles()
 
         if self.profiles is not None:
-            statistics = map(lambda p: self.get_statistics(p), self.profiles.topo_profiles)
+            statistics = map(lambda p: self.get_profile_statistics(p), self.profiles.topo_profiles)
             dialog = StatisticsDialog(statistics)
             dialog.exec_()
         else:
@@ -1738,8 +1756,8 @@ class qprof_QWidget(QWidget):
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection() 
 
-        resampled_line_2d = self.used_profile_line.densify(self.sample_distance) # line resampled by sample distance
-       
+        resampled_line_2d = self.used_profile_line.densify(self.sample_distance)  # line resampled by sample distance
+
         # calculate 3D profiles from DEMs
         profiles_lines3d = []
         for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
@@ -3533,7 +3551,6 @@ class qprof_QWidget(QWidget):
                          
     def closeEvent(self, event):
 
-        """
         try:
             self.rubberband.reset(QGis.Line)
         except:
@@ -3543,8 +3560,7 @@ class qprof_QWidget(QWidget):
             self.disconnect_digitize_maptool()
         except:
             pass
-        """
-                
+
         try:       
             QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
         except:
@@ -3576,7 +3592,7 @@ class qprof_QWidget(QWidget):
             pass  
      
 
-
+"""
 class TopoInputDEMLineDialog(QDialog):
 
     def __init__(self, mapcanvas, on_the_fly_projection, project_crs, parent=None):
@@ -3898,6 +3914,9 @@ class TopoInputDEMLineDialog(QDialog):
 
     def disconnect_digitize_maptool(self):
 
+
+        print "disconnected maptool"
+
         QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
         QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
         QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
@@ -3958,6 +3977,8 @@ class TopoInputDEMLineDialog(QDialog):
 
     def restore_previous_map_tool(self):
 
+        print "restore_previous_map_tool"
+
         self.mapcanvas.unsetMapTool(self.digitize_maptool)
         self.mapcanvas.setMapTool(self.previous_maptool)
 
@@ -3988,7 +4009,7 @@ class TopoInputDEMLineDialog(QDialog):
             self.disconnect_digitize_maptool()
         except:
             pass
-
+"""
 
 
 class TopoInputGPXDialog(QDialog):
@@ -4245,6 +4266,16 @@ class TopoInputGPXDialog(QDialog):
 
 
     def load_line_layer(self):
+
+        try:
+            self.disconnect_digitize_maptool()
+        except:
+            pass
+
+        try:
+            self.rubberband.reset(QGis.Line)
+        except:
+            pass
 
         current_line_layers = loaded_line_layers()
 

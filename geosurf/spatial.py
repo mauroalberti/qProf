@@ -295,7 +295,12 @@ class Line2D(object):
 
         return self._pts
 
-    
+
+    def num_pts(self):
+
+        return len(self.pts())
+
+
     def clone(self):
         
         return Line2D(self._pts)
@@ -819,6 +824,11 @@ class Line3D(object):
     def pts(self):
 
         return self._pts
+
+
+    def num_pts(self):
+
+        return len(self.pts())
 
 
     def clone(self):

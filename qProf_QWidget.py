@@ -727,7 +727,7 @@ class qprof_QWidget(QWidget):
             min_dem_proposed_resolution = min_dem_resolution
         self.profile_densify_distance_lineedit.setText(str(min_dem_proposed_resolution))
 
-        self.profile_source = self.demline_source
+        self.profile_source_type = self.demline_source
 
     def define_line(self):
 
@@ -894,7 +894,9 @@ class qprof_QWidget(QWidget):
         # try:
         point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
         line2d = xytuple_list_to_Line2D(point_list)
-        assert line2d.num_pts() >= 2
+
+        assert line2d.num_pts >= 2
+
         return line2d
 
     def connect_digitize_maptool(self):
@@ -1490,10 +1492,10 @@ class qprof_QWidget(QWidget):
             trace2d_in_dem_crs = resampled_trace2d
 
         profile_line3d = Line3DT()
-        for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts(), resampled_trace2d.pts()):
+        for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
             interpolated_z = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-            pt_3d = CartesianPoint3DT(trace_pt2d_project_crs.x(),
-                                      trace_pt2d_project_crs.y(),
+            pt_3d = CartesianPoint3DT(trace_pt2d_project_crs.p_x,
+                                      trace_pt2d_project_crs.p_y,
                                       interpolated_z)
             profile_line3d.add_pt(pt_3d)
 
@@ -1524,7 +1526,7 @@ class qprof_QWidget(QWidget):
             return False
 
         try:
-            assert self.source_profile.num_points() > 1
+            assert self.source_profile.num_points > 1
         except:
             self.warn("Profile line not yet defined")
             return False
@@ -1544,11 +1546,11 @@ class qprof_QWidget(QWidget):
         dem_name = topo_profile.dem_name
         profile_line3d = topo_profile.profile_3d
 
-        z_min = profile_line3d.z_min()
-        z_max = profile_line3d.z_max()
-        z_mean = profile_line3d.z_mean()
-        z_var = profile_line3d.z_var()
-        z_std = profile_line3d.z_std()
+        z_min = profile_line3d.z_min
+        z_max = profile_line3d.z_max
+        z_mean = profile_line3d.z_mean
+        z_var = profile_line3d.z_var
+        z_std = profile_line3d.z_std
 
         stats = dict(dem_name=dem_name,
                      z_min=z_min,
@@ -1565,10 +1567,10 @@ class qprof_QWidget(QWidget):
 
         # preliminar verification of source parameters
 
-        if self.source_profile == self.demline_source:  # sources are DEM(s) and line
+        if self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
             if not self.verify_DEMprofile_src_params():
                 return
-        elif self.source_profile == self.gpxfile_source:  # source is GPX file
+        elif self.profile_source_type == self.gpxfile_source:  # source is GPX file
             if not self.verify_GPXprofile_src_params():
                 return
         else:  # source error
@@ -2404,7 +2406,7 @@ class qprof_QWidget(QWidget):
             return False, "Profile not calculated"
 
         # check that section is made up of only two points
-        if self.used_profile_line.num_pts() != 2:
+        if self.used_profile_line.num_pts != 2:
             return False, "Profile not made up by only two points"
 
         # dem number
@@ -3001,7 +3003,7 @@ class qprof_QWidget(QWidget):
             return False, "Profile has not been calculated"
 
         # check that section is made up of only two points
-        if self.used_profile_line.num_pts() != 2:
+        if self.used_profile_line.num_pts != 2:
             return False, "Current profile is not made up by only two points"
 
         return True, "ok"

@@ -63,9 +63,9 @@ class GDALParameters(object):
 
     def s_topLeftX(self, topleftX):
         """
-        Set top-left corner p_x value of the raster.
+        Set top-left corner x value of the raster.
         
-        @param  topleftX:  the top-left corner p_x value, according to GDAL convention.
+        @param  topleftX:  the top-left corner x value, according to GDAL convention.
         @type  topleftX:  number or string convertible to float.
                 
         @return:  self.
@@ -74,9 +74,9 @@ class GDALParameters(object):
 
     def g_topLeftX(self):
         """
-        Get top-left corner p_x value of the raster.
+        Get top-left corner x value of the raster.
         
-        @return:  the top-left corner p_x value, according to GDAL convention - float.
+        @return:  the top-left corner x value, according to GDAL convention - float.
         """
         return self._topleftX
 
@@ -85,9 +85,9 @@ class GDALParameters(object):
 
     def s_topLeftY(self, topleftY):
         """
-        Set top-left corner p_y value of the raster.
+        Set top-left corner y value of the raster.
         
-        @param  topleftY:  the top-left corner p_y value, according to GDAL convention.
+        @param  topleftY:  the top-left corner y value, according to GDAL convention.
         @type  topleftY:  number or string convertible to float.
                 
         @return:  self.
@@ -96,9 +96,9 @@ class GDALParameters(object):
 
     def g_topLeftY(self):
         """
-        Get top-left corner p_y value of the raster.
+        Get top-left corner y value of the raster.
         
-        @return:  the top-left corner p_y value, according to GDAL convention - float.
+        @return:  the top-left corner y value, according to GDAL convention - float.
         """
         return self._topleftY
 
@@ -109,7 +109,7 @@ class GDALParameters(object):
         """
         Set East-West size of the raster cell.
         
-        @param  pixsizeEW:  the top-left p_y value, according to GDAL convention.
+        @param  pixsizeEW:  the top-left y value, according to GDAL convention.
         @type  pixsizeEW:  number or string convertible to float.
                 
         @return:  self.
@@ -252,7 +252,7 @@ class GDALParameters(object):
         """
         # check if pixel size can be considered the same in the two axis directions
         if abs(abs(self._pixsizeEW) - abs(self._pixsizeNS)) / abs(self._pixsizeNS) > tolerance:
-            raise RasterParametersException, 'Pixel sizes in p_x and p_y directions are different in raster'
+            raise RasterParametersException, 'Pixel sizes in x and y directions are different in raster'
 
             # check for the absence of axis rotations
         if abs(self._rotation_GT_2) > tolerance or abs(self._rotation_GT_4) > tolerance:
@@ -342,8 +342,8 @@ class QGisRasterParameters(object):
     def raster2geogr(self, array_dict):
 
         point = CartesianPoint3DT()
-        point._x = self.xMin + (array_dict['p_x'] + 0.5) * self.cellsizeEW
-        point._y = self.yMin + (array_dict['p_y'] + 0.5) * self.cellsizeNS
+        point._x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
+        point._y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
 
         return point
 
@@ -593,9 +593,9 @@ def ogr_get_solution_shapefile(path, fields_dict_list):
     in_point = point_shapelayer.GetNextFeature()
     while in_point:
         rec_id = int(in_point.GetField('id'))
-        x = in_point.GetField('p_x')
-        y = in_point.GetField('p_y')
-        z = in_point.GetField('p_z')
+        x = in_point.GetField('x')
+        y = in_point.GetField('y')
+        z = in_point.GetField('z')
         dip_dir = in_point.GetField('dip_dir')
         dip_ang = in_point.GetField('dip_ang')
         descript = in_point.GetField('descript')

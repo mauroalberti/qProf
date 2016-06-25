@@ -49,7 +49,7 @@ class CartesianPoint2DT(object):
 
     def translate_with_vector(self, displacement_vector):
 
-        return CartesianPoint2DT(self.p_x + displacement_vector.p_x, self.p_y + displacement_vector.p_y, self.p_t)
+        return CartesianPoint2DT(self.p_x + displacement_vector.x, self.p_y + displacement_vector.y, self.p_t)
 
     def spat_coincident_with(self, another, tolerance=MINIMUM_SEPARATION_THRESHOLD):
 
@@ -63,7 +63,7 @@ class CartesianPoint2DT(object):
         qgis_pt = qgs_point_2d(self.p_x, self.p_y)
         destCrs_qgis_pt = project_qgs_point(qgis_pt, srcCrs, destCrs)
 
-        return CartesianPoint2DT(destCrs_qgis_pt.p_x, destCrs_qgis_pt.p_y, self.p_t)
+        return CartesianPoint2DT(destCrs_qgis_pt.x(), destCrs_qgis_pt.y(), self.p_t)
 
 
 class Segment2DT(object):
@@ -251,7 +251,7 @@ class Vector2D(object):
         return self.scale(1.0 / self.length)
 
     def add(self, another):
-        return Vector2D(self.x + another.p_x, self.y + another.p_y)
+        return Vector2D(self.x + another.x, self.y + another.y)
 
     def minus(self, another):
         return self.add(another.scale(-1))
@@ -548,11 +548,11 @@ class CartesianPoint3DT(object):
         """
         Create a new point shifted by given amount from the self instance.
 
-        @param  sx:  the shift to be applied along the p_x axis.
+        @param  sx:  the shift to be applied along the x axis.
         @type  sx:  float.
-        @param  sy:  the shift to be applied along the p_y axis.
+        @param  sy:  the shift to be applied along the y axis.
         @type  sy:  float.
-        @param  sz:  the shift to be applied along the p_z axis.
+        @param  sz:  the shift to be applied along the z axis.
         @type  sz:  float.
                 
         @return:  a new CartesianPoint3DT instance shifted by the given amounts with respect to the original one.
@@ -562,8 +562,8 @@ class CartesianPoint3DT(object):
 
     def translate_with_vector(self, displacement_vector):
 
-        return CartesianPoint3DT(self.p_x + displacement_vector.p_x, self.p_y + displacement_vector.p_y,
-                                 self.p_z + displacement_vector.p_z, self.p_t)
+        return CartesianPoint3DT(self.p_x + displacement_vector.x, self.p_y + displacement_vector.y,
+                                 self.p_z + displacement_vector.z, self.p_t)
 
     def as_vector3d(self):
 
@@ -725,9 +725,9 @@ class Vector3D(object):
 
     def add(self, another):
 
-        return Vector3D(self.x + another.p_x,
-                        self.y + another.p_y,
-                        self.z + another.p_z)
+        return Vector3D(self.x + another.x,
+                        self.y + another.y,
+                        self.z + another.z)
 
     def slope_radians(self):
 
@@ -755,7 +755,7 @@ class Vector3D(object):
 
     def scalar_product(self, another):
 
-        return self.x * another.p_x + self.y * another.p_y + self.z * another.p_z
+        return self.x * another.x + self.y * another.y + self.z * another.z
 
     def vectors_cos_angle(self, another):
 
@@ -774,9 +774,9 @@ class Vector3D(object):
 
     def vector_product(self, another):
 
-        x = self.y * another.p_z - self.z * another.p_y
-        y = self.z * another.p_x - self.x * another.p_z
-        z = self.x * another.p_y - self.y * another.p_x
+        x = self.y * another.z - self.z * another.y
+        y = self.z * another.x - self.x * another.z
+        z = self.x * another.y - self.y * another.x
 
         return Vector3D(x, y, z)
 
@@ -1233,7 +1233,7 @@ class GeolPlane(object):
 
     def plane_x_coeff(self):
         """
-        Calculate the slope of a given plane along the p_x direction.
+        Calculate the slope of a given plane along the x direction.
         The plane orientation  is expressed following the geological convention. 
                
         @return:  slope - float.    
@@ -1242,7 +1242,7 @@ class GeolPlane(object):
 
     def plane_y_coeff(self):
         """
-        Calculate the slope of a given plane along the p_y direction.
+        Calculate the slope of a given plane along the y direction.
         The plane orientation  is expressed following the geological convention. 
                
         @return:  slope - float.     
@@ -1252,22 +1252,22 @@ class GeolPlane(object):
     def plane_from_geo(self, or_Pt):
         """
         Closure that embodies the analytical formula for a given, non-vertical plane.
-        This closure is used to calculate the p_z value from given horizontal coordinates (p_x, p_y).
+        This closure is used to calculate the z value from given horizontal coordinates (x, y).
     
         @param  or_Pt:  CartesianPoint3DT instance expressing a location point contained by the plane.
         @type  or_Pt:  CartesianPoint3DT.
         
-        @return:  lambda (closure) expressing an analytical formula for deriving p_z given p_x and p_y values.
+        @return:  lambda (closure) expressing an analytical formula for deriving z given x and y values.
         """
 
         x0 = or_Pt.p_x
         y0 = or_Pt.p_y
         z0 = or_Pt.p_z
 
-        # slope of the line parallel to the p_x axis and contained by the plane
+        # slope of the line parallel to the x axis and contained by the plane
         a = self.plane_x_coeff()
 
-        # slope of the line parallel to the p_y axis and contained by the plane
+        # slope of the line parallel to the y axis and contained by the plane
         b = self.plane_y_coeff()
 
         return lambda x, y: a * (x - x0) + b * (y - y0) + z0
@@ -1301,7 +1301,7 @@ def xytuple_list_to_Line2D(xy_list):
 
 
 def xytuple_list2_to_MultiLine2D(xytuple_list2):
-    # input is a list of list of (p_x,p_y) values
+    # input is a list of list of (x,y) values
 
     assert len(xytuple_list2) > 0
     lines_list = []
@@ -1314,8 +1314,8 @@ def xytuple_list2_to_MultiLine2D(xytuple_list2):
 
 def list2_to_list(list2):
     """
-    input: a list of list of (p_x,p_y) tuples
-    output: a list of (p_x,p_y) tuples
+    input: a list of list of (x,y) tuples
+    output: a list of (x,y) tuples
     """
 
     out_list = []
@@ -1328,8 +1328,8 @@ def list2_to_list(list2):
 
 def list3_to_list(list3):
     """
-    input: a list of list of (p_x,p_y) tuples
-    output: a list of (p_x,p_y) tuples
+    input: a list of list of (x,y) tuples
+    output: a list of (x,y) tuples
     """
 
     out_list = []
@@ -1342,7 +1342,7 @@ def list3_to_list(list3):
 
 def merge_lines(lines, progress_ids):
     """
-    lines: a list of list of (p_x,p_y,p_z) tuples for multilines
+    lines: a list of list of (x,y,z) tuples for multilines
     """
 
     sorted_line_list = [line for (_, line) in sorted(zip(progress_ids, lines))]
@@ -1374,9 +1374,9 @@ class ArrCoord(object):
 
     def __init__(self, ival=0.0, jval=0.0):
         """
-        @param  ival:  the i (-p_y) array coordinate of the point.
+        @param  ival:  the i (-y) array coordinate of the point.
         @type  ival:  number or string convertible to float.
-        @param  jval:  the j (p_x) array coordinate of the point.
+        @param  jval:  the j (x) array coordinate of the point.
         @type  jval:  number or string convertible to float.
                
         @return:  self.                
@@ -1388,7 +1388,7 @@ class ArrCoord(object):
         """
         Get i (row) coordinate value.
         
-        @return:  the i (-p_y) array coordinate of the point - float.
+        @return:  the i (-y) array coordinate of the point - float.
         """
         return self._i
 
@@ -1396,7 +1396,7 @@ class ArrCoord(object):
         """
         Set i (row) coordinate value.
         
-        @param  ival:  the i (-p_y) array coordinate of the point.
+        @param  ival:  the i (-y) array coordinate of the point.
         @type  ival:  number or string convertible to float.
         
         @return:  self.        
@@ -1410,7 +1410,7 @@ class ArrCoord(object):
         """
         Get j (column) coordinate value.
         
-        @return:  the j (p_x) array coordinate of the point - float.
+        @return:  the j (x) array coordinate of the point - float.
         """
         return self._j
 
@@ -1418,7 +1418,7 @@ class ArrCoord(object):
         """
         Set j (column) coordinate value.
         
-        @param  jval:  the j (p_x) array coordinate of the point.
+        @param  jval:  the j (x) array coordinate of the point.
         @type  jval:  number or string convertible to float.
         
         @return:  self.         
@@ -1475,27 +1475,27 @@ class RectangularDomain(object):
     @property
     def xrange(self):
         """
-        Get p_x range of spatial domain.
+        Get x range of spatial domain.
         
-        @return:  p_x range - float.
+        @return:  x range - float.
         """
         return self.trcorner.p_x - self.llcorner.p_x
 
     @property
     def yrange(self):
         """
-        Get p_y range of spatial domain.
+        Get y range of spatial domain.
         
-        @return:  p_y range - float.
+        @return:  y range - float.
         """
         return self.trcorner.p_y - self.llcorner.p_y
 
     @property
     def zrange(self):
         """
-        Get p_z range of spatial domain.
+        Get z range of spatial domain.
         
-        @return:  p_z range - float.
+        @return:  z range - float.
         """
         return self.trcorner.p_z - self.llcorner.p_z
 
@@ -1667,9 +1667,9 @@ class Grid(object):
     @property
     def cellsize_x(self):
         """
-        Get the cell size of the grid in the p_x direction.
+        Get the cell size of the grid in the x direction.
         
-        @return: cell size in the p_x (j) direction - float.
+        @return: cell size in the x (j) direction - float.
         """
 
         return self.domain.xrange / float(self.col_num)
@@ -1677,9 +1677,9 @@ class Grid(object):
     @property
     def cellsize_y(self):
         """
-        Get the cell size of the grid in the p_y direction.
+        Get the cell size of the grid in the y direction.
         
-        @return: cell size in the p_y (-i) direction - float.
+        @return: cell size in the y (-i) direction - float.
         """
 
         return self.domain.yrange / float(self.row_num)
@@ -1710,10 +1710,10 @@ class Grid(object):
 
     def x(self):
         """
-        Creates an array storing the geographical coordinates of the cell centers along the p_x axis.
+        Creates an array storing the geographical coordinates of the cell centers along the x axis.
         Direction is from left to right.
         
-        @return: numpy.array, shape: 1 p_x col_num.
+        @return: numpy.array, shape: 1 x col_num.
         """
 
         x_values = self.domain.llcorner.p_x + self.cellsize_x * (0.5 + np.arange(self.col_num))
@@ -1722,10 +1722,10 @@ class Grid(object):
 
     def y(self):
         """
-        Creates an array storing the geographical coordinates of the cell centers along the p_y axis.
+        Creates an array storing the geographical coordinates of the cell centers along the y axis.
         Direction is from top to bottom.
         
-        @return: numpy.array, shape: row_num p_x 1.
+        @return: numpy.array, shape: row_num x 1.
         """
 
         y_values = self.domain.trcorner.p_y - self.cellsize_y * (0.5 + np.arange(self.row_num))
@@ -1734,7 +1734,7 @@ class Grid(object):
 
     def grad_forward_y(self):
         """
-        Return an array representing the forward gradient in the p_y direction (top-wards), with values scaled by cell size.
+        Return an array representing the forward gradient in the y direction (top-wards), with values scaled by cell size.
         
         @return: numpy.array, same shape as current Grid instance        
         """
@@ -1746,7 +1746,7 @@ class Grid(object):
 
     def grad_forward_x(self):
         """
-        Return an array representing the forward gradient in the p_x direction (right-wards), with values scaled by cell size.
+        Return an array representing the forward gradient in the x direction (right-wards), with values scaled by cell size.
 
         @return: numpy.array, same shape as current Grid instance
         """
@@ -1758,13 +1758,13 @@ class Grid(object):
 
     def interpolate_bilinear(self, curr_Pt_array_coord):
         """
-        Interpolate the p_z value at a point, given its array coordinates.
+        Interpolate the z value at a point, given its array coordinates.
         Interpolation method: bilinear.
         
         @param curr_Pt_array_coord: array coordinates of the point for which the interpolation will be made.
         @type curr_Pt_array_coord: class ArrCoord.
         
-        @return: interpolated p_z value - float.
+        @return: interpolated z value - float.
         """
 
         currPt_cellcenter_i = curr_Pt_array_coord.i - 0.5
@@ -1804,24 +1804,24 @@ class Grid(object):
 
         if surf_type == 'plane':
 
-            # closures to compute the geographic coordinates (in p_x- and p_y-) of a cell center
+            # closures to compute the geographic coordinates (in x- and y-) of a cell center
             # the grid coordinates of the cell center are expressed by i and j 
             grid_coord_to_geogr_coord_x_closure = lambda j: self.domain.llcorner.p_x + self.cellsize_x * (0.5 + j)
             grid_coord_to_geogr_coord_y_closure = lambda i: self.domain.trcorner.p_y - self.cellsize_y * (0.5 + i)
 
-            # arrays storing the geographical coordinates of the cell centers along the p_x- and p_y- axes
+            # arrays storing the geographical coordinates of the cell centers along the x- and y- axes
             cell_center_x_array = self.x()
             cell_center_y_array = self.y()
 
             ycoords_x, xcoords_y = np.broadcast_arrays(cell_center_x_array, cell_center_y_array)
 
-            #### p_x-axis direction intersections
+            #### x-axis direction intersections
 
             # 2D array of DEM segment parameters                         
             x_dem_m = self.grad_forward_x()
             x_dem_q = self.data - cell_center_x_array * x_dem_m
 
-            # closure for the planar surface that, given (p_x,p_y), will be used to derive p_z
+            # closure for the planar surface that, given (x,y), will be used to derive z
             plane_z_closure = srcPlaneAttitude.plane_from_geo(srcPt)
 
             # 2D array of plane segment parameters
@@ -1838,7 +1838,7 @@ class Grid(object):
             xcoords_x = np.where(xcoords_x < ycoords_x, np.NaN, xcoords_x)
             xcoords_x = np.where(xcoords_x >= ycoords_x + self.cellsize_x, np.NaN, xcoords_x)
 
-            #### p_y-axis direction intersections
+            #### y-axis direction intersections
 
             # 2D array of DEM segment parameters  
             y_dem_m = self.grad_forward_y()
@@ -2037,8 +2037,8 @@ class AnalyticGeosurface(object):
     def get_geographical_param_values(self):
 
         try:
-            geog_x_min = float(self.geographical_params['geog p_x min'])
-            geog_y_min = float(self.geographical_params['geog p_y min'])
+            geog_x_min = float(self.geographical_params['geog x min'])
+            geog_y_min = float(self.geographical_params['geog y min'])
             grid_height = float(self.geographical_params['grid height'])
             grid_width = float(self.geographical_params['grid width'])
             grid_rot_angle_degr = float(self.geographical_params['grid rot angle degr'])
@@ -2164,34 +2164,34 @@ def deformation_matrices(deform_params):
                                        deform_param['parameters']['rotation angle'])
             deformation = {'increment': 'multiplicative',
                            'matrix': rot_matr,
-                           'shift_pt': np.array([deform_param['parameters']['center p_x'],
-                                                 deform_param['parameters']['center p_y'],
-                                                 deform_param['parameters']['center p_z']])}
+                           'shift_pt': np.array([deform_param['parameters']['center x'],
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z']])}
         elif deform_param['type'] == 'scaling':
-            scal_matr = scaling_matrix(deform_param['parameters']['p_x factor'],
-                                       deform_param['parameters']['p_y factor'],
-                                       deform_param['parameters']['p_z factor'])
+            scal_matr = scaling_matrix(deform_param['parameters']['x factor'],
+                                       deform_param['parameters']['y factor'],
+                                       deform_param['parameters']['z factor'])
             deformation = {'increment': 'multiplicative',
                            'matrix': scal_matr,
-                           'shift_pt': np.array([deform_param['parameters']['center p_x'],
-                                                 deform_param['parameters']['center p_y'],
-                                                 deform_param['parameters']['center p_z']])}
+                           'shift_pt': np.array([deform_param['parameters']['center x'],
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z']])}
         elif deform_param['type'] == 'simple shear - horizontal':
             simple_shear_horiz_matr = simple_shear_horiz_matrix(deform_param['parameters']['psi angle (degr.)'],
                                                                 deform_param['parameters']['alpha angle (degr.)'])
             deformation = {'increment': 'multiplicative',
                            'matrix': simple_shear_horiz_matr,
-                           'shift_pt': np.array([deform_param['parameters']['center p_x'],
-                                                 deform_param['parameters']['center p_y'],
-                                                 deform_param['parameters']['center p_z']])}
+                           'shift_pt': np.array([deform_param['parameters']['center x'],
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z']])}
         elif deform_param['type'] == 'simple shear - vertical':
             simple_shear_vert_matr = simple_shear_vert_matrix(deform_param['parameters']['psi angle (degr.)'],
                                                               deform_param['parameters']['alpha angle (degr.)'])
             deformation = {'increment': 'multiplicative',
                            'matrix': simple_shear_vert_matr,
-                           'shift_pt': np.array([deform_param['parameters']['center p_x'],
-                                                 deform_param['parameters']['center p_y'],
-                                                 deform_param['parameters']['center p_z']])}
+                           'shift_pt': np.array([deform_param['parameters']['center x'],
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z']])}
         else:
             continue
 

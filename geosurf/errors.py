@@ -1,19 +1,18 @@
-
-from __future__  import division
+from __future__ import division
 
 
 class RasterParametersException(Exception):
     """
     Exception for raster parameters.
     """
-    pass  
+    pass
 
 
 class VectorInputException(Exception):
     """
     Exception for vector input parameters.
     """
-    pass  
+    pass
 
 
 class FunInputException(Exception):
@@ -21,37 +20,32 @@ class FunInputException(Exception):
     Exception for function input errors.
     """
     pass
-    
+
 
 class OutputException(Exception):
     """
     Exception for output errors.
     """
     pass
-    
-    
+
+
 class ConnectionException:
-    
     pass
 
 
-class AnaliticSurfaceIOException( Exception ):
-    
+class AnaliticSurfaceIOException(Exception):
     pass
 
 
-class AnaliticSurfaceCalcException( Exception ):
-    
+class AnaliticSurfaceCalcException(Exception):
     pass
 
 
-class GPXIOException( Exception ):
-    
+class GPXIOException(Exception):
     pass
 
 
-class VectorIOException( Exception ):
-    
+class VectorIOException(Exception):
     pass
 
 
@@ -59,5 +53,4 @@ class OGRIOException(Exception):
     """
     Exception for raster parameters.
     """
-    pass  
-
+    pass

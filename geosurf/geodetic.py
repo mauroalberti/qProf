@@ -3,7 +3,7 @@ from __future__  import division
 
 from math import sqrt, radians, sin, cos
 
-from .spatial import Point4D
+from .spatial import CartesianPoint3DT
 
 
 
@@ -48,5 +48,5 @@ class TrackPointGPX(object):
         x, y, z = geodetic2ecef(self.lat, self.lon, self.elev)
         t = self.time
         
-        return Point4D(x, y, z, t)
+        return CartesianPoint3DT(x, y, z, t)
 

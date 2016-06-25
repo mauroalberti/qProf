@@ -6,7 +6,7 @@ from math import *
 
 import numpy as np
 
-from .spatial import Point3D, GeolPlane, CartesianPlane, Segment3D, Vector3D, GeolAxis, ParamLine 
+from .spatial import CartesianPoint3DT, GeolPlane, CartesianPlane, Segment3DT, Vector3D, GeolAxis, ParamLine
 from .profile import PlaneAttitude
 from .errors import ConnectionException  
 
@@ -16,7 +16,7 @@ def calculate_distance_with_sign( projected_point, section_init_pt, section_vect
     assert projected_point._z != np.nan
     assert projected_point._z is not None            
     
-    projected_vector = Segment3D( section_init_pt, projected_point ).vector3d()            
+    projected_vector = Segment3DT(section_init_pt, projected_point).as_vector3d()
     cos_alpha = section_vector.vectors_cos_angle( projected_vector )
     
     return projected_vector.length() * cos_alpha
@@ -25,7 +25,7 @@ def calculate_distance_with_sign( projected_point, section_init_pt, section_vect
 def get_intersection_slope( intersection_versor_3d, section_vector ):
     
     slope_radians = abs( intersection_versor_3d.slope_radians() )
-    scalar_product_for_downward_sense = section_vector.scalar_product( intersection_versor_3d.to_down_vector() )
+    scalar_product_for_downward_sense = section_vector.scalar_product(intersection_versor_3d.as_downvector3d())
     if scalar_product_for_downward_sense > 0.0:
         intersection_downward_sense = "right"
     elif scalar_product_for_downward_sense == 0.0:
@@ -44,18 +44,18 @@ def calculate_intersection_versor( section_cartes_plane, structural_cartes_plane
 def calculate_nearest_intersection( intersection_versor_3d, section_cartes_plane, structural_cartes_plane, structural_pt ):
     
     dummy_inters_point = section_cartes_plane.intersection_point_3d( structural_cartes_plane )            
-    dummy_structural_vector = Segment3D( dummy_inters_point, structural_pt ).vector3d()        
+    dummy_structural_vector = Segment3DT(dummy_inters_point, structural_pt).as_vector3d()
     dummy_distance = dummy_structural_vector.scalar_product( intersection_versor_3d )        
     offset_vector = intersection_versor_3d.scale( dummy_distance ) 
            
-    return Point3D( dummy_inters_point._x + offset_vector._x,
-                     dummy_inters_point._y + offset_vector._y,
-                     dummy_inters_point._z + offset_vector._z )
+    return CartesianPoint3DT(dummy_inters_point._x + offset_vector._x,
+                             dummy_inters_point._y + offset_vector._y,
+                             dummy_inters_point._z + offset_vector._z)
 
 
 def calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt ):
     
-    axis_versor = map_axis.versor_3d()
+    axis_versor = map_axis.as_versor3d()
     l, m, n = axis_versor._x, axis_versor._y, axis_versor._z
     axis_param_line = ParamLine( structural_pt, l, m, n )
     return axis_param_line.intersect_cartes_plane( section_cartes_plane )
@@ -68,7 +68,7 @@ def map_measure_to_section( structural_rec, section_data, map_axis = None ):
     section_init_pt, section_cartes_plane, section_vector = section_data['init_pt'], section_data['cartes_plane'], section_data['vector']
      
     # transform geological plane attitude into Cartesian plane      
-    structural_cartes_plane = structural_plane.to_cartes_plane( structural_pt ) 
+    structural_cartes_plane = structural_plane.as_cartesplane(structural_pt)
 
     ## intersection versor       
     intersection_versor_3d = calculate_intersection_versor( section_cartes_plane, structural_cartes_plane )
@@ -82,7 +82,7 @@ def map_measure_to_section( structural_rec, section_data, map_axis = None ):
     else:
         intersection_point_3d = calculate_axis_intersection( map_axis, section_cartes_plane, structural_pt )
          
-    # horizontal distance between projected structural point and profile start
+    # horizontal spat_distance between projected structural point and profile start
     signed_distance_from_section_start = calculate_distance_with_sign( intersection_point_3d, section_init_pt, section_vector ) 
            
     ## solution for current structural point        

@@ -135,7 +135,7 @@ class TopoLine3D(object):
     def __init__(self, dem_name, line3d):
         
         self.dem_name = dem_name     
-        self.profile_3d = line3d  # class Line3D
+        self.profile_3d = line3d  # class Line3DT
         
 
     def min_z(self):

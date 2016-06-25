@@ -3,16 +3,9 @@
 from __future__  import division
 
 from math import sqrt, floor, ceil, sin, cos, tan, radians, asin, acos, atan, atan2, degrees, isnan
-
-
 import numpy as np
-
 import copy
-
-from qgis.core import QgsCoordinateTransform, QgsPoint
-
-
-from .qgs_tools import project_qgs_point, qgs_point_2d 
+from .qgs_tools import project_qgs_point, qgs_point_2d
 from .utils import array_from_function, almost_zero
 from array_utils import point_solution, formula_to_grid
 from .errors import AnaliticSurfaceIOException, AnaliticSurfaceCalcException
@@ -23,97 +16,115 @@ MINIMUM_VECTOR_MAGNITUDE = 1e-10
 
 
 
-class Point2D(object):
+class CartesianPoint2DT(object):
     
-    def __init__(self, x = np.nan, y = np.nan):
+    def __init__(self, x=np.nan, y=np.nan, t=None):
         
         self._x = x
         self._y = y
+        self._t = t
 
 
+    @property
     def x(self):
 
         return self._x
 
 
+    @property
     def y(self):
 
         return self._y
-    
+
+
+    @property
+    def t(self):
+        return self._t
+
 
     def clone(self):
         
-        return Point2D(self._x, self._y)
+        return CartesianPoint2DT(self.x, self.y, self.t)
     
     
-    def distance(self, another):
+    def spat_distance(self, another):
         
-        return sqrt((self._x - another._x)**2 + (self._y - another._y)**2)
+        return sqrt((self.x - another.x)**2 + (self.y - another.y)**2)
     
     
-    def point_3d(self, z = 0.0):
+    def to_point3dt(self, z=np.nan, t=None):
         
-        return Point3D(self._x, self._y, z)
+        return CartesianPoint3DT(self.x, self.y, z, t)
     
 
-    def traslate_with_vector(self, displacement_vector):
+    def translate_with_vector(self, displacement_vector):
         
-        return Point2D(self._x + displacement_vector._x , self._y + displacement_vector._y)
+        return CartesianPoint2DT(self.x + displacement_vector.x, self.y + displacement_vector.y, self.t)
         
 
-    def is_coincident_with(self, another, tolerance = 1.0e-7):
+    def spat_coincident_with(self, another, tolerance=MINIMUM_SEPARATION_THRESHOLD):
         
-        if self.distance(another) > tolerance:
+        if self.spat_distance(another) > tolerance:
             return False
         else:
             return True
         
 
-    def crs_project(self, srcCrs, destCrs):
+    def crs_project_2d(self, srcCrs, destCrs):
         
-        qgis_pt = qgs_point_2d(self._x, self._y)
+        qgis_pt = qgs_point_2d(self.x, self.y)
         destCrs_qgis_pt = project_qgs_point(qgis_pt, srcCrs, destCrs)
         
-        return Point2D(destCrs_qgis_pt.x(), destCrs_qgis_pt.y())
+        return CartesianPoint2DT(destCrs_qgis_pt.x, destCrs_qgis_pt.y, self.t)
   
-  
-                        
-class Segment2D(object):
-    
-    
-    def __init__(self, start_pt_2d, end_pt_2d): 
+
+class Segment2DT(object):
+
+    def __init__(self, start_pt2dt, end_pt2dt):
         
-        self._start_pt = start_pt_2d.clone()
-        self._end_pt = end_pt_2d.clone()
-                   
-    
+        self._start_pt = start_pt2dt.clone()
+        self._end_pt = end_pt2dt.clone()
+
+
+    @property
+    def start_pt(self):
+
+        return self._start_pt
+
+
+    @property
+    def end_pt(self):
+
+        return self._end_pt
+
+
     def clone(self):
         
-        return Segment2D(self._start_pt, self._end_pt)
+        return Segment2DT(self.start_pt, self.end_pt)
 
               
     def vector_2d(self):
         
-        return Vector2D(self._end_pt._x - self._start_pt._x,
-                          self._end_pt._y - self._start_pt._y) 
+        return Vector2D(self.end_pt.x - self.start_pt.x,
+                        self.end_pt.y - self.start_pt.y)
         
 
     def increasing_x(self):
         
-        if self._end_pt._x < self._start_pt._x:
-            return Segment2D(self._end_pt, self._start_pt)
+        if self.end_pt.x < self.start_pt.x:
+            return Segment2DT(self.end_pt, self.start_pt)
         else:
             return self.clone()
         
 
     def segment_m(self):
         
-        return (self._end_pt._y - self._start_pt._y)/(self._end_pt._x - self._start_pt._x)
+        return (self.end_pt.y - self.start_pt.y)/(self.end_pt.x - self.start_pt.x)
     
     
     def segment_p(self):
         
-        return self._start_pt._y - self.segment_m()*self._start_pt._x   
+        return self.start_pt.y - self.segment_m()*self.start_pt.x
             
          
     def intersection_pt(self, another):
@@ -122,15 +133,15 @@ class Segment2D(object):
         assert another.length_2d() > 0.0
         
         # at least one segment vertical
-        if self._start_pt._x ==  self._end_pt._x:
-            x0 = self._start_pt._x
+        if self.start_pt.x == self.end_pt.x:
+            x0 = self.start_pt.x
             try:
                 m1, p1 = another.segment_m(), another.segment_p()
             except:
                 return None
             y0 = m1*x0 + p1
-        elif another._start_pt._x ==  another._end_pt._x:
-            x0 = another._start_pt._x
+        elif another.start_pt.x == another.end_pt.x:
+            x0 = another.start_pt.x
             try:
                 m1, p1 = self.segment_m(), self.segment_p()
             except:
@@ -142,23 +153,25 @@ class Segment2D(object):
             x0 = (p1-p0)/(m0-m1)
             y0 = m0*x0 + p0
         
-        return Point2D(x0, y0)
+        return CartesianPoint2DT(x0, y0)
 
 
+    @property
     def segment_x_range(self):
         
-        if self._start_pt._x < self._end_pt._x:
-            return self._start_pt._x, self._end_pt._x 
+        if self.start_pt.x < self.end_pt.x:
+            return self.start_pt.x, self.end_pt.x
         else:
-            return self._end_pt._x, self._start_pt._x
+            return self.end_pt.x, self.start_pt.x
         
-    
+
+    @property
     def segment_y_range(self):
         
-        if self._start_pt._y < self._end_pt._y:
-            return self._start_pt._y, self._end_pt._y 
+        if self.start_pt.y < self.end_pt.y:
+            return self.start_pt.y, self.end_pt.y
         else:
-            return self._end_pt._y, self._start_pt._y
+            return self.end_pt.y, self.start_pt.y
         
         
     def fast_contains_pt(self, pt2d):
@@ -166,21 +179,27 @@ class Segment2D(object):
         to work properly, requires that the pt lies on the line defined by the segment
         """
         
-        range_x = self.segment_x_range()
-        range_y = self.segment_y_range()
+        range_x = self.segment_x_range
+        range_y = self.segment_y_range
         
-        if range_x[0] <= pt2d._x <= range_x[1] or \
-           range_y[0] <= pt2d._y <= range_y[1]:
+        if range_x[0] <= pt2d.x <= range_x[1] or \
+           range_y[0] <= pt2d.y <= range_y[1]:
             return True
         else:
             return False
-        
+
+
+    @property
+    def length_2d(self):
+
+        return self.start_pt.spat_distance(self.end_pt)
+
 
     def contains_pt(self, pt2d):
         
-        segment_length = self.length_2d()
-        segmentstart_pt2d_distance = self._start_pt.distance(pt2d)
-        segmentend_pt2d_distance = self._end_pt.distance(pt2d)
+        segment_length = self.length_2d
+        segmentstart_pt2d_distance = self.start_pt.spat_distance(pt2d)
+        segmentend_pt2d_distance = self.end_pt.spat_distance(pt2d)
         
         if segmentstart_pt2d_distance > segment_length or \
            segmentend_pt2d_distance > segment_length:
@@ -188,88 +207,96 @@ class Segment2D(object):
         else:
             return True
         
-        
-    def length_2d(self):
-        
-        return self._start_pt.distance(self._end_pt)
-        
 
+    @property
     def delta_x(self):
         
-        return self._end_pt._x - self._start_pt._x
+        return self.end_pt.x - self.start_pt.x
     
-    
+
+    @property
     def delta_y(self):
 
-        return self._end_pt._y - self._start_pt._y
+        return self.end_pt.y - self.start_pt.y
     
                     
     def scale(self, scale_factor):
         
-        delta_x = self.delta_x() * scale_factor
-        delta_y = self.delta_y() * scale_factor
+        delta_x = self.delta_x * scale_factor
+        delta_y = self.delta_y * scale_factor
         
-        return Segment2D(self._start_pt, Point2D(self._start_pt._x + delta_x, self._start_pt._y + delta_y))        
+        return Segment2DT(self.start_pt, CartesianPoint2DT(self.start_pt.x + delta_x, self.start_pt.y + delta_y))
         
         
     def segment_3d(self):
         
-        return Segment3D(self._start_pt.point_3d(), self._end_pt.point_3d()) 
+        return Segment3DT(self.start_pt.to_point3dt(), self.end_pt.to_point3dt())
 
 
     def densify(self, densify_distance):
         
         assert densify_distance > 0.0
-        segment_length = self.length_2d()
+        segment_length = self.length_2d
         assert segment_length > 0.0
   
         generator_vector = self.vector_2d().versor_2d().scale(densify_distance)    
-        interpolated_line = Line2D([self._start_pt])       
+        interpolated_line = Line2DT([self.start_pt])
         n = 0        
-        while (True):        
+        while True:
             n += 1 
-            new_pt = self._start_pt.traslate_with_vector(generator_vector.scale(n))
-            if self._start_pt.distance(new_pt) >= segment_length:
+            new_pt = self._start_pt.translate_with_vector(generator_vector.scale(n))
+            if self.start_pt.spat_distance(new_pt) >= segment_length:
                 break        
             interpolated_line = interpolated_line.add_pt(new_pt)            
-        interpolated_line = interpolated_line.add_pt(self._end_pt)
+        interpolated_line = interpolated_line.add_pt(self.end_pt)
             
         return interpolated_line
             
 
-
 class Vector2D(object):
-    
-    
-    def __init__(self, x = np.nan, y = np.nan):
+
+    def __init__(self, x=np.nan, y=np.nan):
         
         self._x = x
         self._y = y
        
-    
+
+    @property
+    def x(self):
+
+        return self._x
+
+
+    @property
+    def y(self):
+
+        return self._y
+
+
     def clone(self):
         
         return Vector2D(self._x, self._y)
     
-       
+
+    @property
     def length(self):
        
-        return sqrt(self._x * self._x + self._y * self._y)
+        return sqrt(self.x * self.x + self.y * self.y)
     
 
     def scale(self, scale_factor):
         
-        return Vector2D(self._x * scale_factor, self._y * scale_factor)
+        return Vector2D(self.x * scale_factor, self.y * scale_factor)
     
 
     def versor_2d(self):
         
-        return self.scale(1.0 / self.length())
+        return self.scale(1.0 / self.length)
     
 
     def add(self, another):
         
-        return Vector2D(self._x + another._x, self._y + another._y)
+        return Vector2D(self.x + another.x, self.y + another.y)
     
             
     def minus(self, another):
@@ -277,129 +304,147 @@ class Vector2D(object):
         return self.add(another.scale(-1))
     
     
-    def vector_3d(self, z = 0.0):
+    def as_vector3d(self, z = 0.0):
         
-        return Vector3D(self._x, self._y, z)
+        return Vector3D(self.x, self.y, z)
 
 
 
-class Line2D(object):
+class Line2DT(object):
     
     
-    def __init__(self, pt_2d_list = []):
+    def __init__(self, pts_2dt = []):
         
-        self._pts = [pt_2d.clone() for pt_2d in pt_2d_list]
-        
+        self._pts = [pt_2d.clone() for pt_2d in pts_2dt]
 
+
+    @property
     def pts(self):
 
         return self._pts
 
 
+    @property
     def num_pts(self):
 
-        return len(self.pts())
+        return len(self.pts)
 
 
     def clone(self):
         
-        return Line2D(self._pts)
+        return Line2DT(self.pts)
     
 
     def swap_horiz(self):
         
-        return Line2D(self._pts[::-1])
+        return Line2DT(self.pts[::-1])
     
                     
-    def add_pt(self, pt_2d):
+    def add_pt(self, pt_2dt):
         
-        return Line2D(self._pts + [pt_2d])
+        return Line2DT(self.pts + [pt_2dt])
         
         
-    def add_pts(self, pt_2d_list):
+    def add_pts(self, pts_2dt):
         
-        return Line2D(self._pts + pt_2d_list)
-    
+        return Line2DT(self.pts + pts_2dt)
 
+
+    @property
     def num_points(self):
         
-        return len(self._pts)
-    
+        return len(self.pts)
 
+
+    @property
     def x_list(self):
         
-        return [pt._x for pt in self._pts]
-    
-    
+        return [pt_2dt.x for pt_2dt in self.pts]
+
+
+    @property
     def y_list(self):
         
-        return [pt._y for pt in self._pts]
+        return [pt_2dt.y for pt_2dt in self.pts]
     
     
     def xy_lists(self):
 
-        return self.x_list(), self.y_list()
-    
-       
+        return self.x_list, self.y_list
+
+
+    @property
     def x_min(self):
         
-        return min([x for x in self.x_list() if not isnan(x)])
-    
-    
+        return min([x for x in self.x_list if not isnan(x)])
+
+
+    @property
     def x_max(self):
         
-        return max([x for x in self.x_list() if not isnan(x)])
-    
-    
+        return max([x for x in self.x_list if not isnan(x)])
+
+
+    @property
     def y_min(self):
         
-        return min([y for y in self.y_list() if not isnan(y)])
-    
-    
+        return min([y for y in self.y_list if not isnan(y)])
+
+
+    @property
     def y_max(self):
         
-        return max([y for y in self.y_list() if not isnan(y)])
+        return max([y for y in self.y_list if not isnan(y)])
     
             
     def remove_coincident_successive_points(self):
         
-        assert self.num_points() > 0        
-        new_line = Line2D([self._pts[0]])
-        for ndx in range(1, self.num_points()):
-            if not self._pts[ndx].is_coincident_with(new_line._pts[-1]):
-                new_line = new_line.add_pt(self._pts[ndx])
+        assert self.num_points > 0
+
+        new_line = Line2DT([self.pts[0]])
+        for ndx in range(1, self.num_points):
+            if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
+                new_line = new_line.add_pt(self.pts[ndx])
+
         return new_line
     
 
-    def to_segments(self):
+    def as_segments2dt(self):
 
-        pts_pairs = zip(self._pts[:-1], self._pts[1:])
-        return [Segment2D(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
+        pts_pairs = zip(self.pts[:-1], self.pts[1:])
+
+        return [Segment2DT(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
         
         
     def densify(self, sample_distance):
 
         assert sample_distance > 0.0
-        densified_line_list = [segment.densify(sample_distance) for segment in self.to_segments()]
-        assert len(densified_line_list) > 0
-        return MultiLine2D(densified_line_list).to_line_2d().remove_coincident_successive_points()
-        
 
+        densified_line_list = [segment.densify(sample_distance) for segment in self.as_segments2dt()]
+
+        assert len(densified_line_list) > 0
+
+        return MultiLine2DT(densified_line_list).as_line2dt().remove_coincident_successive_points()
+
+
+    @property
     def length(self):
         
         length = 0.0
-        for ndx in range(self.num_points()-1):
-            length += self._pts[ndx].distance(self._pts[ndx+1])
+        for ndx in range(self.num_points - 1):
+            length += self.pts[ndx].spat_distance(self.pts[ndx + 1])
+
         return length            
 
 
+    @property
     def incremental_length(self):
         
         incremental_length_list = []
         length = 0.0
         incremental_length_list.append(length)
-        for ndx in range(self.num_points()-1):            
-            length += self._pts[ndx].distance(self._pts[ndx+1])
+        for ndx in range(self.num_points - 1):
+            length += self.pts[ndx].spat_distance(self.pts[ndx + 1])
             incremental_length_list.append(length)        
             
         return incremental_length_list         
@@ -407,178 +452,194 @@ class Line2D(object):
         
     def crs_project(self, srcCrs, destCrs):
 
-            points = []            
-            for point in self._pts:
-                destCrs_point = point.crs_project(srcCrs, destCrs)
-                points.append(destCrs_point)
-                
-            return Line2D(points)
-                
+        points = []
+        for point in self.pts:
+            destCrs_point = point.crs_project_2d(srcCrs, destCrs)
+            points.append(destCrs_point)
+
+        return Line2DT(points)
+
                 
                                           
-class MultiLine2D(object):
-    # MultiLine2D is a list of Line2D objects
+class MultiLine2DT(object):
+    # MultiLine2DT is a list of Line2DT objects
     
     
     def __init__(self, lines_list = []):
      
         self._lines = [line_2d.clone() for line_2d in lines_list]    
     
-    
+
+    @property
+    def lines(self):
+
+        return self._lines
+
+
     def add(self, line):
         
-        return MultiLine2D(self._lines + [line])
+        return MultiLine2DT(self.lines + [line])
     
     
     def clone(self):
         
-        return MultiLine2D(self._lines)
-    
-    
+        return MultiLine2DT(self.lines)
+
+
+    @property
     def num_parts(self):
         
-        return len(self._lines)
+        return len(self.lines)
     
-    
+
+    @property
     def num_points(self):
 
-        num_elements = map(lambda x: len(x._pts), self._lines)
+        num_elements = map(lambda x: len(x.pts), self.lines)
         return reduce(lambda x, y: x + y, num_elements)
     
 
     def is_continuous(self):
         
         for line_ndx in range(len(self._lines) - 1):
-            if not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[0]) or \
-               not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[-1]):
+            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[0]) or \
+               not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[-1]):
                 return False            
         return True
 
 
+    @property
     def x_min(self):
         
-        return min([line.x_min() for line in self._lines])
+        return min([line.x_min for line in self.lines])
     
-    
+
+    @property
     def x_max(self):
         
-        return max([line.x_max() for line in self._lines])
+        return max([line.x_max for line in self.lines])
      
 
+    @property
     def y_min(self):
         
-        return min([line.y_min() for line in self._lines])
+        return min([line.y_min for line in self.lines])
     
-    
+
+    @property
     def y_max(self):
         
-        return max([line.y_max() for line in self._lines])
+        return max([line.y_max for line in self.lines])
      
             
-    def is_unidirectional(self):        
+    def is_unidirectional(self):
         
-        for line_ndx in range(len(self._lines) - 1):
-            if not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[0]):
-                return False            
+        for line_ndx in range(len(self.lines) - 1):
+            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[0]):
+                return False
+
         return True
 
 
-    def to_line_2d(self):
+    def as_line2dt(self):
 
-        return Line2D([point for line in self._lines for point in line._pts])
+        return Line2DT([point for line in self.lines for point in line.pts])
 
 
     def crs_project(self, srcCrs, destCrs):
 
         lines = []        
-        for line_2d in self._lines:
-            lines.append(line_2d.crs_project(srcCrs, destCrs))
+        for line_2d in self.lines:
+            lines.append(line_2d.crs_project_2d(srcCrs, destCrs))
                         
-        return MultiLine2D(lines) 
+        return MultiLine2DT(lines)
         
 
     def densify(self, sample_distance):
        
         densified_multiline_2d_list = []
-        for line_2d in self._lines:
+        for line_2d in self.lines:
             densified_multiline_2d_list.append(line_2d.densify(sample_distance))
    
-        return MultiLine2D(densified_multiline_2d_list)
+        return MultiLine2DT(densified_multiline_2d_list)
      
 
     def remove_coincident_points(self):
         
         cleaned_lines = []
-        for line_2d in self._lines:
+        for line_2d in self.lines:
             cleaned_lines.append(line_2d.remove_coincident_successive_points())
         
-        return MultiLine2D(cleaned_lines)
-        
-        
-        
-class Point3D(object):
+        return MultiLine2DT(cleaned_lines)
 
         
-    # class constructor
-    def __init__(self, x = np.nan, y = np.nan, z = np.nan):
+class CartesianPoint3DT(object):
+
+
+    def __init__(self, x=np.nan, y=np.nan, z=np.nan, t=None):
      
         self._x = x
         self._y = y
         self._z = z
-    
+        self._t = t
 
+
+    @property
     def x(self):
 
         return self._x
 
 
+    @property
     def y(self):
 
         return self._y
 
 
+    @property
     def z(self):
 
         return self._z
 
 
+    @property
+    def t(self):
+
+        return self._t
+
+
     def clone(self):
         
-        return Point3D(self._x, self._y, self._z)
-    
-    
-    def to_2D(self):
-        
-        return Point2D(self._x, self._y), self._z
-            
+        return CartesianPoint3DT(self.x, self.y, self.z, self.t)
+
                   
-    def distance(self, another):
+    def spat_distance(self, another):
         """
-        Calculate Euclidean distance between two points.
+        Calculate Euclidean spatial distance between two points.
 
-        @param  another:  the Point3D instance for which the distance should be calculated
-        @type  another:  Point3D.
+        @param  another:  the CartesianPoint3DT instance for which the spatial distance should be calculated
+        @type  another:  CartesianPoint3DT.
         
-        @return:  distance between the two points - float.        
+        @return:  spatial distance between the two points - float.
         """
         
-        return sqrt((self._x - another._x) ** 2 + (self._y - another._y) ** 2 + (self._z - another._z) ** 2)
+        return sqrt((self.x - another.x) ** 2 + (self.y - another.y) ** 2 + (self.z - another.z) ** 2)
         
 
-    def distance_2D(self, another):
+    def distance_2d(self, another):
 
-        return sqrt((self._x - another._x) ** 2 + (self._y - another._y) ** 2)
+        return sqrt((self.x - another.x) ** 2 + (self.y - another.y) ** 2)
     
     
-    def is_coincident_with(self, another, tolerance = 1.0e-6):
+    def spat_coincident_with(self, another, tolerance=MINIMUM_SEPARATION_THRESHOLD):
         
-        if self.distance(another) > tolerance:
+        if self.spat_distance(another) > tolerance:
             return False
         else:
             return True
         
                 
-    def traslate(self, sx = 0.0 , sy = 0.0 , sz = 0.0):
+    def translate(self, sx = 0.0, sy = 0.0, sz = 0.0):
         """
         Create a new point shifted by given amount from the self instance.
 
@@ -589,24 +650,36 @@ class Point3D(object):
         @param  sz:  the shift to be applied along the z axis.
         @type  sz:  float.
                 
-        @return:  a new Point3D instance shifted by the given amounts with respect to the original one.        
+        @return:  a new CartesianPoint3DT instance shifted by the given amounts with respect to the original one.
         """
         
-        return Point3D(self._x + sx , self._y + sy, self._z + sz)
+        return CartesianPoint3DT(self.x + sx, self.y + sy, self.z + sz, self.t)
     
 
-    def traslate_with_vector(self, displacement_vector):
+    def translate_with_vector(self, displacement_vector):
         
-        return Point3D(self._x + displacement_vector._x , self._y + displacement_vector._y, self._z + displacement_vector._z)
+        return CartesianPoint3DT(self.x + displacement_vector.x, self.y + displacement_vector.y, self.z + displacement_vector.z, self.t)
 
 
-    def as_vector_3d(self):
+    def as_vector3d(self):
         
-        return Vector3D(self._x, self._y, self._z)
-        
-                
+        return Vector3D(self.x, self.y, self.z)
 
-class Segment3D(object):
+
+    def delta_time(self, another):
+
+        return another.t - self.t
+
+
+    def speed(self, another):
+
+        try:
+            return self.spat_distance(another) / self.delta_time(another)
+        except:
+            return np.nan
+
+
+class Segment3DT(object):
     
     
     def __init__(self, start_point, end_point):
@@ -615,57 +688,73 @@ class Segment3D(object):
         self._end_pt = end_point.clone()
           
 
+    @property
+    def start_pt(self):
+
+        return self._start_pt
+
+
+    @property
+    def end_pt(self):
+
+        return self._end_pt
+
+
     def clone(self):
         
-        return Segment3D(self._start_pt, self._end_pt)
+        return Segment3DT(self.start_pt, self.end_pt)
     
               
-    def vector3d(self):
+    def as_vector3d(self):
         
-        return Vector3D(self._end_pt._x - self._start_pt._x,
-                          self._end_pt._y - self._start_pt._y,
-                          self._end_pt._z - self._start_pt._z) 
+        return Vector3D(self.end_pt.x - self.start_pt.x,
+                        self.end_pt.y - self.start_pt.y,
+                        self.end_pt.z - self.start_pt.z)
         
 
+    @property
     def length(self):
         
-        return self._start_pt.distance(self._end_pt)
+        return self.start_pt.spat_distance(self.end_pt)
     
             
     def trend_and_plunge(self):
         
-        as_geol_axis = self.to_vector().to_geol_axis()
-        return as_geol_axis._trend, as_geol_axis._plunge
+        as_geol_axis = self.as_vector3d().to_geol_axis()
+
+        return as_geol_axis.trend, as_geol_axis.plunge
            
 
     def vertical_cartes_plane(self):
         """
-        Creates a vertical Cartesian plane passing through the self Segment3D
+        Creates a vertical Cartesian plane passing through the self Segment3DT
         """
           
         trend, _ = self.trend_and_plunge()
         dip_dir = trend + 90.0
         if dip_dir >= 360.0:
             dip_dir -= 360.0        
-        return GeolPlane(dip_dir, 90.0).to_cartes_plane(self._start_pt)    
+
+        return GeolPlane(dip_dir, 90.0).as_cartesplane(self.start_pt)
 
 
     def densify(self, densify_distance):
         
-        length = self.length()
+        length = self.length
+
         assert length > 0.0
   
-        generator_vector = self.vector_3d().versor_3d().scale(densify_distance)
+        generator_vector = self.as_vector3d().as_versor3d().scale(densify_distance)
     
-        interpolated_line = Line3D([self._start_pt])       
+        interpolated_line = Line3DT([self.start_pt])
         n = 0        
-        while (True):        
+        while True:
             n += 1 
-            new_pt = self._start_pt.traslate_with_vector(generator_vector.scale(n))
-            if self._start_pt.distance(new_pt) >= length:
+            new_pt = self.start_pt.translate_with_vector(generator_vector.scale(n))
+            if self.start_pt.spat_distance(new_pt) >= length:
                 break        
             interpolated_line.add_pt(new_pt)
-        interpolated_line.add_pt(self._end_pt)
+        interpolated_line.add_pt(self.end_pt)
             
         return interpolated_line
   
@@ -681,10 +770,10 @@ class Segment3D(object):
         where b is the segment length 
         """
 
-        pt_vector = Segment3D(self.start_pt, pt_3d).vector_3d()
-        scal_prod = self.vector_3d().scalar_product(pt_vector)
+        pt_vector = Segment3DT(self.start_pt, pt_3d).as_vector3d()
+        scal_prod = self.as_vector3d().scalar_product(pt_vector)
         
-        if 0 <= scal_prod <= self.length()**2:
+        if 0 <= scal_prod <= self.length**2:
             return True
         else:
             return False
@@ -693,43 +782,63 @@ class Segment3D(object):
                 
 class Vector3D(object):
     
-    def __init__(self, x = np.nan, y = np.nan, z = np.nan):
+    def __init__(self, x=np.nan, y=np.nan, z=np.nan):
         
         self._x = x
         self._y = y
         self._z = z
 
 
+    @property
+    def x(self):
+
+        return self._x
+
+
+    @property
+    def y(self):
+
+        return self._y
+
+
+    @property
+    def z(self):
+
+        return self._z
+
+
     def clone(self):
         
-        return Vector3D(self._x, self._y, self._z) 
+        return Vector3D(self.x, self.y, self.z)
     
-          
+
+    @property
     def length(self):
         
-        return sqrt(self._x * self._x + self._y * self._y + self._z * self._z)
+        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
         
 
+    @property
     def length_horiz(self):
         
-        return sqrt(self._x * self._x + self._y * self._y)
+        return sqrt(self.x * self.x + self.y * self.y)
     
             
     def scale(self, scale_factor):
                 
-        return Vector3D(self._x * scale_factor, 
-                          self._y * scale_factor, 
-                          self._z * scale_factor)
+        return Vector3D(self.x * scale_factor,
+                        self.y * scale_factor,
+                        self.z * scale_factor)
         
   
-    def versor_3d(self):
+    def as_versor3d(self):
         
-        return self.scale(1.0 / self.length())
+        return self.scale(1.0 / self.length)
     
 
-    def to_down_vector(self):
+    def as_downvector3d(self):
         
-        if self._z > 0.0:
+        if self.z > 0.0:
             return self.scale(-1.0)
         else:
             return self.clone()
@@ -737,28 +846,30 @@ class Vector3D(object):
         
     def add(self, another):
         
-        return Vector3D(self._x + another._x, 
-                          self._y + another._y, 
-                          self._z + another._z)
+        return Vector3D(self.x + another.x,
+                        self.y + another.y,
+                        self.z + another.z)
         
 
     def slope_radians(self):
         
-        return atan(self._z / self.length_horiz())
+        return atan(self.z / self.length_horiz)
               
 
     def to_geol_axis(self):
         
-        if self.length() < MINIMUM_VECTOR_MAGNITUDE:
+        if self.length < MINIMUM_VECTOR_MAGNITUDE:
             return None
         
-        unit_vect = self.versor_3d()
+        unit_vect = self.as_versor3d()
         
-        plunge = - degrees(asin(unit_vect._z)) # upward negative, downward positive
+        plunge = - degrees(asin(unit_vect.z))  # upward negative, downward positive
         
-        trend = 90.0 - degrees(atan2(unit_vect._y, unit_vect._x))
-        if trend < 0.0: trend += 360.0
-        elif trend > 360.0: trend -= 360.0
+        trend = 90.0 - degrees(atan2(unit_vect.y, unit_vect.x))
+        if trend < 0.0:
+            trend += 360.0
+        elif trend > 360.0:
+            trend -= 360.0
         
         assert 0.0 <= trend < 360.0
         assert -90.0 <= plunge <= 90.0
@@ -768,13 +879,13 @@ class Vector3D(object):
     
     def scalar_product(self, another):
         
-        return self._x * another._x + self._y * another._y + self._z * another._z
+        return self.x * another.x + self.y * another.y + self.z * another.z
 
 
     def vectors_cos_angle(self, another):
  
         try:
-            return self.scalar_product(another) / (self.length() * another.length())
+            return self.scalar_product(another) / (self.length * another.length)
         except ZeroDivisionError:
             return np.nan
         
@@ -785,60 +896,64 @@ class Vector3D(object):
         in 0 - pi range
         """
         
-        return degrees(acos (self.vectors_cos_angle(another)))
+        return degrees(acos(self.vectors_cos_angle(another)))
         
 
     def vector_product(self, another):
         
-        x = (self._y * another._z) - (self._z * another._y)
-        y = (self._z * another._x) - (self._x * another._z)
-        z = (self._x * another._y) - (self._y * another._x)
+        x = self.y * another.z - self.z * another.y
+        y = self.z * another.x - self.x * another.z
+        z = self.x * another.y - self.y * another.x
 
         return Vector3D(x, y, z)
 
 
     def by_matrix(self, matrix3x3):
         
-        vx = matrix3x3[0,0] * self._x + matrix3x3[0,1] * self._y + matrix3x3[0,2] * self._z 
-        vy = matrix3x3[1,0] * self._x + matrix3x3[1,1] * self._y + matrix3x3[1,2] * self._z 
-        vz = matrix3x3[2,0] * self._x + matrix3x3[2,1] * self._y + matrix3x3[2,2] * self._z 
+        vx = matrix3x3[0, 0] * self.x + matrix3x3[0, 1] * self.y + matrix3x3[0, 2] * self.z
+        vy = matrix3x3[1, 0] * self.x + matrix3x3[1, 1] * self.y + matrix3x3[1, 2] * self.z
+        vz = matrix3x3[2, 0] * self.x + matrix3x3[2, 1] * self.y + matrix3x3[2, 2] * self.z
         
         return Vector3D(vx, vy, vz)
         
 
-    def as_point_3d(self):
+    def as_point3dt(self):
         
-        return Point3D(self._x, self._y, self._z)
+        return CartesianPoint3DT(self.x, self.y, self.z, None)
 
 
 
-class Line3D(object):
-    # Line3D is a list of Point3D objects
+class Line3DT(object):
+    # Line3DT is a list of CartesianPoint3DT objects
 
 
-    def __init__(self, pt_3d_list = []):
-     
+    def __init__(self, pt_3d_list = None):
+
+        if pt_3d_list is None:
+            pt_3d_list = []
         self._pts = [pt_3d.clone() for pt_3d in pt_3d_list]
-        
 
+
+    @property
     def pts(self):
 
         return self._pts
 
 
+    @property
     def num_pts(self):
 
-        return len(self.pts())
+        return len(self.pts)
 
 
     def clone(self):
         
-        return Line3D(self._pts)
+        return Line3DT(self.pts)
         
 
     def add_pt(self, pt):
         
-        self._pts.append(pt)
+        self.pts.append(pt)
         
  
     def add_pts(self, pt_list):
@@ -848,10 +963,10 @@ class Line3D(object):
 
     def remove_coincident_successive_points(self):
         
-        new_line = Line3D(self._pts[: 1])
-        for ndx in range(1, self.num_points()):
-            if not self._pts[ndx].is_coincident_with(new_line._pts[-1]):
-                new_line = new_line.add_point(self._pts[ndx])
+        new_line = Line3DT(self.pts[: 1])
+        for ndx in range(1, self.num_pts):
+            if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
+                new_line = new_line.add_point(self.pts[ndx])
         return new_line
     
 
@@ -862,65 +977,62 @@ class Line3D(object):
         and orientation mismatches between the two original lines
         """
         
-        return Line3D(self._pts + another._pts)
-   
-                    
-    def num_points(self):
-        
-        return len(self._pts)
-    
-        
+        return Line3DT(self.pts + another.pts)
+
+
+    @property
     def length_3d(self):
         
         length = 0.0
-        for ndx in range(self.num_points()-1):
-            length += self._pts[ndx].distance(self._pts[ndx+1])
+        for ndx in range(self.num_pts - 1):
+            length += self.pts[ndx].spat_distance(self.pts[ndx + 1])
         return length            
 
 
+    @property
     def length_2d(self):
         
         length = 0.0
-        for ndx in range(self.num_points()-1):
-            length += self._pts[ndx].distance_2D(self.pts()[ndx+1])
+        for ndx in range(self.num_pts - 1):
+            length += self.pts[ndx].distance_2d(self.pts[ndx + 1])
         return length 
     
 
     def zs(self):
 
-        return np.array(map(lambda pt: pt.z(), self.pts()))
+        return np.array(map(lambda pt: pt.z, self.pts))
 
 
     def zs_not_nan(self):
 
-        return np.array(filter(lambda pt: not isnan(pt.z()), self.pts()))
+        return np.array(filter(lambda pt: not isnan(pt.z), self.pts))
 
 
+    @property
     def z_min(self):
 
         return np.nanmin(self.zs())
     
-    
+
+    @property
     def z_max(self):
         
         return np.nanmax(self.zs())
-    
 
+
+    @property
     def z_mean(self):
 
         return np.nanmean(self.zs())
 
 
-    def z_median(self):
-
-        return np.nanmedian(self.zs())
-
-
+    @property
     def z_var(self):
 
         return np.nanvar(self.zs())
 
 
+    @property
     def z_std(self):
 
         return np.nanstd(self.zs())
@@ -931,8 +1043,8 @@ class Line3D(object):
         incremental_length_list = []
         length = 0.0
         incremental_length_list.append(length)
-        for ndx in range(self.num_points()-1):            
-            length += self._pts[ndx].distance(self._pts[ndx+1])
+        for ndx in range(self.num_pts-1):
+            length += self.pts[ndx].spat_distance(self.pts[ndx + 1])
             incremental_length_list.append(length)        
             
         return incremental_length_list         
@@ -943,8 +1055,8 @@ class Line3D(object):
         incremental_length_list = []
         length = 0.0
         incremental_length_list.append(length)
-        for ndx in range(self.num_points()-1):            
-            length += self._pts[ndx].distance_2D(self._pts[ndx+1])
+        for ndx in range(self.num_pts - 1):
+            length += self.pts[ndx].distance_2d(self.pts[ndx + 1])
             incremental_length_list.append(length)        
             
         return incremental_length_list
@@ -953,7 +1065,7 @@ class Line3D(object):
     def reverse_direction(self):
         
         new_line = self.clone()
-        new_line._pts.reverse() # in-place operation on new_line
+        new_line.pts.reverse()  # in-place operation on new_line
         
         return new_line
     
@@ -961,104 +1073,92 @@ class Line3D(object):
     def slopes_list(self):
   
         slopes_list = []
-        for ndx in range(self.num_points() - 1):            
-            vector = Segment3D(self._pts[ndx], self._pts[ndx+1]).vector3d()
+        for ndx in range(self.num_pts - 1):
+            vector = Segment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
             slopes_list.append(degrees(vector.slope_radians())) 
-        slopes_list.append(np.nan) # slope value for last point is unknown         
-        return slopes_list        
+        slopes_list.append(np.nan)  # slope value for last point is unknown
+
+        return slopes_list
  
 
     def slopes_absolute_list(self):
   
         slopes_list = []
-        for ndx in range(self.num_points() - 1):            
-            vector = Segment3D(self._pts[ndx], self._pts[ndx+1]).vector3d()
+        for ndx in range(self.num_pts - 1):
+            vector = Segment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
             slopes_list.append(abs(degrees(vector.slope_radians()))) 
-        slopes_list.append(np.nan) # slope value for last point is unknown         
-        return slopes_list 
+        slopes_list.append(np.nan)  # slope value for last point is undefined
+
+        return slopes_list
      
   
-class MultiLine3D(object):
-    # MultiLine3D is a list of Line3D objects
+class MultiLine3DT(object):
+    # MultiLine3DT is a list of Line3DT objects
     
     
     def __init__(self, lines_list):
      
         self._lines = lines_list    
     
-    
+
+    @property
+    def lines(self):
+
+        return self._lines
+
+
+    @property
     def num_parts(self):
         
-        return len(self._lines)
+        return len(self.lines)
     
-    
+
+    @property
     def num_points(self):
         
         num_points = 0
-        for line in self._lines:
-            num_points += line.num_points()            
+        for line in self.lines:
+            num_points += line.num_pts
+
         return num_points
     
 
     def is_continuous(self):
         
         for line_ndx in range(len(self._lines) - 1):
-            if not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[0]) or \
-               not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[-1]):
+            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[0]) or \
+               not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[-1]):
                 return False
             
         return True
         
             
-    def is_unidirectional(self):        
+    def is_unidirectional(self):
         
-        for line_ndx in range(len(self._lines) - 1):
-            if not self._lines[line_ndx]._pts[-1].is_coincident_with(self._lines[line_ndx+1]._pts[0]):
+        for line_ndx in range(len(self.lines) - 1):
+            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx+1].pts[0]):
                 return False
             
         return True
 
 
-    def to_line_3d(self):
+    def to_line3dt(self):
 
-        return Line3D([point for line in self._lines for point in line._pts])
+        return Line3DT([point for line in self.lines for point in line.pts])
       
-      
-                        
-class Point4D(Point3D):
-    
-    
-    def __init__(self, x = np.nan, y = np.nan, z = 0.0, time = np.nan):
-        
-        super(Point4D, self).__init__(x, y, z)
-        self._t = time
-                
-    
-    def delta_time(self, anotherPt4D): 
-        
-        return anotherPt4D._t - self._t
-    
-    
-    def speed(self, anotherPt4D):
-        
-        try:
-            return self.distance(anotherPt4D) / self.delta_time(anotherPt4D)
-        except:
-            return np.nan
-
 
 
 class ParamLine(object):
     # parametric line
-    # srcPt: source Point3D
+    # srcPt: source CartesianPoint3DT
     # l, m, n: .....
     
     
     def __init__(self, srcPt, l, m, n):
         
-        assert  -1.0 <= l <= 1.0
-        assert  -1.0 <= m <= 1.0        
-        assert  -1.0 <= n <= 1.0        
+        assert -1.0 <= l <= 1.0
+        assert -1.0 <= m <= 1.0
+        assert -1.0 <= n <= 1.0
                
         self._srcPt = srcPt
         self._l = l     
@@ -1068,24 +1168,24 @@ class ParamLine(object):
 
     def intersect_cartes_plane(self, cartes_plane):
         """
-        Return intersection point between parameteric line and Cartesian plane
+        Return intersection point between parametric line and Cartesian plane
         """
          
         # line parameters
-        x1, y1, z1 = self._srcPt._x, self._srcPt._y, self._srcPt._z
+        x1, y1, z1 = self._srcPt.x, self._srcPt.y, self._srcPt.z
         l, m, n = self._l, self._m, self._n
         
         # Cartesian plane parameters
-        a, b, c, d = cartes_plane._a, cartes_plane._b, cartes_plane._c, cartes_plane._d
+        a, b, c, d = cartes_plane.a, cartes_plane.b, cartes_plane.c, cartes_plane.d
         
         try:
             k = (a * x1 + b * y1 + c * z1 + d) / (a * l + b * m + c * n)
         except ZeroDivisionError:
             return None
         
-        return Point3D(x1 - l * k,
-                      y1 - m * k,
-                      z1 - n * k)
+        return CartesianPoint3DT(x1 - l * k,
+                                 y1 - m * k,
+                                 z1 - n * k)
         
         
 class GeolAxis(object):
@@ -1105,21 +1205,34 @@ class GeolAxis(object):
         self._plunge = srcPlunge         
         
 
+    @property
+    def trend(self):
+
+        return self._trend
+
+
+    @property
+    def plunge(self):
+
+        return self._plunge
+
+
     def versor_3d(self):
         
-        north_coord = cos(radians(self._plunge)) * cos(radians(self._trend))
-        east_coord = cos(radians(self._plunge)) * sin(radians(self._trend))
-        down_coord = sin(radians(self._plunge))
+        north_coord = cos(radians(self.plunge)) * cos(radians(self.trend))
+        east_coord = cos(radians(self.plunge)) * sin(radians(self.trend))
+        down_coord = sin(radians(self.plunge))
         
         return Vector3D(east_coord, north_coord, -down_coord)
         
              
-    def to_down_axis(self): 
+    def as_downgeolaxis(self):
         
-        trend, plunge = self._trend, self._plunge
+        trend, plunge = self.trend, self.plunge
         if plunge < 0.0:
             trend += 180.0
-            if trend > 360.0: trend -= 360.0
+            if trend > 360.0:
+                trend -= 360.0
             plunge = - plunge
         
         return GeolAxis(trend, plunge)
@@ -1127,11 +1240,12 @@ class GeolAxis(object):
 
     def normal_geolplane(self):
         
-        down_axis = self.to_down_axis()
+        down_axis = self.as_downgeolaxis()
         
-        dipdir = down_axis._trend + 180.0
-        if dipdir >= 360.0: dipdir -= 360.0
-        dipangle = 90.0 - down_axis._plunge
+        dipdir = down_axis.trend + 180.0
+        if dipdir >= 360.0:
+            dipdir -= 360.0
+        dipangle = 90.0 - down_axis.plunge
         
         return GeolPlane(dipdir, dipangle) 
 
@@ -1144,31 +1258,56 @@ class CartesianPlane(object):
 
     """
 
-    def __init__(self, a=None, b=None, c=None, d = 0.0):
+    def __init__(self, a=None, b=None, c=None, d=0.0):
 
         self._a = a
         self._b = b        
         self._c = c        
         self._d = d                
 
+
+    @property
+    def a(self):
+
+        return self._a
+
+
+    @property
+    def b(self):
+
+        return self._b
+
+
+    @property
+    def c(self):
+
+        return self._c
+
+
+    @property
+    def d(self):
+
+        return self._d
+
+
     @classmethod        
     def from_points(cls, pt1, pt2, pt3):
         
-        matr_a = np.array([[pt1._y, pt1._z, 1], 
-                           [pt2._y, pt2._z, 1],
-                           [pt3._y, pt3._z, 1]])
+        matr_a = np.array([[pt1.y, pt1.z, 1],
+                           [pt2.y, pt2.z, 1],
+                           [pt3.y, pt3.z, 1]])
     
-        matr_b = - np.array([[pt1._x, pt1._z, 1], 
-                           [pt2._x, pt2._z, 1],
-                           [pt3._x, pt3._z, 1]])  
+        matr_b = - np.array([[pt1.x, pt1.z, 1],
+                             [pt2.x, pt2.z, 1],
+                             [pt3.x, pt3.z, 1]])
         
-        matr_c = np.array([[pt1._x, pt1._y, 1], 
-                           [pt2._x, pt2._y, 1],
-                           [pt3._x, pt3._y, 1]])
+        matr_c = np.array([[pt1.x, pt1.y, 1],
+                           [pt2.x, pt2.y, 1],
+                           [pt3.x, pt3.y, 1]])
         
-        matr_d = - np.array([[pt1._x, pt1._y, pt1._z], 
-                           [pt2._x, pt2._y, pt2._z],
-                           [pt3._x, pt3._y, pt3._z]])
+        matr_d = - np.array([[pt1.x, pt1.y, pt1.z],
+                             [pt2.x, pt2.y, pt2.z],
+                             [pt3.x, pt3.y, pt3.z]])
         
         return cls(np.linalg.det(matr_a),
                    np.linalg.det(matr_b),
@@ -1181,7 +1320,7 @@ class CartesianPlane(object):
         return the normal versor to the cartesian plane
         """
                 
-        return Vector3D(self._a, self._b, self._c).versor_3d()
+        return Vector3D(self.a, self.b, self.c).as_versor3d()
         
         
     def to_geolplane_and_point_3d(self):
@@ -1191,8 +1330,8 @@ class CartesianPlane(object):
         """
 
         geol_plane = self.normal_versor_3d().to_geol_axis().normal_geolplane()               
-        point = Point3D(point_solution(np.array([[self._a,self._b,self._c]]),
-                                          np.array([-self._d])))        
+        point = CartesianPoint3DT(point_solution(np.array([[self.a, self.b, self.c]]),
+                                                 np.array([-self.d])))
         return geol_plane, point
     
         
@@ -1201,7 +1340,7 @@ class CartesianPlane(object):
         return intersection versor for two intersecting planes
         """
 
-        return self.normal_versor_3d().vector_product(another.normal_versor_3d()).versor_3d()
+        return self.normal_versor_3d().vector_product(another.normal_versor_3d()).as_versor3d()
 
 
     def intersection_point_3d(self, another):
@@ -1211,28 +1350,30 @@ class CartesianPlane(object):
         """
         
         # find a point lying on the intersection line (this is a non-unique solution)    
-        a = np.array([[self._a, self._b, self._c], [another._a, another._b, another._c]])
-        b = np.array([-self._d, -another._d]) 
+        a = np.array([[self.a, self.b, self.c], [another.a, another.b, another.c]])
+        b = np.array([-self.d, -another.d])
         x, y, z = point_solution(a, b) 
               
-        return Point3D(x, y, z)
+        return CartesianPoint3DT(x, y, z)
 
 
     def set_point_inside(self, pt):
         
-        return self._a * pt._x + self._b * pt._y + self._c * pt._z + self._d
+        return self.a * pt.x + self.b * pt.y + self.c * pt.z + self.d
     
 
     def angle_degr(self, another):
         
         angle_degr = self.normal_versor_3d().angle_degr(another.normal_versor_3d())
+
         assert angle_degr > 0.0
+
         if angle_degr > 90.0:
             angle_degr = 180.0 - angle_degr
-        return angle_degr   
+
+        return angle_degr
                 
-     
-        
+
 class GeolPlane(object):
     """
     Structural plane, following geological conventions:
@@ -1259,13 +1400,25 @@ class GeolPlane(object):
         self._dipdir = float(srcDipDir)
         self._dipangle = float(srcDipAngle)
         
+
+    @property
+    def dipdir(self):
+
+        return self._dipdir
+
+
+    @property
+    def dipangle(self):
+
+        return self._dipangle
+
+
+    def as_normal_geolaxis(self):
         
-    def to_normal_axis(self):
-        
-        trend = self._dipdir + 180.0
+        trend = self.dipdir + 180.0
         if trend >= 360.0:
             trend -= 360.0            
-        plunge = 90.0 - self._dipangle
+        plunge = 90.0 - self.dipangle
         
         return GeolAxis(trend, plunge)
         
@@ -1277,7 +1430,7 @@ class GeolPlane(object):
                
         @return:  slope - float.    
         """ 
-        return - sin(radians(self._dipdir)) * tan(radians(self._dipangle))
+        return - sin(radians(self.dipdir)) * tan(radians(self.dipangle))
 
 
     def plane_y_coeff(self):
@@ -1287,7 +1440,7 @@ class GeolPlane(object):
                
         @return:  slope - float.     
         """ 
-        return - cos(radians(self._dipdir)) * tan(radians(self._dipangle))
+        return - cos(radians(self.dipdir)) * tan(radians(self.dipangle))
 
        
     def plane_from_geo(self, or_Pt):
@@ -1295,15 +1448,15 @@ class GeolPlane(object):
         Closure that embodies the analytical formula for a given, non-vertical plane.
         This closure is used to calculate the z value from given horizontal coordinates (x, y).
     
-        @param  or_Pt:  Point3D instance expressing a location point contained by the plane.
-        @type  or_Pt:  Point3D.    
+        @param  or_Pt:  CartesianPoint3DT instance expressing a location point contained by the plane.
+        @type  or_Pt:  CartesianPoint3DT.
         
         @return:  lambda (closure) expressing an analytical formula for deriving z given x and y values.    
         """
     
-        x0 =  or_Pt._x     
-        y0 =  or_Pt._y
-        z0 =  or_Pt._z
+        x0 = or_Pt.x
+        y0 = or_Pt.y
+        z0 = or_Pt.z
     
         # slope of the line parallel to the x axis and contained by the plane
         a = self.plane_x_coeff() 
@@ -1311,14 +1464,14 @@ class GeolPlane(object):
         # slope of the line parallel to the y axis and contained by the plane    
         b = self.plane_y_coeff()
                         
-        return lambda x, y : a * (x - x0)  +  b * (y - y0)  +  z0
+        return lambda x, y: a * (x - x0) + b * (y - y0) + z0
  
  
-    def to_cartes_plane(self, point):
+    def as_cartesplane(self, point):
         
-        normal_versor = self.to_normal_axis().to_down_axis().versor_3d()        
-        a, b, c = normal_versor._x, normal_versor._y, normal_versor._z        
-        d = - (a * point._x + b * point._y + c * point._z)        
+        normal_versor = self.as_normal_geolaxis().as_downgeolaxis().versor_3d()
+        a, b, c = normal_versor.x, normal_versor.y, normal_versor.z
+        d = - (a * point.x + b * point.y + c * point.z)
         return CartesianPlane(a, b, c, d)
     
 
@@ -1343,7 +1496,7 @@ def remove_equal_consecutive_xypairs(xy_list):
            
 def xytuple_list_to_Line2D(xy_list):
 
-    return Line2D([Point2D(x,y) for (x,y) in xy_list])
+    return Line2DT([CartesianPoint2DT(x, y) for (x, y) in xy_list])
 
     
 def xytuple_list2_to_MultiLine2D(xytuple_list2):
@@ -1355,7 +1508,7 @@ def xytuple_list2_to_MultiLine2D(xytuple_list2):
         assert len(xy_list) > 0
         lines_list.append(xytuple_list_to_Line2D(xy_list))
         
-    return MultiLine2D(lines_list)
+    return MultiLine2DT(lines_list)
 
 
 def list2_to_list(list2):
@@ -1399,13 +1552,13 @@ def merge_lines(lines, progress_ids):
         line_type, line_geometry = line 
      
         if line_type == 'multiline': 
-            path_line = xytuple_list2_to_MultiLine2D(line_geometry).to_line()
+            path_line = xytuple_list2_to_MultiLine2D(line_geometry).as_line2dt()
         elif line_type == 'line':            
             path_line = xytuple_list_to_Line2D(line_geometry) 
         line_list.append(path_line)  # now a list of Lines     
                 
-    # now the list of Lines is transformed into a single Line2D 
-    return MultiLine2D(line_list).to_line_2d().remove_coincident_successive_points()
+    # now the list of Lines is transformed into a single Line2DT
+    return MultiLine2DT(line_list).as_line2dt().remove_coincident_successive_points()
                
                    
 class ArrCoord(object):
@@ -1480,10 +1633,10 @@ class ArrCoord(object):
     
     def grid2geogcoord(self, currGeoGrid):
         
-        currPt_geogr_y = currGeoGrid.domain.g_trcorner()._y - self.i * currGeoGrid.cellsize_y()
-        currPt_geogr_x = currGeoGrid.domain.g_llcorner()._x + self.j * currGeoGrid.cellsize_x()
-        return Point3D(currPt_geogr_x, currPt_geogr_y)
+        currPt_geogr_y = currGeoGrid.domain.trcorner.y - self.i * currGeoGrid.cellsize_y
+        currPt_geogr_x = currGeoGrid.domain.llcorner.x + self.j * currGeoGrid.cellsize_x
 
+        return CartesianPoint3DT(currPt_geogr_x, currPt_geogr_y)
 
 
 class RectangularDomain(object):
@@ -1492,76 +1645,81 @@ class RectangularDomain(object):
     
     """
     
-    def __init__(self, pt_llc = None, pt_trc = None): 
+    def __init__(self, pt_llc=None, pt_trc=None):
         """
         Class constructor.
         
         @param  pt_llc:  lower-left corner of the domain.
-        @type  pt_llc:  Point3D.
+        @type  pt_llc:  CartesianPoint3DT.
         @param  pt_trc:  top-right corner of the domain.
-        @type  pt_trc:  Point3D.
+        @type  pt_trc:  CartesianPoint3DT.
                         
         @return:  RectangularDomain instance.
         """     
         self._llcorner = pt_llc  
         self._trcorner = pt_trc 
 
- 
-    def g_llcorner(self):
+
+    @property
+    def llcorner(self):
         """
         Get lower-left corner of the spatial domain.
         
-        @return:  lower-left corner of the spatial domain - Point3D.        
+        @return:  lower-left corner of the spatial domain - CartesianPoint3DT.
         """
         return self._llcorner
 
 
-    def g_trcorner(self):
+    @property
+    def trcorner(self):
         """
         Get top-right corner of the spatial domain.
         
-        @return:  top-right corner of the spatial domain - Point3D.         
+        @return:  top-right corner of the spatial domain - CartesianPoint3DT.
         """
         return self._trcorner
     
- 
-    def g_xrange(self):
+
+    @property
+    def xrange(self):
         """
         Get x range of spatial domain.
         
         @return:  x range - float.                 
         """
-        return self._trcorner._x - self._llcorner._x
+        return self.trcorner.x - self.llcorner.x
 
- 
-    def g_yrange(self):
+
+    @property
+    def yrange(self):
         """
         Get y range of spatial domain.
         
         @return:  y range - float.
         """
-        return self._trcorner._y - self._llcorner._y
+        return self.trcorner.y - self.llcorner.y
 
 
-    def g_zrange(self):
+    @property
+    def zrange(self):
         """
         Get z range of spatial domain.
         
         @return:  z range - float.
         """
-        return self._trcorner._z - self._llcorner._z
+        return self.trcorner.z - self.llcorner.z
 
 
-    def g_horiz_area(self):
+    @property
+    def horiz_area(self):
         """
         Get horizontal area of spatial domain.
         
         @return:  area - float.
         """
-        return self.g_xrange() * self.g_yrange()
+        return self.xrange * self.yrange
 
 
-        
 class Grid(object):
     """
     Grid class.
@@ -1569,7 +1727,7 @@ class Grid(object):
     
     """
 
-    def __init__(self, source_filename= None, grid_params = None, grid_data = None):
+    def __init__(self, source_filename=None, grid_params=None, grid_data=None):
         """
         Grid class constructor.
         
@@ -1585,8 +1743,8 @@ class Grid(object):
         self._sourcename = source_filename
                    
         if grid_params is not None:
-            pt_llc = grid_params.llcorner()
-            pt_trc = grid_params.trcorner()       
+            pt_llc = grid_params.llcorner
+            pt_trc = grid_params.trcorner
         else:
             pt_llc = None
             pt_trc = None
@@ -1680,40 +1838,37 @@ class Grid(object):
         Return the xmin, xmax and ymin, ymax values as a dictionary
         """
         
-        return dict(xmin=self.domain.g_llcorner()._x, 
-                    xmax=self.domain.g_trcorner()._x,
-                    ymin=self.domain.g_llcorner()._y,
-                    ymax=self.domain.g_trcorner()._y)
+        return dict(xmin=self.domain.llcorner.x,
+                    xmax=self.domain.trcorner.x,
+                    ymin=self.domain.llcorner.y,
+                    ymax=self.domain.trcorner.y)
         
-        
-    def _xmin(self):
+
+    @property
+    def xmin(self):
         
         return self.grid_extent()['xmin']
-    
-    xmin = property(_xmin)
-    
-    
-    def _xmax(self):
+
+
+    @property
+    def xmax(self):
         
         return self.grid_extent()['xmax']
-    
-    xmax = property(_xmax)
-        
-        
-    def _ymin(self):
+
+
+    @property
+    def ymin(self):
         
         return self.grid_extent()['ymin']
-    
-    ymin = property(_ymin)
-        
-        
-    def _ymax(self):
+
+
+    @property
+    def ymax(self):
         
         return self.grid_extent()['ymax']   
-            
-    ymax = property(_ymax)
-    
-                
+
+
+    @property
     def row_num(self):
         """
         Get row number of the grid domain.     
@@ -1724,6 +1879,7 @@ class Grid(object):
         return np.shape(self.data)[0]        
 
 
+    @property
     def col_num(self):
         """
         Get column number of the grid domain.
@@ -1733,7 +1889,8 @@ class Grid(object):
              
         return np.shape(self.data)[1]        
             
- 
+
+    @property
     def cellsize_x(self):
         """
         Get the cell size of the grid in the x direction.
@@ -1741,9 +1898,10 @@ class Grid(object):
         @return: cell size in the x (j) direction - float.
         """  
               
-        return self.domain.g_xrange() / float(self.col_num())
+        return self.domain.xrange / float(self.col_num)
 
-  
+
+    @property
     def cellsize_y(self):
         """
         Get the cell size of the grid in the y direction.
@@ -1751,9 +1909,10 @@ class Grid(object):
         @return: cell size in the y (-i) direction - float.
         """   
              
-        return self.domain.g_yrange() / float(self.row_num())
+        return self.domain.yrange / float(self.row_num)
             
- 
+
+    @property
     def cellsize_h(self):
         """
         Get the mean horizontal cell size.
@@ -1761,7 +1920,7 @@ class Grid(object):
         @return: mean horizontal cell size - float.
         """  
               
-        return (self.cellsize_x() + self.cellsize_y()) / 2.0
+        return (self.cellsize_x + self.cellsize_y) / 2.0
               
    
     def geog2array_coord(self, curr_Pt):
@@ -1769,12 +1928,12 @@ class Grid(object):
         Converts from geographic to raster (array) coordinates.
         
         @param curr_Pt: point whose geographical coordinates will be converted to raster (array) ones.
-        @type curr_Pt: Point3D.
+        @type curr_Pt: CartesianPoint3DT.
         
         @return: point coordinates in raster (array) frame - class ArrCoord.
         """       
-        currArrCoord_grid_i = (self.domain.g_trcorner()._y - curr_Pt._y) / self.cellsize_y()
-        currArrCoord_grid_j = (curr_Pt._x - self.domain.g_llcorner()._x) / self.cellsize_x()
+        currArrCoord_grid_i = (self.domain.trcorner.y - curr_Pt.y) / self.cellsize_y
+        currArrCoord_grid_j = (curr_Pt.x - self.domain.llcorner.x) / self.cellsize_x
         
         return ArrCoord(currArrCoord_grid_i, currArrCoord_grid_j)
 
@@ -1787,7 +1946,7 @@ class Grid(object):
         @return: numpy.array, shape: 1 x col_num.
         """        
         
-        x_values = self.domain.g_llcorner()._x + self.cellsize_x() * (0.5 + np.arange(self.col_num())) 
+        x_values = self.domain.llcorner.x + self.cellsize_x * (0.5 + np.arange(self.col_num))
         
         return x_values[np.newaxis, :]
         
@@ -1800,9 +1959,9 @@ class Grid(object):
         @return: numpy.array, shape: row_num x 1.
         """  
               
-        y_values = self.domain.g_trcorner()._y - self.cellsize_y() * (0.5 + np.arange(self.row_num()))
+        y_values = self.domain.trcorner.y - self.cellsize_y * (0.5 + np.arange(self.row_num))
         
-        return y_values[: , np.newaxis]
+        return y_values[:, np.newaxis]
         
               
     def grad_forward_y(self):
@@ -1813,9 +1972,9 @@ class Grid(object):
         """   
              
         gf = np.zeros(np.shape(self.data)) * np.NaN
-        gf[1:,:] = self.data[:-1,:] - self.data[1:,:] 
+        gf[1:, :] = self.data[:-1, :] - self.data[1:, :]
         
-        return gf / float(self.cellsize_y())
+        return gf / float(self.cellsize_y)
 
               
     def grad_forward_x(self):
@@ -1826,9 +1985,9 @@ class Grid(object):
         """
         
         gf = np.zeros(np.shape(self.data), ) * np.NaN
-        gf[:, :-1] = self.data[:, 1:] - self.data[: , :-1] 
+        gf[:, :-1] = self.data[:, 1:] - self.data[:, :-1]
         
-        return gf / float(self.cellsize_x())
+        return gf / float(self.cellsize_x)
            
          
     def interpolate_bilinear(self, curr_Pt_array_coord):
@@ -1871,7 +2030,7 @@ class Grid(object):
         @param surf_type: type of considered surface (i.e., plane, the only case implemented at present).
         @type surf_type: String.
         @param srcPt: point, expressed in geographical coordinates, that the plane must contain.
-        @type srcPt: Point3D.
+        @type srcPt: CartesianPoint3DT.
         @param srcPlaneAttitude: orientation of the surface (currently only planes).
         @type srcPlaneAttitude: class GeolPlane.
         
@@ -1882,8 +2041,8 @@ class Grid(object):
                         
             # closures to compute the geographic coordinates (in x- and y-) of a cell center
             # the grid coordinates of the cell center are expressed by i and j 
-            grid_coord_to_geogr_coord_x_closure = lambda j : self.domain.g_llcorner()._x + self.cellsize_x() * (0.5 + j)
-            grid_coord_to_geogr_coord_y_closure = lambda i : self.domain.g_trcorner()._y - self.cellsize_y() * (0.5 + i)
+            grid_coord_to_geogr_coord_x_closure = lambda j: self.domain.llcorner.x + self.cellsize_x * (0.5 + j)
+            grid_coord_to_geogr_coord_y_closure = lambda i: self.domain.trcorner.y - self.cellsize_y * (0.5 + i)
              
             # arrays storing the geographical coordinates of the cell centers along the x- and y- axes    
             cell_center_x_array = self.x()
@@ -1898,20 +2057,20 @@ class Grid(object):
             x_dem_q = self.data - cell_center_x_array * x_dem_m            
             
             # closure for the planar surface that, given (x,y), will be used to derive z  
-            plane_z_closure = srcPlaneAttitude.plane_from_geo(srcPt )
+            plane_z_closure = srcPlaneAttitude.plane_from_geo(srcPt)
             
             # 2D array of plane segment parameters
             x_plane_m = srcPlaneAttitude.plane_x_coeff()            
             x_plane_q = array_from_function(self.row_num(), 1, lambda j: 0, grid_coord_to_geogr_coord_y_closure, plane_z_closure)
 
             # 2D array that defines denominator for intersections between local segments
-            x_inters_denomin =  np.where(x_dem_m != x_plane_m, x_dem_m-x_plane_m, np.NaN)  
+            x_inters_denomin = np.where(x_dem_m != x_plane_m, x_dem_m-x_plane_m, np.NaN)
                       
             coincident_x = np.where(x_dem_q != x_plane_q, np.NaN, ycoords_x)
                         
-            xcoords_x = np.where(x_dem_m != x_plane_m , (x_plane_q - x_dem_q) / x_inters_denomin, coincident_x)            
-            xcoords_x = np.where(xcoords_x < ycoords_x , np.NaN, xcoords_x)           
-            xcoords_x = np.where(xcoords_x >= ycoords_x + self.cellsize_x() , np.NaN, xcoords_x)  
+            xcoords_x = np.where(x_dem_m != x_plane_m, (x_plane_q - x_dem_q) / x_inters_denomin, coincident_x)
+            xcoords_x = np.where(xcoords_x < ycoords_x, np.NaN, xcoords_x)
+            xcoords_x = np.where(xcoords_x >= ycoords_x + self.cellsize_x, np.NaN, xcoords_x)
                         
             
             #### y-axis direction intersections
@@ -1922,22 +2081,22 @@ class Grid(object):
  
             # 2D array of plane segment parameters
             y_plane_m = srcPlaneAttitude.plane_y_coeff()            
-            y_plane_q = array_from_function(1, self.col_num(), grid_coord_to_geogr_coord_x_closure , lambda i: 0, plane_z_closure)
+            y_plane_q = array_from_function(1, self.col_num, grid_coord_to_geogr_coord_x_closure, lambda i: 0, plane_z_closure)
 
             # 2D array that defines denominator for intersections between local segments
-            y_inters_denomin =  np.where(y_dem_m != y_plane_m, y_dem_m - y_plane_m, np.NaN)
+            y_inters_denomin = np.where(y_dem_m != y_plane_m, y_dem_m - y_plane_m, np.NaN)
             coincident_y = np.where(y_dem_q != y_plane_q, np.NaN, xcoords_y)
                         
             ycoords_y = np.where(y_dem_m != y_plane_m, (y_plane_q - y_dem_q) / y_inters_denomin, coincident_y)            
 
             # filter out cases where intersection is outside cell range
-            ycoords_y = np.where(ycoords_y < xcoords_y , np.NaN, ycoords_y)           
-            ycoords_y = np.where(ycoords_y >= xcoords_y + self.cellsize_y() , np.NaN, ycoords_y)            
+            ycoords_y = np.where(ycoords_y < xcoords_y, np.NaN, ycoords_y)
+            ycoords_y = np.where(ycoords_y >= xcoords_y + self.cellsize_y, np.NaN, ycoords_y)
 
             for i in xrange(xcoords_x.shape[0]):
                 for j in xrange(xcoords_x.shape[1]):
-                    if abs(xcoords_x[i,j]-ycoords_x[i,j])<1.0e-5 and abs(ycoords_y[i,j]-xcoords_y[i,j])<1.0e-5:
-                        ycoords_y[i,j] = np.NaN
+                    if abs(xcoords_x[i, j] - ycoords_x[i, j]) < MINIMUM_SEPARATION_THRESHOLD and abs(ycoords_y[i, j] - xcoords_y[i, j]) < MINIMUM_SEPARATION_THRESHOLD:
+                        ycoords_y[i, j] = np.NaN
                                                          
             return xcoords_x, xcoords_y, ycoords_x, ycoords_y
 
@@ -1947,7 +2106,7 @@ class Grid(object):
 class Fascio(object):
     """
     represents a 'fascio', a 2D semi-infinite geometrical object,
-    defined by an apex (a Point3D object) and two semi-infinite segments, originating
+    defined by an apex (a CartesianPoint3DT object) and two semi-infinite segments, originating
     from the apex and defined by two versors (Vector3D objects, with init name 'versor_1' and 'versor_2').
     Its maximum width 
     """ 
@@ -1960,8 +2119,8 @@ class Fascio(object):
         """
                 
         self._apex = apex_pt3d
-        self._versor_1 = vector_1.versor_3d()
-        self._versor_2 = vector_2.versor_3d()       
+        self._versor_1 = vector_1.as_versor3d()
+        self._versor_2 = vector_2.as_versor3d()
         
         
     def fangle_degr(self):
@@ -1978,7 +2137,7 @@ class Fascio(object):
         angles
         """
         
-        vector_pt = Segment3D(self._apex, pt_3d).vector_3d()
+        vector_pt = Segment3DT(self._apex, pt_3d).as_vector3d()
         
         angle_side_1 = self._versor_1.angle_degr(vector_pt)
         angle_side_2 = self._versor_2.angle_degr(vector_pt)
@@ -1986,14 +2145,14 @@ class Fascio(object):
         return angle_side_1, angle_side_2
     
 
-    def is_within_fascio(self, pt_3d):      
+    def is_within_fascio(self, pt_3d):
 
         apertura = self.fangle_degr()
         
         assert apertura < 180.0
         
-        ang1, ang2 =  self.point_fangles_degr(pt_3d )
-        angle_sum =  ang1+ang2
+        ang1, ang2 = self.point_fangles_degr(pt_3d)
+        angle_sum = ang1 + ang2
         
         return almost_zero(apertura - angle_sum)
 
@@ -2002,18 +2161,18 @@ class Fascio(object):
 class Triangle(object):
     
     
-    def __init__(self, pt_3d_1, pt_3d_2, pt_3d_3):        
+    def __init__(self, pt_3d_1, pt_3d_2, pt_3d_3):
                 
         self._pt_1 = pt_3d_1
         self._pt_2 = pt_3d_2
         self._pt_3 = pt_3d_3   
         
         
-    def is_pt_within(self, pt_3d):        
+    def is_pt_within(self, pt_3d):
 
         def versor3d(pt_1, pt_2):
             
-            return Segment3D(pt_1, pt_2).vector_3d().versor_3d()
+            return Segment3DT(pt_1, pt_2).as_vector3d().as_versor3d()
         
                 
         def is_pt_in_fascio(pt_1, pt_2, pt_3):
@@ -2028,8 +2187,8 @@ class Triangle(object):
             else:
                 return True
             
-        if not (is_pt_in_fascio(self._pt_1, self._pt_2, self._pt_3) and \
-                 is_pt_in_fascio(self._pt_2, self._pt_1, self._pt_3)):
+        if not (is_pt_in_fascio(self._pt_1, self._pt_2, self._pt_3) and
+                is_pt_in_fascio(self._pt_2, self._pt_1, self._pt_3)):
             return False
         else:            
             return True
@@ -2090,7 +2249,7 @@ class AnalyticGeosurface(object):
 
         geosurface_X = []; geosurface_Y = []; geosurface_Z = []
         for x, y, z in zip(self.X, self.Y, self.Z):        
-            pt =  self.transform_loc(x, y, z)
+            pt = self.transform_loc(x, y, z)
             geosurface_X.append(pt[0])
             geosurface_Y.append(pt[1])
             geosurface_Z.append(pt[2])
@@ -2122,7 +2281,7 @@ class AnalyticGeosurface(object):
         if formula == '':
             raise AnaliticSurfaceIOException, "Input analytical formula error"
         
-        return (a_min,a_max,b_min,b_max), (grid_rows,grid_cols), formula      
+        return (a_min, a_max, b_min, b_max), (grid_rows, grid_cols), formula
     
     
     def get_geographical_param_values(self):
@@ -2136,12 +2295,12 @@ class AnalyticGeosurface(object):
         except:
             raise AnaliticSurfaceIOException, "Input geographic value error"            
     
-        return (geog_x_min,geog_y_min), (grid_height,grid_width), grid_rot_angle_degr
+        return (geog_x_min, geog_y_min), (grid_height, grid_width), grid_rot_angle_degr
     
     
     def transform_loc(self,  x, y, z):
     
-        pt = np.dot(self.geographic_transformation_matrix, np.array([x,y,z])) + self.geographic_offset_matrix
+        pt = np.dot(self.geographic_transformation_matrix, np.array([x, y, z])) + self.geographic_offset_matrix
         for deformation in self.deformations:
             if deformation['increment'] == 'additive':
                 pt = pt + deformation['matrix']
@@ -2163,7 +2322,7 @@ def geographic_scale_matrix(a_range, b_range, grid_height, grid_width):
     sy = grid_height / b_range
     sz = 1
     
-    return np.array([(sx , 0.0, 0.0), (0.0, sy, 0.0), (0.0, 0.0, sz)])
+    return np.array([(sx, 0.0, 0.0), (0.0, sy, 0.0), (0.0, 0.0, sz)])
 
 
 def geographic_rotation_matrix(grid_rot_angle_degr):
@@ -2173,8 +2332,8 @@ def geographic_rotation_matrix(grid_rot_angle_degr):
     cos_rot_angle = cos(grid_rot_angle_rad)
     
     return np.array([(cos_rot_angle, -sin_rot_angle, 0.0), 
-                       (sin_rot_angle,  cos_rot_angle, 0.0), 
-                       (0.0,            0.0,           1.0)])
+                     (sin_rot_angle,  cos_rot_angle, 0.0),
+                     (0.0,            0.0,           1.0)])
 
 
 def geographic_offset(transformation_matrix, llc_point_matr, llc_point_geog):
@@ -2188,9 +2347,9 @@ def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
 
     rotation_versor = GeolAxis(rot_axis_trend, rot_axis_plunge).versor_3d()
 
-    l = rotation_versor._x
-    m = rotation_versor._y
-    n = rotation_versor._z
+    l = rotation_versor.x
+    m = rotation_versor.y
+    n = rotation_versor.z
 
     cos_phi = cos(phi)
     sin_phi = sin(phi)
@@ -2208,15 +2367,15 @@ def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
     a33 = cos_phi + ((n*n)*(1-cos_phi))
     
     return np.array([(a11, a12, a13),
-                       (a21, a22, a23),
-                       (a31, a32, a33)])
+                     (a21, a22, a23),
+                     (a31, a32, a33)])
         
 
 def scaling_matrix(scale_factor_x, scale_factor_y, scale_factor_z):
     
     return np.array([(scale_factor_x, 0.0, 0.0),
-                       (0.0, scale_factor_y, 0.0),
-                       (0.0, 0.0, scale_factor_z)])
+                     (0.0, scale_factor_y, 0.0),
+                     (0.0, 0.0, scale_factor_z)])
     
 
 def simple_shear_horiz_matrix(phi_angle_degr, alpha_angle_degr):
@@ -2228,9 +2387,9 @@ def simple_shear_horiz_matrix(phi_angle_degr, alpha_angle_degr):
     sin_a = sin(alpha_angle_rad)
     cos_a = cos(alpha_angle_rad)
             
-    return np.array([(1.0-gamma*sin_a*cos_a, gamma*cos_a*cos_a, 0.0),
-                       (-gamma*sin_a*sin_a, 1.0+gamma*sin_a*cos_a, 0.0),
-                       (0.0, 0.0, 1.0)])        
+    return np.array([(1.0-gamma*sin_a*cos_a,  gamma*cos_a*cos_a,      0.0),
+                     (-gamma*sin_a*sin_a,     1.0+gamma*sin_a*cos_a,  0.0),
+                     (0.0,                    0.0,                    1.0)])
             
 
 def simple_shear_vert_matrix(phi_angle_degr, alpha_angle_degr):
@@ -2243,8 +2402,8 @@ def simple_shear_vert_matrix(phi_angle_degr, alpha_angle_degr):
     cos_a = cos(alpha_angle_rad)
             
     return np.array([(1.0, 0.0, gamma*cos_a),
-                       (0.0, 1.0, gamma*sin_a),
-                       (0.0, 0.0, 1.0)])        
+                     (0.0, 1.0, gamma*sin_a),
+                     (0.0, 0.0, 1.0        )])
 
             
 def deformation_matrices(deform_params):
@@ -2256,48 +2415,45 @@ def deformation_matrices(deform_params):
             displ_x = deform_param['parameters']['delta_x']
             displ_y = deform_param['parameters']['delta_y']
             displ_z = deform_param['parameters']['delta_z']            
-            deformation = { 'increment': 'additive', 
-                           'matrix': np.array([displ_x, displ_y, displ_z]) }
+            deformation = {'increment': 'additive',
+                           'matrix': np.array([displ_x, displ_y, displ_z])}
         elif deform_param['type'] == 'rotation':
             rot_matr = rotation_matrix(deform_param['parameters']['rotation axis trend'],
-                                         deform_param['parameters']['rotation axis plunge'],
-                                         deform_param['parameters']['rotation angle'] )
-            deformation = { 'increment': 'multiplicative', 
-                            'matrix': rot_matr,
-                            'shift_pt': np.array([deform_param['parameters']['center x'],
-                                                    deform_param['parameters']['center y'],
-                                                    deform_param['parameters']['center z'] ]) }
+                                       deform_param['parameters']['rotation axis plunge'],
+                                       deform_param['parameters']['rotation angle'] )
+            deformation = {'increment': 'multiplicative',
+                           'matrix': rot_matr,
+                           'shift_pt': np.array([deform_param['parameters']['center x'],
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z']])}
         elif deform_param['type'] == 'scaling':
             scal_matr = scaling_matrix(deform_param['parameters']['x factor'],
                                        deform_param['parameters']['y factor'],
                                        deform_param['parameters']['z factor'])            
-            deformation = { 'increment': 'multiplicative', 
+            deformation = {'increment': 'multiplicative',
                            'matrix': scal_matr,                            
                            'shift_pt': np.array([deform_param['parameters']['center x'],
-                                                    deform_param['parameters']['center y'],
-                                                    deform_param['parameters']['center z'] ]) }
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z'] ]) }
         elif deform_param['type'] == 'simple shear - horizontal':
             simple_shear_horiz_matr = simple_shear_horiz_matrix(deform_param['parameters']['psi angle (degr.)'],
                                                                 deform_param['parameters']['alpha angle (degr.)'])            
-            deformation = { 'increment': 'multiplicative', 
+            deformation = {'increment': 'multiplicative',
                            'matrix': simple_shear_horiz_matr,                            
                            'shift_pt': np.array([deform_param['parameters']['center x'],
-                                                    deform_param['parameters']['center y'],
-                                                    deform_param['parameters']['center z'] ]) }
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z'] ]) }
         elif deform_param['type'] == 'simple shear - vertical':
             simple_shear_vert_matr = simple_shear_vert_matrix(deform_param['parameters']['psi angle (degr.)'],
-                                                               deform_param['parameters']['alpha angle (degr.)'])            
-            deformation = { 'increment': 'multiplicative', 
+                                                              deform_param['parameters']['alpha angle (degr.)'])
+            deformation = {'increment': 'multiplicative',
                            'matrix': simple_shear_vert_matr,                            
                            'shift_pt': np.array([deform_param['parameters']['center x'],
-                                                    deform_param['parameters']['center y'],
-                                                    deform_param['parameters']['center z'] ]) }       
+                                                 deform_param['parameters']['center y'],
+                                                 deform_param['parameters']['center z'] ]) }
                                
         deformation_matrices.append(deformation)       
 
 
     return deformation_matrices
-    
-    
- 
     

@@ -10,7 +10,7 @@ import json
 from osgeo import ogr, osr, gdal
 from osgeo import gdalconst 
 
-from .spatial import Grid, Point3D
+from .spatial import Grid, CartesianPoint3DT
 from .errors import RasterParametersException, OGRIOException, AnaliticSurfaceIOException
 
 
@@ -295,18 +295,18 @@ class GDALParameters( object ):
         """
         Creates a point at the lower-left corner of the raster.
         
-        @return:  new Point3D instance.                        
+        @return:  new CartesianPoint3DT instance.
         """
-        return Point3D( self.topLeftX, self.topLeftY - abs( self.pixSizeNS ) * self.rows )
+        return CartesianPoint3DT(self.topLeftX, self.topLeftY - abs(self.pixSizeNS) * self.rows)
 
     
     def trcorner( self ):
         """
         Create a point at the top-right corner of the raster.
 
-        @return:  new Point3D instance.                
+        @return:  new CartesianPoint3DT instance.
         """        
-        return Point3D( self.topLeftX + abs( self.pixSizeEW ) * self.cols, self.topLeftY )  
+        return CartesianPoint3DT(self.topLeftX + abs(self.pixSizeEW) * self.cols, self.topLeftY)
    
 
     def geo_equiv( self, other, tolerance = 1.0e-6 ): 
@@ -381,7 +381,7 @@ class QGisRasterParameters( object ):
     
     def raster2geogr(self, array_dict ):
         
-        point = Point3D()
+        point = CartesianPoint3DT()
         point._x = self.xMin + (array_dict['x']+0.5)*self.cellsizeEW
         point._y = self.yMin + (array_dict['y']+0.5)*self.cellsizeNS
         
@@ -445,7 +445,7 @@ def read_line_shapefile_via_ogr( line_shp_path ):
                             
             x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
                         
-            line_points.append( Point3D(x,y,z) )
+            line_points.append(CartesianPoint3DT(x, y, z))
                             
         lines_points.append(line_points)
                     

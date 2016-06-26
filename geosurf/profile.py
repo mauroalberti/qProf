@@ -2,7 +2,7 @@ from __future__ import division
 
 
 class Profile_Elements(object):
-    def __init__(self, max_spacing):
+    def __init__(self, max_spacing=-1.0):
 
         self.max_spacing = max_spacing  # max spacing along profile; float
 
@@ -110,9 +110,9 @@ class DEMParams(object):
 
 
 class TopoLine3D(object):
-    def __init__(self, dem_name, line3d):
-        self.dem_name = dem_name
-        self.profile_3d = line3d  # class Line3DT
+    def __init__(self, name, line3d):
+        self.name = name
+        self.profile_3d = line3d  # class CartesianLine3DT, a list of CartesianPoint3DT
 
     def min_z(self):
         return self.profile_3d.z_min()
@@ -122,9 +122,6 @@ class TopoLine3D(object):
 
     def mean_z(self):
         return self.profile_3d.z_mean()
-
-    def median_z(self):
-        return self.profile_3d.z_median()
 
     def var_z(self):
         return self.profile_3d.z_var()

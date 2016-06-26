@@ -7,14 +7,14 @@ from math import *
 
 from .errors import ConnectionException
 from .profile import PlaneAttitude
-from .spatial import CartesianPoint3DT, Segment3DT, GeolAxis, ParamLine
+from .spatial import CartesianPoint3DT, CartesianSegment3DT, GeolAxis, CartesianParamLine
 
 
 def calculate_distance_with_sign(projected_point, section_init_pt, section_vector):
     assert projected_point.p_z != np.nan
     assert projected_point.p_z is not None
 
-    projected_vector = Segment3DT(section_init_pt, projected_point).as_vector3d()
+    projected_vector = CartesianSegment3DT(section_init_pt, projected_point).as_vector3d()
     cos_alpha = section_vector.vectors_cos_angle(projected_vector)
 
     return projected_vector.length() * cos_alpha
@@ -40,7 +40,7 @@ def calculate_intersection_versor(section_cartes_plane, structural_cartes_plane)
 def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane, structural_cartes_plane,
                                    structural_pt):
     dummy_inters_point = section_cartes_plane.intersection_point3dt(structural_cartes_plane)
-    dummy_structural_vector = Segment3DT(dummy_inters_point, structural_pt).as_vector3d()
+    dummy_structural_vector = CartesianSegment3DT(dummy_inters_point, structural_pt).as_vector3d()
     dummy_distance = dummy_structural_vector.scalar_product(intersection_versor_3d)
     offset_vector = intersection_versor_3d.scale(dummy_distance)
 
@@ -52,7 +52,7 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
     axis_versor = map_axis.as_versor3d()
     l, m, n = axis_versor.p_x, axis_versor.p_y, axis_versor.p_z
-    axis_param_line = ParamLine(structural_pt, l, m, n)
+    axis_param_line = CartesianParamLine(structural_pt, l, m, n)
     return axis_param_line.intersect_cartes_plane(section_cartes_plane)
 
 

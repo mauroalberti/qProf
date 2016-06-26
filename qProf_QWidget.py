@@ -5,6 +5,7 @@ import copy
 import numpy as np
 import os
 import unicodedata
+import xml.dom.minidom
 import webbrowser
 from math import isnan, sin, cos, degrees, floor, ceil
 from osgeo import ogr
@@ -14,8 +15,9 @@ from qgis.gui import QgsRubberBand, QgsColorButtonV2
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from geosurf.errors import VectorInputException, VectorIOException
+from geosurf.errors import GPXIOException, VectorInputException, VectorIOException
 from geosurf.geo_io import QGisRasterParameters
+from geosurf.geodetic import TrackPointGPX
 from geosurf.intersections import map_struct_pts_on_section, calculate_distance_with_sign
 from geosurf.profile import Profile_Elements, TopoLine3D, DEMParams
 from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
@@ -24,9 +26,9 @@ from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_po
     line_geoms_attrs, field_values, MapDigitizeTool
 from geosurf.qt_utils import lastUsedDir, setLastUsedDir
 from geosurf.qt_utils import new_file_path, old_file_path
-from geosurf.spatial import CartesianPoint2DT, MultiLine2DT, Line2DT
-from geosurf.spatial import CartesianPoint3DT, Segment3DT, MultiLine3DT, Line3DT
-from geosurf.spatial import merge_lines, GeolPlane, GeolAxis, CartesianPlane, ParamLine
+from geosurf.spatial import CartesianPoint2DT, CartesianMultiLine2DT, CartesianLine2DT
+from geosurf.spatial import CartesianPoint3DT, CartesianSegment3DT, CartesianMultiLine3DT, CartesianLine3DT
+from geosurf.spatial import merge_lines, GeolPlane, GeolAxis, CartesianPlane, CartesianParamLine
 from geosurf.spatial import xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
 from geosurf.string_utils import clean_string
 from geosurf.utils import to_float
@@ -60,7 +62,7 @@ class qprof_QWidget(QWidget):
         self.sample_distance = None
         self.profile_windows = []
         self.cross_section_windows = []
-        self.source_profile = None
+        self.dem_source_profile = None
         self.current_directory = os.path.dirname(__file__)
         self.profiles = None
         self.DEM_data_export = None
@@ -209,7 +211,7 @@ class qprof_QWidget(QWidget):
         prof_stats_Layout = QGridLayout()
 
         self.profile_stats_pushbutton = QPushButton(self.tr("Calculate profile statistics"))
-        self.profile_stats_pushbutton.clicked.connect(self.calculate_statistics)
+        self.profile_stats_pushbutton.clicked.connect(self.calculate_profile_statistics)
 
         prof_stats_Layout.addWidget(self.profile_stats_pushbutton, 0, 0, 1, 3)
 
@@ -792,7 +794,7 @@ class qprof_QWidget(QWidget):
 
     def reset_profile_defs(self):
 
-        self.source_profile = None
+        self.dem_source_profile = None
         self.reset_rubber_band()
         self.stop_profile_digitize_tool()
 
@@ -826,7 +828,7 @@ class qprof_QWidget(QWidget):
         profile_projected_line_2d = self.create_line_in_project_crs(profile_processed_line_2d, line_layer.crs(),
                                                                     self.on_the_fly_projection, self.project_crs)
 
-        self.source_profile = profile_projected_line_2d.remove_coincident_successive_points()
+        self.dem_source_profile = profile_projected_line_2d.remove_coincident_successive_points()
 
     def get_line_trace(self, line_shape, order_field_ndx):
 
@@ -946,7 +948,7 @@ class qprof_QWidget(QWidget):
 
         self.refresh_rubberband(self.profile_canvas_points)
 
-        self.source_profile = Line2DT([CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
+        self.dem_source_profile = CartesianLine2DT([CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
         self.profile_canvas_points = []
 
     def restore_previous_map_tool(self):
@@ -964,7 +966,7 @@ class qprof_QWidget(QWidget):
             self.warn("No defined line source")
             return
 
-        self.source_profile = line2d
+        self.dem_source_profile = line2d
 
     def select_input_gpxFile(self):
 
@@ -977,7 +979,7 @@ class qprof_QWidget(QWidget):
         setLastUsedDir(fileName)
         self.input_gpx_lineEdit.setText(fileName)
 
-        self.source_profile = self.gpxfile_source
+        self.profile_source_type = self.gpxfile_source
 
     def do_export_topo_profiles(self):
 
@@ -1484,14 +1486,14 @@ class qprof_QWidget(QWidget):
         else:
             return np.nan
 
-    def create_3d_profile(self, resampled_trace2d, on_the_fly_projection, project_crs, dem, dem_params):
+    def profile3d_create_from_dem(self, resampled_trace2d, on_the_fly_projection, project_crs, dem, dem_params):
 
         if on_the_fly_projection and dem.crs() != project_crs:
             trace2d_in_dem_crs = line2d_change_crs(resampled_trace2d, project_crs, dem.crs())
         else:
             trace2d_in_dem_crs = resampled_trace2d
 
-        profile_line3d = Line3DT()
+        profile_line3d = CartesianLine3DT()
         for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
             interpolated_z = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
             pt_3d = CartesianPoint3DT(trace_pt2d_project_crs.p_x,
@@ -1501,13 +1503,76 @@ class qprof_QWidget(QWidget):
 
         return profile_line3d
 
-    def calculate_profiles_from_dems(self):
+    def profile_calculate_multiple_from_dems(self):
+        # get project CRS information
+        on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
 
+        resampled_line_2d = self.used_profile_line.densify(
+            self.sample_distance)  # line resampled by sample spat_distance
+
+        # calculate 3D profiles from DEMs
+        profiles_lines3d = []
+        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+            profile_3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
+            profiles_lines3d.append(profile_3d)
+
+        # setup profiles properties
+        profiles = Profile_Elements(self.sample_distance)
+        profiles.dems_params = [DEMParams(dem, params) for (dem, params) in
+                                zip(self.selected_dems, self.selected_dem_parameters)]
+        profiles.resamp_src_line = resampled_line_2d
+        for dem_name, line_3d in zip([dem.name() for dem in self.selected_dems], profiles_lines3d):
+            profiles.add_topo_profile(TopoLine3D(dem_name, line_3d))
+
+        return profiles
+
+    def profile_calculate_from_gpxfile(self):
+
+        source_gpx_path = unicode(self.input_gpx_lineEdit.text())
+
+        doc = xml.dom.minidom.parse(source_gpx_path)
+
+        # define track name
         try:
-            return self.calculate_dem_profiles()
-        except VectorIOException, msg:
-            self.warn(msg)
-            return None
+            trkname = doc.getElementsByTagName('trk')[0].getElementsByTagName('name')[0].firstChild.data
+        except:
+            trkname = ''
+
+        # get raw track point values (lat, lon, elev, time)
+        track_raw_data = []
+        for trk_node in doc.getElementsByTagName('trk'):
+            for trksegment in trk_node.getElementsByTagName('trkseg'):
+                for tkr_pt in trksegment.getElementsByTagName('trkpt'):
+                    track_raw_data.append((tkr_pt.getAttribute("lat"),
+                                           tkr_pt.getAttribute("lon"),
+                                           tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
+                                           tkr_pt.getElementsByTagName("time")[0].childNodes[0].data))
+
+        # create list of TrackPointGPX elements
+        track_points = []
+        for val in track_raw_data:
+            gpx_trackpoint = TrackPointGPX(*val)
+            track_points.append(gpx_trackpoint)
+
+        # check for the presence of track points
+        if len(track_points) == 0:
+            raise GPXIOException, "No track point found in this file"
+
+            # calculate delta elevations between consecutive points
+        delta_elev_values = [np.nan]
+        for ndx in range(1, len(track_points)):
+            delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
+
+        # covert values into ECEF values (x, y, z in ECEF global coordinate system)
+        trk_ECEFpoints = map(lambda trck: trck.as_pt3dt(), track_points)
+
+        # create profile
+        profile_line = CartesianLine3DT(trk_ECEFpoints)
+        topoline = TopoLine3D(trkname, profile_line)
+        profiles = Profile_Elements()
+        profiles.add_topo_profile(topoline)
+
+        return profiles
 
     def verify_GPXprofile_src_params(self):
 
@@ -1526,7 +1591,7 @@ class qprof_QWidget(QWidget):
             return False
 
         try:
-            assert self.source_profile.num_points > 1
+            assert self.dem_source_profile.num_points > 1
         except:
             self.warn("Profile line not yet defined")
             return False
@@ -1543,7 +1608,7 @@ class qprof_QWidget(QWidget):
 
     def get_profile_statistics(self, topo_profile):
 
-        dem_name = topo_profile.dem_name
+        profile_name = topo_profile.name
         profile_line3d = topo_profile.profile_3d
 
         z_min = profile_line3d.z_min
@@ -1552,7 +1617,7 @@ class qprof_QWidget(QWidget):
         z_var = profile_line3d.z_var
         z_std = profile_line3d.z_std
 
-        stats = dict(dem_name=dem_name,
+        stats = dict(name=profile_name,
                      z_min=z_min,
                      z_max=z_max,
                      z_mean=z_mean,
@@ -1561,7 +1626,7 @@ class qprof_QWidget(QWidget):
 
         return stats
 
-    def calculate_statistics(self):
+    def calculate_profile_statistics(self):
 
         self.stop_profile_digitize_tool()
 
@@ -1578,8 +1643,22 @@ class qprof_QWidget(QWidget):
             return
 
         # calculates profiles
-        self.used_profile_line = self.source_profile
-        self.profiles = self.calculate_profiles_from_dems()
+        if self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
+            self.used_profile_line = self.dem_source_profile
+            try:
+                self.profiles = self.profile_calculate_multiple_from_dems()
+            except VectorIOException, msg:
+                self.warn(msg)
+                return
+        elif self.profile_source_type == self.gpxfile_source:  # source is GPX file
+            try:
+                self.profiles = self.profile_calculate_from_gpxfile()
+            except:
+                self.warn("Error with profile calculation from GPX file")
+                return
+        else:  # source error
+            self.warn("Algorithm error: profile calculation not defined")
+            return
 
         if self.profiles is not None:
             statistics = map(lambda p: self.get_profile_statistics(p), self.profiles.topo_profiles)
@@ -1622,9 +1701,9 @@ class qprof_QWidget(QWidget):
             self.warn("Neither height or slope plot options are selected")
 
         if not self.plotProfile_swap_horiz_checkbox.isChecked():
-            self.used_profile_line = self.source_profile
+            self.used_profile_line = self.dem_source_profile
         else:
-            self.used_profile_line = self.source_profile.swap_horiz()
+            self.used_profile_line = self.dem_source_profile.swap_horiz()
 
         # calculates profiles if they do not exist
         self.profiles = self.calculate_profiles_from_dems()
@@ -1632,30 +1711,6 @@ class qprof_QWidget(QWidget):
         # plot profiles
         if self.profiles is not None:
             self.plot_profile_elements(self.vertical_exaggeration)
-
-    def calculate_dem_profiles(self):
-
-        # get project CRS information
-        on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
-
-        resampled_line_2d = self.used_profile_line.densify(
-            self.sample_distance)  # line resampled by sample spat_distance
-
-        # calculate 3D profiles from DEMs
-        profiles_lines3d = []
-        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
-            profile_3d = self.create_3d_profile(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
-            profiles_lines3d.append(profile_3d)
-
-        # setup profiles properties
-        profiles = Profile_Elements(self.sample_distance)
-        profiles.dems_params = [DEMParams(dem, params) for (dem, params) in
-                                zip(self.selected_dems, self.selected_dem_parameters)]
-        profiles.resamp_src_line = resampled_line_2d
-        for dem_name, line_3d in zip([dem.name() for dem in self.selected_dems], profiles_lines3d):
-            profiles.add_topo_profile(TopoLine3D(dem_name, line_3d))
-
-        return profiles
 
     def export_parse_DEM_results(self, profiles):
 
@@ -2380,7 +2435,7 @@ class qprof_QWidget(QWidget):
         section_final_pt_up = CartesianPoint3DT(section_final_pt.p_x, section_final_pt.p_y,
                                                 1000.0)  # arbitrary point on the same vertical as sect_pt_2
         section_cartes_plane = CartesianPlane.from_points(section_init_pt, section_final_pt, section_final_pt_up)
-        section_vector = Segment3DT(section_init_pt, section_final_pt).as_vector3d()
+        section_vector = CartesianSegment3DT(section_init_pt, section_final_pt).as_vector3d()
 
         return {'init_pt': section_init_pt, 'cartes_plane': section_cartes_plane, 'vector': section_vector}
 
@@ -2571,8 +2626,8 @@ class qprof_QWidget(QWidget):
                 for _ in line_2d.pts:
                     ndx += 1
                     line_3d_pts_list.append(CartesianPoint3DT(xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]))
-                multiline_3d_list.append(Line3DT(line_3d_pts_list))
-            multiline_3d_proj_crs_list.append(MultiLine3DT(multiline_3d_list))
+                multiline_3d_list.append(CartesianLine3DT(line_3d_pts_list))
+            multiline_3d_proj_crs_list.append(CartesianMultiLine3DT(multiline_3d_list))
 
         # create projection vector        
         trend = float(self.common_axis_line_trend_SpinBox.value())
@@ -2583,13 +2638,13 @@ class qprof_QWidget(QWidget):
         # calculation of Cartesian plane expressing section plane        
         self.section_data = self.calculate_section_data()
 
-        # project MultiLine3DT points to section
+        # project CartesianMultiLine3DT points to section
         intersection_point_list = []
         for multiline_3d in multiline_3d_proj_crs_list:
             for line_3d in multiline_3d.lines:
                 for pt_3d in line_3d.pts:
                     srcPt = pt_3d
-                    param_line = ParamLine(srcPt, l, m, n)
+                    param_line = CartesianParamLine(srcPt, l, m, n)
                     intersection_point_list.append(param_line.intersect_cartes_plane(self.section_data['cartes_plane']))
 
         # replicate MultiLine list structure with 3D points with project CRS
@@ -2602,8 +2657,8 @@ class qprof_QWidget(QWidget):
                 for _ in line_3d.pts:
                     ndx += 1
                     line_3d_pts_list.append(intersection_point_list[ndx])
-                multiline_3d_list.append(Line3DT(line_3d_pts_list))
-            multiline_3d_proj_crs_section_list.append(MultiLine3DT(multiline_3d_list))
+                multiline_3d_list.append(CartesianLine3DT(line_3d_pts_list))
+            multiline_3d_proj_crs_section_list.append(CartesianMultiLine3DT(multiline_3d_list))
 
         section_start_point, section_vector = self.section_data['init_pt'], self.section_data['vector']
         curves_2d_list = []
@@ -2615,8 +2670,8 @@ class qprof_QWidget(QWidget):
                     s = calculate_distance_with_sign(pt_3d, section_start_point, section_vector)
                     z = pt_3d.p_z
                     line_2d_pts_list.append(CartesianPoint2DT(s, z))
-                multiline_2d_list.append(Line2DT(line_2d_pts_list))
-            curves_2d_list.append(MultiLine2DT(multiline_2d_list))
+                multiline_2d_list.append(CartesianLine2DT(line_2d_pts_list))
+            curves_2d_list.append(CartesianMultiLine2DT(multiline_2d_list))
 
         self.profiles.add_curves(curves_2d_list, id_list)
 
@@ -2865,7 +2920,7 @@ class qprof_QWidget(QWidget):
         if self.plotProfile_swap_xaxis_checkbox.isChecked():
             axes.invert_xaxis()
 
-        # label = unicode(dem_name)
+        # label = unicode(name)
         for topo_profile, dem_color in zip(topo_profiles, dem_colors):
 
             if topo_type == 'elevation':
@@ -3123,7 +3178,7 @@ class qprof_QWidget(QWidget):
         for polygon_classification, line2d in intersection_line2d_prj_crs_list:
             polygon_classification_set.add(polygon_classification)
 
-            intersection_line3d = Line3DT(
+            intersection_line3d = CartesianLine3DT(
                 self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
 
             s0_list = intersection_line3d.incremental_length_2d()
@@ -3295,7 +3350,7 @@ class qprof_QWidget(QWidget):
     def intersection_distances_by_profile_start_list(self, profile_line, intersection_list):
 
         # convert the profile line
-        # from a Line2DT to a Segment2DT
+        # from a CartesianLine2DT to a CartesianSegment2DT
         profile_segment2d_list = profile_line.as_segments2dt()
         # debug
         assert len(profile_segment2d_list) == 1
@@ -4181,7 +4236,7 @@ class StatisticsDialog(QDialog):
     def report_stats(self, profiles_stats):
         report = ''
         for prof_stat in profiles_stats:
-            report += 'dem: %s\n\n' % (prof_stat['dem_name'])
+            report += 'name: %s\n\n' % (prof_stat['name'])
             report += 'min: %s\n' % (prof_stat['z_min'])
             report += 'max: %s\n' % (prof_stat['z_max'])
             report += 'mean: %s\n' % (prof_stat['z_mean'])

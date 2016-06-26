@@ -66,7 +66,7 @@ class CartesianPoint2DT(object):
         return CartesianPoint2DT(destCrs_qgis_pt.x(), destCrs_qgis_pt.y(), self.p_t)
 
 
-class Segment2DT(object):
+class CartesianSegment2DT(object):
     def __init__(self, start_pt2dt, end_pt2dt):
 
         self._start_pt = start_pt2dt.clone()
@@ -84,17 +84,17 @@ class Segment2DT(object):
 
     def clone(self):
 
-        return Segment2DT(self.start_pt, self.end_pt)
+        return CartesianSegment2DT(self.start_pt, self.end_pt)
 
     def vector_2d(self):
 
-        return Vector2D(self.end_pt.p_x - self.start_pt.p_x,
-                        self.end_pt.p_y - self.start_pt.p_y)
+        return CartesianVector2D(self.end_pt.p_x - self.start_pt.p_x,
+                                 self.end_pt.p_y - self.start_pt.p_y)
 
     def increasing_x(self):
 
         if self.end_pt.p_x < self.start_pt.p_x:
-            return Segment2DT(self.end_pt, self.start_pt)
+            return CartesianSegment2DT(self.end_pt, self.start_pt)
         else:
             return self.clone()
 
@@ -196,11 +196,11 @@ class Segment2DT(object):
         delta_x = self.delta_x * scale_factor
         delta_y = self.delta_y * scale_factor
 
-        return Segment2DT(self.start_pt, CartesianPoint2DT(self.start_pt.p_x + delta_x, self.start_pt.p_y + delta_y))
+        return CartesianSegment2DT(self.start_pt, CartesianPoint2DT(self.start_pt.p_x + delta_x, self.start_pt.p_y + delta_y))
 
     def segment_3d(self):
 
-        return Segment3DT(self.start_pt.to_point3dt(), self.end_pt.to_point3dt())
+        return CartesianSegment3DT(self.start_pt.to_point3dt(), self.end_pt.to_point3dt())
 
     def densify(self, densify_distance):
 
@@ -211,7 +211,7 @@ class Segment2DT(object):
         assert segment_length > 0.0
 
         generator_vector = self.vector_2d().versor_2d().scale(densify_distance)
-        interpolated_line = Line2DT([self.start_pt])
+        interpolated_line = CartesianLine2DT([self.start_pt])
         n = 0
         while True:
             n += 1
@@ -224,7 +224,7 @@ class Segment2DT(object):
         return interpolated_line
 
 
-class Vector2D(object):
+class CartesianVector2D(object):
     def __init__(self, x=np.nan, y=np.nan):
         self._x = x
         self._y = y
@@ -238,29 +238,29 @@ class Vector2D(object):
         return self._y
 
     def clone(self):
-        return Vector2D(self.x, self.y)
+        return CartesianVector2D(self.x, self.y)
 
     @property
     def length(self):
         return sqrt(self.x * self.x + self.y * self.y)
 
     def scale(self, scale_factor):
-        return Vector2D(self.x * scale_factor, self.y * scale_factor)
+        return CartesianVector2D(self.x * scale_factor, self.y * scale_factor)
 
     def versor_2d(self):
         return self.scale(1.0 / self.length)
 
     def add(self, another):
-        return Vector2D(self.x + another.x, self.y + another.y)
+        return CartesianVector2D(self.x + another.x, self.y + another.y)
 
     def minus(self, another):
         return self.add(another.scale(-1))
 
     def as_vector3d(self, z=0.0):
-        return Vector3D(self.x, self.y, z)
+        return CartesianVector3D(self.x, self.y, z)
 
 
-class Line2DT(object):
+class CartesianLine2DT(object):
     def __init__(self, pts_2dt=None):
 
         if pts_2dt is None:
@@ -280,19 +280,19 @@ class Line2DT(object):
 
     def clone(self):
 
-        return Line2DT(self.pts)
+        return CartesianLine2DT(self.pts)
 
     def swap_horiz(self):
 
-        return Line2DT(self.pts[::-1])
+        return CartesianLine2DT(self.pts[::-1])
 
     def add_pt(self, pt_2dt):
 
-        return Line2DT(self.pts + [pt_2dt])
+        return CartesianLine2DT(self.pts + [pt_2dt])
 
     def add_pts(self, pts_2dt):
 
-        return Line2DT(self.pts + pts_2dt)
+        return CartesianLine2DT(self.pts + pts_2dt)
 
     @property
     def num_points(self):
@@ -337,7 +337,7 @@ class Line2DT(object):
 
         assert self.num_points > 0
 
-        new_line = Line2DT([self.pts[0]])
+        new_line = CartesianLine2DT([self.pts[0]])
         for ndx in range(1, self.num_points):
             if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
                 new_line = new_line.add_pt(self.pts[ndx])
@@ -348,7 +348,7 @@ class Line2DT(object):
 
         pts_pairs = zip(self.pts[:-1], self.pts[1:])
 
-        return [Segment2DT(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
+        return [CartesianSegment2DT(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
 
     def densify(self, sample_distance):
 
@@ -358,7 +358,7 @@ class Line2DT(object):
 
         assert len(densified_line_list) > 0
 
-        return MultiLine2DT(densified_line_list).as_line2dt().remove_coincident_successive_points()
+        return CartesianMultiLine2DT(densified_line_list).as_line2dt().remove_coincident_successive_points()
 
     @property
     def length(self):
@@ -388,11 +388,11 @@ class Line2DT(object):
             destCrs_point = point.crs_project_2d(srcCrs, destCrs)
             points.append(destCrs_point)
 
-        return Line2DT(points)
+        return CartesianLine2DT(points)
 
 
-class MultiLine2DT(object):
-    # MultiLine2DT is a list of Line2DT objects
+class CartesianMultiLine2DT(object):
+    # CartesianMultiLine2DT is a list of CartesianLine2DT objects
 
     def __init__(self, lines_list=None):
 
@@ -407,11 +407,11 @@ class MultiLine2DT(object):
 
     def add(self, line):
 
-        return MultiLine2DT(self.lines + [line])
+        return CartesianMultiLine2DT(self.lines + [line])
 
     def clone(self):
 
-        return MultiLine2DT(self.lines)
+        return CartesianMultiLine2DT(self.lines)
 
     @property
     def num_parts(self):
@@ -462,7 +462,7 @@ class MultiLine2DT(object):
 
     def as_line2dt(self):
 
-        return Line2DT([point for line in self.lines for point in line.pts])
+        return CartesianLine2DT([point for line in self.lines for point in line.pts])
 
     def crs_project(self, srcCrs, destCrs):
 
@@ -470,7 +470,7 @@ class MultiLine2DT(object):
         for line_2d in self.lines:
             lines.append(line_2d.crs_project_2d(srcCrs, destCrs))
 
-        return MultiLine2DT(lines)
+        return CartesianMultiLine2DT(lines)
 
     def densify(self, sample_distance):
 
@@ -478,7 +478,7 @@ class MultiLine2DT(object):
         for line_2d in self.lines:
             densified_multiline_2d_list.append(line_2d.densify(sample_distance))
 
-        return MultiLine2DT(densified_multiline_2d_list)
+        return CartesianMultiLine2DT(densified_multiline_2d_list)
 
     def remove_coincident_points(self):
 
@@ -486,7 +486,7 @@ class MultiLine2DT(object):
         for line_2d in self.lines:
             cleaned_lines.append(line_2d.remove_coincident_successive_points())
 
-        return MultiLine2DT(cleaned_lines)
+        return CartesianMultiLine2DT(cleaned_lines)
 
 
 class CartesianPoint3DT(object):
@@ -567,7 +567,7 @@ class CartesianPoint3DT(object):
 
     def as_vector3d(self):
 
-        return Vector3D(self.p_x, self.p_y, self.p_z)
+        return CartesianVector3D(self.p_x, self.p_y, self.p_z)
 
     def delta_time(self, another):
 
@@ -581,7 +581,7 @@ class CartesianPoint3DT(object):
             return np.nan
 
 
-class Segment3DT(object):
+class CartesianSegment3DT(object):
     def __init__(self, start_point, end_point):
 
         self._start_pt = start_point.clone()
@@ -599,13 +599,13 @@ class Segment3DT(object):
 
     def clone(self):
 
-        return Segment3DT(self.start_pt, self.end_pt)
+        return CartesianSegment3DT(self.start_pt, self.end_pt)
 
     def as_vector3d(self):
 
-        return Vector3D(self.end_pt.p_x - self.start_pt.p_x,
-                        self.end_pt.p_y - self.start_pt.p_y,
-                        self.end_pt.p_z - self.start_pt.p_z)
+        return CartesianVector3D(self.end_pt.p_x - self.start_pt.p_x,
+                                 self.end_pt.p_y - self.start_pt.p_y,
+                                 self.end_pt.p_z - self.start_pt.p_z)
 
     @property
     def length(self):
@@ -620,7 +620,7 @@ class Segment3DT(object):
 
     def vertical_cartes_plane(self):
         """
-        Creates a vertical Cartesian plane passing through the self Segment3DT
+        Creates a vertical Cartesian plane passing through the self CartesianSegment3DT
         """
 
         trend, _ = self.trend_and_plunge()
@@ -638,7 +638,7 @@ class Segment3DT(object):
 
         generator_vector = self.as_vector3d().as_versor3d().scale(densify_distance)
 
-        interpolated_line = Line3DT([self.start_pt])
+        interpolated_line = CartesianLine3DT([self.start_pt])
         n = 0
         while True:
             n += 1
@@ -661,7 +661,7 @@ class Segment3DT(object):
         where b is the segment length 
         """
 
-        pt_vector = Segment3DT(self.start_pt, pt_3d).as_vector3d()
+        pt_vector = CartesianSegment3DT(self.start_pt, pt_3d).as_vector3d()
         scal_prod = self.as_vector3d().scalar_product(pt_vector)
 
         if 0 <= scal_prod <= self.length ** 2:
@@ -670,7 +670,7 @@ class Segment3DT(object):
             return False
 
 
-class Vector3D(object):
+class CartesianVector3D(object):
     def __init__(self, x=np.nan, y=np.nan, z=np.nan):
 
         self._x = x
@@ -694,7 +694,7 @@ class Vector3D(object):
 
     def clone(self):
 
-        return Vector3D(self.x, self.y, self.z)
+        return CartesianVector3D(self.x, self.y, self.z)
 
     @property
     def length(self):
@@ -708,9 +708,9 @@ class Vector3D(object):
 
     def scale(self, scale_factor):
 
-        return Vector3D(self.x * scale_factor,
-                        self.y * scale_factor,
-                        self.z * scale_factor)
+        return CartesianVector3D(self.x * scale_factor,
+                                 self.y * scale_factor,
+                                 self.z * scale_factor)
 
     def as_versor3d(self):
 
@@ -725,9 +725,9 @@ class Vector3D(object):
 
     def add(self, another):
 
-        return Vector3D(self.x + another.x,
-                        self.y + another.y,
-                        self.z + another.z)
+        return CartesianVector3D(self.x + another.x,
+                                 self.y + another.y,
+                                 self.z + another.z)
 
     def slope_radians(self):
 
@@ -778,7 +778,7 @@ class Vector3D(object):
         y = self.z * another.x - self.x * another.z
         z = self.x * another.y - self.y * another.x
 
-        return Vector3D(x, y, z)
+        return CartesianVector3D(x, y, z)
 
     def by_matrix(self, matrix3x3):
 
@@ -786,21 +786,21 @@ class Vector3D(object):
         vy = matrix3x3[1, 0] * self.x + matrix3x3[1, 1] * self.y + matrix3x3[1, 2] * self.z
         vz = matrix3x3[2, 0] * self.x + matrix3x3[2, 1] * self.y + matrix3x3[2, 2] * self.z
 
-        return Vector3D(vx, vy, vz)
+        return CartesianVector3D(vx, vy, vz)
 
     def as_point3dt(self):
 
         return CartesianPoint3DT(self.x, self.y, self.z, None)
 
 
-class Line3DT(object):
-    # Line3DT is a list of CartesianPoint3DT objects
+class CartesianLine3DT(object):
+    # CartesianLine3DT is a list of CartesianPoint3DT objects
 
-    def __init__(self, pt_3d_list=None):
+    def __init__(self, pts_3dt=None):
 
-        if pt_3d_list is None:
-            pt_3d_list = []
-        self._pts = [pt_3d.clone() for pt_3d in pt_3d_list]
+        if pts_3dt is None:
+            pts_3dt = []
+        self._pts = [pt_3dt.clone() for pt_3dt in pts_3dt]
 
     @property
     def pts(self):
@@ -814,7 +814,7 @@ class Line3DT(object):
 
     def clone(self):
 
-        return Line3DT(self.pts)
+        return CartesianLine3DT(self.pts)
 
     def add_pt(self, pt):
 
@@ -826,7 +826,7 @@ class Line3DT(object):
 
     def remove_coincident_successive_points(self):
 
-        new_line = Line3DT(self.pts[: 1])
+        new_line = CartesianLine3DT(self.pts[: 1])
         for ndx in range(1, self.num_pts):
             if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
                 new_line = new_line.add_point(self.pts[ndx])
@@ -839,7 +839,7 @@ class Line3DT(object):
         and orientation mismatches between the two original lines
         """
 
-        return Line3DT(self.pts + another.pts)
+        return CartesianLine3DT(self.pts + another.pts)
 
     @property
     def length_3d(self):
@@ -923,7 +923,7 @@ class Line3DT(object):
 
         slopes_list = []
         for ndx in range(self.num_pts - 1):
-            vector = Segment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
+            vector = CartesianSegment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
             slopes_list.append(degrees(vector.slope_radians()))
         slopes_list.append(np.nan)  # slope value for last point is unknown
 
@@ -933,15 +933,15 @@ class Line3DT(object):
 
         slopes_list = []
         for ndx in range(self.num_pts - 1):
-            vector = Segment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
+            vector = CartesianSegment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
             slopes_list.append(abs(degrees(vector.slope_radians())))
         slopes_list.append(np.nan)  # slope value for last point is undefined
 
         return slopes_list
 
 
-class MultiLine3DT(object):
-    # MultiLine3DT is a list of Line3DT objects
+class CartesianMultiLine3DT(object):
+    # CartesianMultiLine3DT is a list of CartesianLine3DT objects
 
 
     def __init__(self, lines_list):
@@ -986,10 +986,10 @@ class MultiLine3DT(object):
 
     def to_line3dt(self):
 
-        return Line3DT([point for line in self.lines for point in line.pts])
+        return CartesianLine3DT([point for line in self.lines for point in line.pts])
 
 
-class ParamLine(object):
+class CartesianParamLine(object):
     # parametric line
     # srcPt: source CartesianPoint3DT
     # l, m, n: .....
@@ -1060,7 +1060,7 @@ class GeolAxis(object):
         east_coord = cos(radians(self.plunge)) * sin(radians(self.trend))
         down_coord = sin(radians(self.plunge))
 
-        return Vector3D(east_coord, north_coord, -down_coord)
+        return CartesianVector3D(east_coord, north_coord, -down_coord)
 
     def as_downgeolaxis(self):
 
@@ -1142,7 +1142,7 @@ class CartesianPlane(object):
         return the normal versor to the cartesian plane
         """
 
-        return Vector3D(self.a, self.b, self.c).as_versor3d()
+        return CartesianVector3D(self.a, self.b, self.c).as_versor3d()
 
     def as_geolplane_and_point_3d(self):
         """
@@ -1297,7 +1297,7 @@ def remove_equal_consecutive_xypairs(xy_list):
 
 
 def xytuple_list_to_Line2D(xy_list):
-    return Line2DT([CartesianPoint2DT(x, y) for (x, y) in xy_list])
+    return CartesianLine2DT([CartesianPoint2DT(x, y) for (x, y) in xy_list])
 
 
 def xytuple_list2_to_MultiLine2D(xytuple_list2):
@@ -1309,7 +1309,7 @@ def xytuple_list2_to_MultiLine2D(xytuple_list2):
         assert len(xy_list) > 0
         lines_list.append(xytuple_list_to_Line2D(xy_list))
 
-    return MultiLine2DT(lines_list)
+    return CartesianMultiLine2DT(lines_list)
 
 
 def list2_to_list(list2):
@@ -1361,8 +1361,8 @@ def merge_lines(lines, progress_ids):
 
         line_list.append(path_line)  # now a list of Lines     
 
-    # now the list of Lines is transformed into a single Line2DT
-    return MultiLine2DT(line_list).as_line2dt().remove_coincident_successive_points()
+    # now the list of Lines is transformed into a single CartesianLine2DT
+    return CartesianMultiLine2DT(line_list).as_line2dt().remove_coincident_successive_points()
 
 
 class ArrCoord(object):
@@ -1868,11 +1868,11 @@ class Grid(object):
             return xcoords_x, xcoords_y, ycoords_x, ycoords_y
 
 
-class Fascio(object):
+class TriangBeam(object):
     """
     represents a 'fascio', a 2D semi-infinite geometrical object,
     defined by an apex (a CartesianPoint3DT object) and two semi-infinite segments, originating
-    from the apex and defined by two versors (Vector3D objects, with init name 'versor_1' and 'versor_2').
+    from the apex and defined by two versors (CartesianVector3D objects, with init name 'versor_1' and 'versor_2').
     Its maximum width 
     """
 
@@ -1899,7 +1899,7 @@ class Fascio(object):
         angles
         """
 
-        vector_pt = Segment3DT(self._apex, pt_3d).as_vector3d()
+        vector_pt = CartesianSegment3DT(self._apex, pt_3d).as_vector3d()
 
         angle_side_1 = self._versor_1.angle_degr(vector_pt)
         angle_side_2 = self._versor_2.angle_degr(vector_pt)
@@ -1917,7 +1917,7 @@ class Fascio(object):
         return almost_zero(apertura - angle_sum)
 
 
-class Triangle(object):
+class CartesianTriangle(object):
     def __init__(self, pt_3d_1, pt_3d_2, pt_3d_3):
 
         self._pt_1 = pt_3d_1
@@ -1928,7 +1928,7 @@ class Triangle(object):
 
         def versor3d(pt_1, pt_2):
 
-            return Segment3DT(pt_1, pt_2).as_vector3d().as_versor3d()
+            return CartesianSegment3DT(pt_1, pt_2).as_vector3d().as_versor3d()
 
         def is_pt_in_fascio(pt_1, pt_2, pt_3):
 
@@ -1936,7 +1936,7 @@ class Triangle(object):
             versor_1 = versor3d(pt_1, pt_2)
             versor_2 = versor3d(pt_1, pt_3)
 
-            fascio = Fascio(apex, versor_1, versor_2)
+            fascio = TriangBeam(apex, versor_1, versor_2)
             if not fascio.is_within_fascio(pt_3d):
                 return False
             else:

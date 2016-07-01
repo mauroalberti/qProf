@@ -2,11 +2,11 @@ from __future__ import division
 
 
 class Profile_Elements(object):
-    def __init__(self, max_spacing=-1.0):
+    def __init__(self, max_spacing=None):
 
         self.max_spacing = max_spacing  # max spacing along profile; float
 
-        self.dems_params = []
+        #self.dems_params = []
         self.resamp_src_line = None
         self.topo_profiles = []
         self.plane_attitudes = []
@@ -152,6 +152,22 @@ class TopoLine3D(object):
 
     def get_increm_dist_2d(self):
         return self.profile_3d.incremental_length_2d()
+
+
+class TopoProfiles(object):
+
+    def __init__(self):
+
+        self.xs = None
+        self.ys = None
+        self.lons = None
+        self.lats = None
+        self.times = None
+        self.names = []
+        self.s = None
+        self.s3d = []
+        self.elev = []
+        self.dir_slopes = []
 
 
 class PlaneAttitude(object):

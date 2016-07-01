@@ -7,7 +7,7 @@ import os
 import unicodedata
 import xml.dom.minidom
 import webbrowser
-from math import isnan, sin, cos, degrees, floor, ceil
+from math import isnan, sin, cos, asin, radians, degrees, floor, ceil
 from osgeo import ogr
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QGis, QgsGeometry
 from qgis.gui import QgsRubberBand, QgsColorButtonV2
@@ -19,7 +19,7 @@ from geosurf.errors import GPXIOException, VectorInputException, VectorIOExcepti
 from geosurf.geo_io import QGisRasterParameters
 from geosurf.geodetic import TrackPointGPX
 from geosurf.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from geosurf.profile import Profile_Elements, TopoLine3D, DEMParams
+from geosurf.profile import Profile_Elements, TopoLine3D, TopoProfiles, DEMParams
 from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
     raster_qgis_params, loaded_monoband_raster_layers, \
     line_geoms_with_id, qgs_point_2d, project_qgs_point, vect_attrs, \
@@ -1558,7 +1558,7 @@ class qprof_QWidget(QWidget):
         if len(track_points) == 0:
             raise GPXIOException, "No track point found in this file"
 
-            # calculate delta elevations between consecutive points
+        # calculate delta elevations between consecutive points
         delta_elev_values = [np.nan]
         for ndx in range(1, len(track_points)):
             delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
@@ -1566,13 +1566,56 @@ class qprof_QWidget(QWidget):
         # covert values into ECEF values (x, y, z in ECEF global coordinate system)
         trk_ECEFpoints = map(lambda trck: trck.as_pt3dt(), track_points)
 
-        # create profile
-        profile_line = CartesianLine3DT(trk_ECEFpoints)
-        topoline = TopoLine3D(trkname, profile_line)
-        profiles = Profile_Elements()
-        profiles.add_topo_profile(topoline)
+        # calculate 3D distances between consecutive points
+        dist_3D_values = [np.nan]
+        for ndx in range(1, len(trk_ECEFpoints)):
+            dist_3D_values.append(trk_ECEFpoints[ndx].spat_distance(trk_ECEFpoints[ndx - 1]))
+
+        # calculate slope along track
+        dir_slopes = []
+        for delta_elev, dist_3D in zip(delta_elev_values, dist_3D_values):
+            try:
+                dir_slopes.append(degrees(asin(delta_elev / dist_3D)))
+            except:
+                dir_slopes.append(np.nan)
+
+        # calculate horizontal distance along track
+        horiz_dist_values = []
+        for slope, dist_3D in zip(dir_slopes, dist_3D_values):
+            try:
+                horiz_dist_values.append(dist_3D * cos(radians(slope)))
+            except:
+                horiz_dist_values.append(np.nan)
+
+        # defines the cumulative 2D distance values
+        cum_distances_2D = [0.0]
+        for ndx in range(1, len(horiz_dist_values)):
+            cum_distances_2D.append(cum_distances_2D[-1] + horiz_dist_values[ndx])
+
+        # defines the cumulative 3D distance values
+        cum_distances_3D = [0.0]
+        for ndx in range(1, len(dist_3D_values)):
+            cum_distances_3D.append(cum_distances_3D[-1] + dist_3D_values[ndx])
+
+        lat_values = [track.lat for track in track_points]
+        lon_values = [track.lon for track in track_points]
+        time_values = [track.time for track in track_points]
+        elevations = [track.elev for track in track_points]
+
+        profiles = TopoProfiles()
+
+        profiles.lons = np.asarray(lon_values)
+        profiles.lats = np.asarray(lat_values)
+        profiles.times = time_values
+        profiles.names = [trkname] # [] required for compatibility with DEM case
+        profiles.s = np.asarray(cum_distances_2D)
+        profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
+        profiles.elev = [np.asarray(elevations)]  # [] required for compatibility with DEM case
+        profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
 
         return profiles
+
+
 
     def verify_GPXprofile_src_params(self):
 
@@ -1606,23 +1649,19 @@ class qprof_QWidget(QWidget):
 
         return True
 
-    def get_profile_statistics(self, topo_profile):
+    def get_statistics(self, topo_array):
 
-        profile_name = topo_profile.name
-        profile_line3d = topo_profile.profile_3d
+        min = np.nanmin(topo_array)
+        max = np.nanmax(topo_array)
+        mean = np.nanmean(topo_array)
+        var = np.nanvar(topo_array)
+        std = np.nanstd(topo_array)
 
-        z_min = profile_line3d.z_min
-        z_max = profile_line3d.z_max
-        z_mean = profile_line3d.z_mean
-        z_var = profile_line3d.z_var
-        z_std = profile_line3d.z_std
-
-        stats = dict(name=profile_name,
-                     z_min=z_min,
-                     z_max=z_max,
-                     z_mean=z_mean,
-                     z_var=z_var,
-                     z_std=z_std)
+        stats = dict(min=min,
+                     max=max,
+                     mean=mean,
+                     var=var,
+                     std=std)
 
         return stats
 
@@ -1646,23 +1685,30 @@ class qprof_QWidget(QWidget):
         if self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
             self.used_profile_line = self.dem_source_profile
             try:
-                self.profiles = self.profile_calculate_multiple_from_dems()
+                topo_profiles = self.profile_calculate_multiple_from_dems()
             except VectorIOException, msg:
                 self.warn(msg)
                 return
         elif self.profile_source_type == self.gpxfile_source:  # source is GPX file
-            try:
-                self.profiles = self.profile_calculate_from_gpxfile()
+            #try:
+            topo_profiles = self.profile_calculate_from_gpxfile()
+            """
             except:
                 self.warn("Error with profile calculation from GPX file")
                 return
+            """
         else:  # source error
             self.warn("Algorithm error: profile calculation not defined")
             return
 
-        if self.profiles is not None:
-            statistics = map(lambda p: self.get_profile_statistics(p), self.profiles.topo_profiles)
-            dialog = StatisticsDialog(statistics)
+        if topo_profiles is not None:
+            statistics_elev = map(lambda p: self.get_statistics(p), topo_profiles.elev)
+            statistics_dirslopes = map(lambda p: self.get_statistics(p), topo_profiles.dir_slopes)
+            statistics_slopes = map(lambda p: self.get_statistics(p), np.absolute(topo_profiles.dir_slopes))
+
+            dialog = StatisticsDialog(zip(topo_profiles.names, zip(statistics_elev,
+                                                                   statistics_dirslopes,
+                                                                   statistics_slopes)))
             dialog.exec_()
         else:
             self.warn('Unable to calculate statistics')
@@ -4234,13 +4280,23 @@ class StatisticsDialog(QDialog):
         self.setWindowTitle("Statistics")
 
     def report_stats(self, profiles_stats):
-        report = ''
-        for prof_stat in profiles_stats:
-            report += 'name: %s\n\n' % (prof_stat['name'])
-            report += 'min: %s\n' % (prof_stat['z_min'])
-            report += 'max: %s\n' % (prof_stat['z_max'])
-            report += 'mean: %s\n' % (prof_stat['z_mean'])
-            report += 'variance: %s\n' % (prof_stat['z_var'])
-            report += 'standard deviation: %s\n\n\n' % (prof_stat['z_std'])
+
+        def type_report(values):
+
+            type_report = 'min: %s\n' % (values['min'])
+            type_report += 'max: %s\n' % (values['max'])
+            type_report += 'mean: %s\n' % (values['mean'])
+            type_report += 'variance: %s\n' % (values['var'])
+            type_report += 'standard deviation: %s\n\n\n' % (values['std'])
+
+            return type_report
+
+        report = 'Statistics'
+        types = ['elevations', 'directional slopes', 'absolute slopes']
+        for name, stats in profiles_stats:
+            report += '\dataset name: %s\n\n' % name
+            for type, stat_val in zip(types, stats):
+                report += '%s\n' % type
+                report += type_report(stat_val)
 
         return report

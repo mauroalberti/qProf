@@ -1503,30 +1503,37 @@ class qprof_QWidget(QWidget):
 
         return profile_line3d
 
-    def profile_calculate_multiple_from_dems(self):
+    def topoprofiles_calculate_from_dems(self):
+
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
 
         resampled_line_2d = self.used_profile_line.densify(
-            self.sample_distance)  # line resampled by sample spat_distance
+            self.sample_distance)  # line resampled by sample distance
 
         # calculate 3D profiles from DEMs
-        profiles_lines3d = []
+        dem_topolines3d = []
         for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
-            profile_3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
-            profiles_lines3d.append(profile_3d)
+            dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
+            dem_topolines3d.append(dem_topoline3d)
 
-        # setup profiles properties
-        profiles = Profile_Elements(self.sample_distance)
-        profiles.dems_params = [DEMParams(dem, params) for (dem, params) in
-                                zip(self.selected_dems, self.selected_dem_parameters)]
-        profiles.resamp_src_line = resampled_line_2d
-        for dem_name, line_3d in zip([dem.name() for dem in self.selected_dems], profiles_lines3d):
-            profiles.add_topo_profile(TopoLine3D(dem_name, line_3d))
+        # setup topoprofiles properties
+        topo_profiles = TopoProfiles()
 
-        return profiles
+        topo_profiles.xs = np.asarray(resampled_line_2d.x_list)
+        topo_profiles.ys = np.asarray(resampled_line_2d.y_list)
+        topo_profiles.names = map(lambda dem: dem.name(), self.selected_dems)
+        topo_profiles.s = np.asarray(resampled_line_2d.incremental_length)
+        topo_profiles.s3d = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
+        topo_profiles.elev = map(lambda cl3dt: np.asarray(cl3dt.zs()), dem_topolines3d)
+        topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes_list()), dem_topolines3d)
+        topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
+                        zip(self.selected_dems, self.selected_dem_parameters)]
+        topo_profiles.sample_distance = self. sample_distance
 
-    def profile_calculate_from_gpxfile(self):
+        return topo_profiles
+
+    def topoprofiles_calculate_from_gpxfile(self):
 
         source_gpx_path = unicode(self.input_gpx_lineEdit.text())
 
@@ -1602,20 +1609,18 @@ class qprof_QWidget(QWidget):
         time_values = [track.time for track in track_points]
         elevations = [track.elev for track in track_points]
 
-        profiles = TopoProfiles()
+        topo_profiles = TopoProfiles()
 
-        profiles.lons = np.asarray(lon_values)
-        profiles.lats = np.asarray(lat_values)
-        profiles.times = time_values
-        profiles.names = [trkname] # [] required for compatibility with DEM case
-        profiles.s = np.asarray(cum_distances_2D)
-        profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
-        profiles.elev = [np.asarray(elevations)]  # [] required for compatibility with DEM case
-        profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
+        topo_profiles.lons = np.asarray(lon_values)
+        topo_profiles.lats = np.asarray(lat_values)
+        topo_profiles.times = time_values
+        topo_profiles.names = [trkname] # [] required for compatibility with DEM case
+        topo_profiles.s = np.asarray(cum_distances_2D)
+        topo_profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
+        topo_profiles.elev = [np.asarray(elevations)]  # [] required for compatibility with DEM case
+        topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
 
-        return profiles
-
-
+        return topo_profiles
 
     def verify_GPXprofile_src_params(self):
 
@@ -1685,18 +1690,16 @@ class qprof_QWidget(QWidget):
         if self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
             self.used_profile_line = self.dem_source_profile
             try:
-                topo_profiles = self.profile_calculate_multiple_from_dems()
+                topo_profiles = self.topoprofiles_calculate_from_dems()
             except VectorIOException, msg:
                 self.warn(msg)
                 return
         elif self.profile_source_type == self.gpxfile_source:  # source is GPX file
-            #try:
-            topo_profiles = self.profile_calculate_from_gpxfile()
-            """
+            try:
+                topo_profiles = self.topoprofiles_calculate_from_gpxfile()
             except:
                 self.warn("Error with profile calculation from GPX file")
                 return
-            """
         else:  # source error
             self.warn("Algorithm error: profile calculation not defined")
             return
@@ -1766,7 +1769,7 @@ class qprof_QWidget(QWidget):
         elev_list = [topo_profile.z_list() for topo_profile in profiles.topo_profiles]
         cumdist_2D_list = profiles.topo_profiles[0].get_increm_dist_2d()
         cumdist_3d_list = [topo_profile.get_increm_dist_3d() for topo_profile in profiles.topo_profiles]
-        slopes = [topo_profile.slope_list() for topo_profile in profiles.topo_profiles]
+        slopes = [topo_profile.directional_slopes() for topo_profile in profiles.topo_profiles]
 
         elev_list_zip = zip(*elev_list)
         cumdist_3d_list_zip = zip(*cumdist_3d_list)
@@ -2976,7 +2979,7 @@ class qprof_QWidget(QWidget):
                 if self.plotProfile_slope_absolute_qradiobutton.isChecked():
                     y_list = topo_profile.slope_absolute_list()
                 else:
-                    y_list = topo_profile.slope_list()
+                    y_list = topo_profile.directional_slopes()
 
                 plot_y_min = 0.0
 
@@ -4291,10 +4294,10 @@ class StatisticsDialog(QDialog):
 
             return type_report
 
-        report = 'Statistics'
+        report = 'Statistics\n'
         types = ['elevations', 'directional slopes', 'absolute slopes']
         for name, stats in profiles_stats:
-            report += '\dataset name: %s\n\n' % name
+            report += '\ndataset name: %s\n\n' % name
             for type, stat_val in zip(types, stats):
                 report += '%s\n' % type
                 report += type_report(stat_val)

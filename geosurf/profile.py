@@ -6,7 +6,6 @@ class Profile_Elements(object):
 
         self.max_spacing = max_spacing  # max spacing along profile; float
 
-        #self.dems_params = []
         self.resamp_src_line = None
         self.topo_profiles = []
         self.plane_attitudes = []
@@ -138,11 +137,8 @@ class TopoLine3D(object):
     def z_list(self):
         return [pt_3d.p_z for pt_3d in self.profile_3d.pts]
 
-    def slope_list(self):
+    def directional_slopes(self):
         return self.profile_3d.slopes_list()
-
-    def slope_absolute_list(self):
-        return self.profile_3d.slopes_absolute_list()
 
     def length_2d(self):
         return self.profile_3d.length_2d()
@@ -168,6 +164,8 @@ class TopoProfiles(object):
         self.s3d = []
         self.elev = []
         self.dir_slopes = []
+        self.dem_params = []
+        self.sample_distance = None
 
 
 class PlaneAttitude(object):

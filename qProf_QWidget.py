@@ -1687,6 +1687,10 @@ class qprof_QWidget(QWidget):
 
         self.profile_stastistics_defined = True
 
+
+
+
+
     def create_topo_profiles(self):
 
         self.stop_profile_digitize_tool()
@@ -1699,53 +1703,13 @@ class qprof_QWidget(QWidget):
         dialog = PlotTopoProfileDialog()
 
         if dialog.exec_():
-            pass
-            #line_layer, order_field_ndx = self.get_line_layer_params(dialog)
+            profile_plot_params = get_profile_plot_params(dialog)
+            print profile_plot_params
         else:
             self.warn("Plot profile aborted")
             return
 
         """
-        line_fld_ndx = int(order_field_ndx) - 1
-        # get profile path from input line layer
-        success, result = self.get_line_trace(line_layer, line_fld_ndx)
-        if not success:
-            raise VectorIOException, result
-
-
-
-        # get profile plot parameters
-
-        try:
-            self.plot_min_value_user = float(self.plot_min_value_QLineedit.text())
-        except:
-            self.plot_min_value_user = None
-
-        try:
-            self.plot_max_value_user = float(self.plot_max_value_QLineedit.text())
-        except:
-            self.plot_max_value_user = None
-
-        try:
-            self.vertical_exaggeration = float(self.DEM_exageration_ratio_Qlineedit.text())
-            assert self.vertical_exaggeration > 0
-        except:
-            self.warn("Vertical exaggeration must be numeric and positive")
-            return
-
-        plot_height_choice = self.plotProfile_height_checkbox.isChecked()
-        plot_slope_choice = self.plotProfile_slope_checkbox.isChecked()
-        if not (plot_height_choice or plot_slope_choice):
-            self.warn("Neither height or slope plot options are selected")
-
-        if not self.plotProfile_swap_horiz_checkbox.isChecked():
-            self.used_profile_line = self.dem_source_profile
-        else:
-            self.used_profile_line = self.dem_source_profile.swap_horiz()
-
-        # calculates profiles if they do not exist
-        self.profiles = self.calculate_profiles_from_dems()
-
         # plot profiles
         if self.profiles is not None:
             self.plot_profile_elements(self.vertical_exaggeration)
@@ -3750,6 +3714,39 @@ class PolygonIntersectionRepresentationDialog(QDialog):
             combo_box.addItems(PolygonIntersectionRepresentationDialog.colors)
             self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, combo_box)
 
+
+def get_profile_plot_params(dialog):
+
+    profile_params = {}
+    # get profile plot parameters
+
+    try:
+        profile_params['plot_min_value_user'] = float(dialog.plot_min_value_QLineedit.text())
+    except:
+        profile_params['plot_min_value_user'] = None
+
+    try:
+        profile_params['plot_max_value_user'] = float(dialog.plot_max_value_QLineedit.text())
+    except:
+        profile_params['plot_max_value_user'] = None
+
+    try:
+        profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
+        assert profile_params['vertical_exaggeration'] > 0
+    except:
+        profile_params['vertical_exaggeration'] = 1
+
+    profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
+    profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
+    profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
+    profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
+    profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
+    profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
+    profile_params['slope_plot_unit'] = dialog.plotProfile_slopeunits_combobox.currentText()
+    profile_params['swap_horizontal'] = dialog.plotProfile_swap_horiz_checkbox.isChecked()
+    profile_params['swap_xaxis'] = dialog.plotProfile_swap_xaxis_checkbox.isChecked()
+
+    return profile_params
 
 class PlotTopoProfileDialog(QDialog):
     def __init__(self, parent=None):

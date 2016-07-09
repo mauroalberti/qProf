@@ -55,10 +55,13 @@ class qprof_QWidget(QWidget):
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
 
+        self.profile_stastistics_defined = False
+
         self.selected_dems = []
         self.selected_dem_colors = []
         self.selected_dem_parameters = []
 
+        self.profile_source_type = None
         self.sample_distance = None
         self.profile_windows = []
         self.cross_section_windows = []
@@ -226,52 +229,8 @@ class qprof_QWidget(QWidget):
 
         plotProfile_Layout = QGridLayout()
 
-        """
-        # profile options
-        plotProfile_Layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 1, 0, 1, 1)
-        self.DEM_exageration_ratio_Qlineedit = QLineEdit()
-        self.DEM_exageration_ratio_Qlineedit.setText("1")
-        plotProfile_Layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 1, 1, 1, 1)
-
-        plotProfile_Layout.addWidget(QLabel(self.tr("Plot z min value")), 0, 2, 1, 1)
-        self.plot_min_value_QLineedit = QLineEdit()
-        self.plot_min_value_QLineedit.setText("[automatic]")
-        plotProfile_Layout.addWidget(self.plot_min_value_QLineedit, 0, 3, 1, 1)
-
-        plotProfile_Layout.addWidget(QLabel(self.tr("Plot z max value")), 1, 2, 1, 1)
-        self.plot_max_value_QLineedit = QLineEdit()
-        self.plot_max_value_QLineedit.setText("[automatic]")
-        plotProfile_Layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)
-
-        self.plotProfile_height_checkbox = QCheckBox(self.tr("Height"))
-        self.plotProfile_height_checkbox.setChecked(True)
-        plotProfile_Layout.addWidget(self.plotProfile_height_checkbox, 2, 0, 1, 1)
-
-        self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("(filled)"))
-        plotProfile_Layout.addWidget(self.plotProfile_height_filled_checkbox, 2, 3, 1, 1)
-
-        self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
-        plotProfile_Layout.addWidget(self.plotProfile_slope_checkbox, 3, 0, 1, 1)
-
-        self.plotProfile_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
-        self.plotProfile_slope_absolute_qradiobutton.setChecked(True);
-        plotProfile_Layout.addWidget(self.plotProfile_slope_absolute_qradiobutton, 3, 1, 1, 1)
-
-        self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
-        plotProfile_Layout.addWidget(self.plotProfile_slope_directional_qradiobutton, 3, 2, 1, 1)
-
-        self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("(filled)"))
-        plotProfile_Layout.addWidget(self.plotProfile_slope_filled_checkbox, 3, 3, 1, 1)
-
-        self.plotProfile_swap_horiz_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
-        plotProfile_Layout.addWidget(self.plotProfile_swap_horiz_checkbox, 4, 0, 1, 2)
-
-        self.plotProfile_swap_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
-        plotProfile_Layout.addWidget(self.plotProfile_swap_xaxis_checkbox, 4, 2, 1, 2)
-        """
-
         self.plotProfile_create_pushbutton = QPushButton(self.tr("Create profile"))
-        self.plotProfile_create_pushbutton.clicked.connect(self.create_topo_profiles_from_DEMs)
+        self.plotProfile_create_pushbutton.clicked.connect(self.create_topo_profiles)
 
         plotProfile_Layout.addWidget(self.plotProfile_create_pushbutton, 0, 0, 1, 4)
 
@@ -690,6 +649,8 @@ class qprof_QWidget(QWidget):
 
     def define_source_DEMs(self):
 
+        self.profile_stastistics_defined = False
+
         self.selected_dems = []
         self.selected_dem_colors = []
         self.selected_dem_parameters = []
@@ -976,6 +937,9 @@ class qprof_QWidget(QWidget):
                                                "GPX (*.gpx *.GPX)")
         if not fileName:
             return
+
+        self.profile_stastistics_defined = False
+
         setLastUsedDir(fileName)
         self.input_gpx_lineEdit.setText(fileName)
 
@@ -1672,11 +1636,16 @@ class qprof_QWidget(QWidget):
 
     def calculate_profile_statistics(self):
 
+        self.profile_stastistics_defined = False
+
         self.stop_profile_digitize_tool()
 
         # preliminar verification of source parameters
 
-        if self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
+        if self.profile_source_type is None:
+            self.warn("Source profile not yet defined")
+            return
+        elif self.profile_source_type == self.demline_source:  # sources are DEM(s) and line
             if not self.verify_DEMprofile_src_params():
                 return
         elif self.profile_source_type == self.gpxfile_source:  # source is GPX file
@@ -1716,14 +1685,34 @@ class qprof_QWidget(QWidget):
         else:
             self.warn('Unable to calculate statistics')
 
-    def create_topo_profiles_from_DEMs(self):
+        self.profile_stastistics_defined = True
+
+    def create_topo_profiles(self):
 
         self.stop_profile_digitize_tool()
 
-        # get profile creation parameters
-        verified = self.verify_DEMprofile_src_params()
-        if not verified:
+        # verify profile creation parameters
+        if self.profile_stastistics_defined == False:
+            self.warn("Profile statistics not yet calculated")
             return
+
+        dialog = PlotTopoProfileDialog()
+
+        if dialog.exec_():
+            pass
+            #line_layer, order_field_ndx = self.get_line_layer_params(dialog)
+        else:
+            self.warn("Plot profile aborted")
+            return
+
+        """
+        line_fld_ndx = int(order_field_ndx) - 1
+        # get profile path from input line layer
+        success, result = self.get_line_trace(line_layer, line_fld_ndx)
+        if not success:
+            raise VectorIOException, result
+
+
 
         # get profile plot parameters
 
@@ -1760,6 +1749,8 @@ class qprof_QWidget(QWidget):
         # plot profiles
         if self.profiles is not None:
             self.plot_profile_elements(self.vertical_exaggeration)
+        """
+
 
     def export_parse_DEM_results(self, profiles):
 
@@ -3758,6 +3749,110 @@ class PolygonIntersectionRepresentationDialog(QDialog):
             combo_box.setSizeAdjustPolicy(0)
             combo_box.addItems(PolygonIntersectionRepresentationDialog.colors)
             self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, combo_box)
+
+
+class PlotTopoProfileDialog(QDialog):
+    def __init__(self, parent=None):
+
+        super(PlotTopoProfileDialog, self).__init__(parent)
+
+        layout = QVBoxLayout()
+
+        # profile options
+
+        plotProfile_Layout = QVBoxLayout()
+
+        plotsettings_groupbox = QGroupBox("Plot settings")
+
+        plotsetting_layout = QGridLayout()
+
+        plotsetting_layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 0, 1, 1)
+        self.DEM_exageration_ratio_Qlineedit = QLineEdit()
+        self.DEM_exageration_ratio_Qlineedit.setText("1")
+        plotsetting_layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 1, 1, 1)
+
+        plotsetting_layout.addWidget(QLabel(self.tr("Plot z min value")), 1, 0, 1, 1)
+        self.plot_min_value_QLineedit = QLineEdit()
+        self.plot_min_value_QLineedit.setText("[automatic]")
+        plotsetting_layout.addWidget(self.plot_min_value_QLineedit, 1, 1, 1, 1)
+
+        plotsetting_layout.addWidget(QLabel(self.tr("Plot z max value")), 1, 2, 1, 1)
+        self.plot_max_value_QLineedit = QLineEdit()
+        self.plot_max_value_QLineedit.setText("[automatic]")
+        plotsetting_layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)
+
+        plotsettings_groupbox.setLayout(plotsetting_layout)
+
+        plotProfile_Layout.addWidget(plotsettings_groupbox)
+
+        plotVariables_groupbox = QGroupBox("Plot variables")
+
+        plotvariables_layout = QGridLayout()
+
+        self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("filled"))
+        plotvariables_layout.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
+
+        self.plotProfile_height_checkbox = QCheckBox(self.tr("Height"))
+        self.plotProfile_height_checkbox.setChecked(True)
+        plotvariables_layout.addWidget(self.plotProfile_height_checkbox, 0, 1, 1, 1)
+
+        self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("filled"))
+        plotvariables_layout.addWidget(self.plotProfile_slope_filled_checkbox, 1, 0, 1, 1)
+
+        self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope"))
+        plotvariables_layout.addWidget(self.plotProfile_slope_checkbox, 1, 1, 1, 1)
+
+        self.plotProfile_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
+        self.plotProfile_slope_absolute_qradiobutton.setChecked(True);
+        plotvariables_layout.addWidget(self.plotProfile_slope_absolute_qradiobutton, 1, 2, 1, 1)
+
+        self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
+        plotvariables_layout.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 3, 1, 1)
+
+        self.plotProfile_slopeunits_combobox = QComboBox()
+        self.plotProfile_slopeunits_combobox.addItems(["degrees", "percent"])
+        plotvariables_layout.addWidget(self.plotProfile_slopeunits_combobox, 1, 4, 1, 1)
+
+        plotVariables_groupbox.setLayout(plotvariables_layout)
+
+        plotProfile_Layout.addWidget(plotVariables_groupbox)
+
+        advanced_parameters_groupbox = QGroupBox("Advanced parameters")
+
+        advparams_layout = QHBoxLayout()
+
+        self.plotProfile_swap_horiz_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
+        advparams_layout.addWidget(self.plotProfile_swap_horiz_checkbox)
+
+        self.plotProfile_swap_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
+        advparams_layout.addWidget(self.plotProfile_swap_xaxis_checkbox)
+
+        advanced_parameters_groupbox.setLayout(advparams_layout)
+
+        plotProfile_Layout.addWidget(advanced_parameters_groupbox)
+
+        layout.addLayout(plotProfile_Layout)
+
+        # ok/cancel section
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        layout.addLayout(buttonLayout)
+
+        self.setLayout(layout)
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self, SLOT("accept()"))
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+
+        self.setWindowTitle("Topographic plot parameters")
 
 
 class FigureExportDialog(QDialog):

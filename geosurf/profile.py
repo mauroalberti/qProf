@@ -1,11 +1,16 @@
 from __future__ import division
 
+import numpy as np
+
 
 class Profile_Elements(object):
-    def __init__(self, sample_distance = None):
+    def __init__(self):
 
         self.profile_source_type = None
-        self.sample_distance = sample_distance  # max spacing along profile; float
+        self.sample_distance = None  # max spacing along profile; float
+        self.topoline_colors = None
+        self.plot_params = None
+        self.statistics_defined = False
 
         self.resamp_src_line = None
         self.topo_profiles = None
@@ -31,17 +36,14 @@ class Profile_Elements(object):
 
         return [topo_profile.dem_name for topo_profile in self.topo_profiles]
 
-    def get_max_s(self):
+    def max_s(self):
+        return self.topo_profiles.max_s()
 
-        return self.topo_profiles.get_max_x()
+    def min_z_topo(self):
+        return self.topo_profiles.min_z()
 
-    def min_z_topo_profiles(self):
-
-        return min([topo_profile.min_z() for topo_profile in self.topo_profiles])
-
-    def max_z_topo_profiles(self):
-
-        return max([topo_profile.max_z() for topo_profile in self.topo_profiles])
+    def max_z_topo(self):
+        return self.topo_profiles.max_z()
 
     def min_z_plane_attitudes(self):
 
@@ -65,9 +67,9 @@ class Profile_Elements(object):
         return max([pt_2d.p_y for multiline_2d_list in self.curves for multiline_2d in multiline_2d_list for line_2d in
                     multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.get_max_s()])
 
-    def get_min_z(self):
+    def min_z(self):
 
-        min_z = self.min_z_topo_profiles()
+        min_z = self.min_z_topo()
 
         if len(self.plane_attitudes) > 0:
             min_z = min([min_z, self.min_z_plane_attitudes()])
@@ -77,9 +79,9 @@ class Profile_Elements(object):
 
         return min_z
 
-    def get_max_z(self):
+    def max_z(self):
 
-        max_z = self.max_z_topo_profiles()
+        max_z = self.max_z_topo()
 
         if len(self.plane_attitudes) > 0:
             max_z = max([max_z, self.max_z_plane_attitudes()])
@@ -151,8 +153,6 @@ class TopoProfiles(object):
 
     def __init__(self):
 
-        self.statistics_defined = False
-        self.plot_params_defined = False
         self.xs = None
         self.ys = None
         self.lons = None
@@ -168,12 +168,18 @@ class TopoProfiles(object):
         self.gpx_params = None
         self.colors = []
 
-    def get_min_s(self):
-        return 0
+    def max_s(self):
+        return self.s[-1]
 
-    def get_max_s(self):
-        return max(s[-1] for s in self.s)
+    def min_z(self):
+        return min(map(np.nanmin, self.elevs))
 
+    def max_z(self):
+        return max(map(np.nanmax, self.elevs))
+
+    @property
+    def absolute_slopes(self):
+        return map(np.fabs, self.dir_slopes)
 
 class PlaneAttitude(object):
     def __init__(self, rec_id, source_point_3d, source_geol_plane, point_3d, slope_rad, dwnwrd_sense, sign_hor_dist):

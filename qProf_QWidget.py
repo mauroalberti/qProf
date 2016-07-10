@@ -183,15 +183,20 @@ class qprof_QWidget(QWidget):
         inputGPX_QGroupBox.setTitle('Input GPX file')
 
         inputGPX_Layout = QGridLayout()
-        inputGPX_Layout.addWidget(QLabel(self.tr("Input GPX file with track points:")), 0, 0, 1, 3)
+        inputGPX_Layout.addWidget(QLabel(self.tr("Input GPX file with track points:")), 0, 0, 1, 1)
 
         self.input_gpx_lineEdit = QLineEdit()
         self.input_gpx_lineEdit.setPlaceholderText("my_track.gpx")
-        inputGPX_Layout.addWidget(self.input_gpx_lineEdit, 1, 0, 1, 2)
+        inputGPX_Layout.addWidget(self.input_gpx_lineEdit, 0, 1, 1, 1)
 
         self.input_gpx_QPButt = QPushButton("...")
         self.input_gpx_QPButt.clicked.connect(self.select_input_gpxFile)
-        inputGPX_Layout.addWidget(self.input_gpx_QPButt, 1, 2, 1, 1)
+        inputGPX_Layout.addWidget(self.input_gpx_QPButt, 0, 2, 1, 1)
+
+        inputGPX_Layout.addWidget(QLabel(self.tr("Profile color")), 1, 0, 1, 1)
+        self.inputGPX_color_button = QgsColorButtonV2()
+        self.inputGPX_color_button.setColor(QColor('red'))
+        inputGPX_Layout.addWidget(self.inputGPX_color_button, 1, 1, 1, 1)
 
         inputGPX_QGroupBox.setLayout(inputGPX_Layout)
 
@@ -649,8 +654,10 @@ class qprof_QWidget(QWidget):
 
     def define_source_DEMs(self):
 
+        self.profile_parameters = {}
+
         self.selected_dems = []
-        self.selected_dem_colors = []
+        #self.selected_dem_colors = []
         self.selected_dem_parameters = []
 
         current_raster_layers = loaded_monoband_raster_layers()
@@ -667,7 +674,7 @@ class qprof_QWidget(QWidget):
             return
 
         self.profiles = Profile_Elements()
-        # self.profiles.topo_profiles.plot_params_defined = None
+        # self.profiles.topo_profiles.plot_params = None
         # self.profiles.topo_profiles.statistics_defined = False
 
         if len(selected_dems) == 0:
@@ -675,7 +682,7 @@ class qprof_QWidget(QWidget):
             return
         else:
             self.selected_dems = selected_dems
-            self.selected_dem_colors = selected_dem_colors
+            self.profiles.topoline_colors = selected_dem_colors
 
         # get geodata
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
@@ -940,8 +947,7 @@ class qprof_QWidget(QWidget):
         if not fileName:
             return
 
-        self.profiles.topo_profiles.statistics_defined = False
-        self.profiles.topo_profiles.plot_params_defined = None
+        self.profiles = Profile_Elements()
 
         setLastUsedDir(fileName)
         self.input_gpx_lineEdit.setText(fileName)
@@ -1502,6 +1508,8 @@ class qprof_QWidget(QWidget):
 
     def topoprofiles_calculate_from_gpxfile(self):
 
+        self.profiles.topoline_colors = self.inputGPX_color_button.color()
+
         source_gpx_path = unicode(self.input_gpx_lineEdit.text())
 
         doc = xml.dom.minidom.parse(source_gpx_path)
@@ -1701,7 +1709,7 @@ class qprof_QWidget(QWidget):
         dialog = PlotTopoProfileDialog()
 
         if dialog.exec_():
-            self.profiles.topo_profiles.plot_params_defined = get_profile_plot_params(dialog)
+            self.profiles.plot_params = get_profile_plot_params(dialog)
         else:
             self.warn("Plot profile aborted")
             return
@@ -2788,7 +2796,7 @@ class qprof_QWidget(QWidget):
 
         shp_datasource.Destroy()
 
-    def plot_profile_elements(self, aspect_ratio_numerator, elev_type="DEM", z_padding=0.2, slope_padding=0.2):
+    def plot_profile_elements(self, z_padding=0.2, slope_padding=0.2):
 
         def min_wo_nan(float_list):
 
@@ -2799,27 +2807,27 @@ class qprof_QWidget(QWidget):
             return max([f for f in float_list if not isnan(f)])
 
         # defines the extent for the plot window: s min and max     
-        plot_s_min, plot_s_max = 0, self.profiles.get_max_s()
+        plot_s_min, plot_s_max = 0, self.profiles.max_s()
 
         # defines z min and max values
-        if self.plot_min_value_user is None:
-            profile_z_min = self.profiles.get_min_z()
+        if self.profiles.plot_params['plot_min_value_user'] is None:
+            profile_z_min = self.profiles.min_z()
         else:
-            profile_z_min = float(self.plot_min_value_user)
+            profile_z_min = self.profiles.plot_params['plot_min_value_user']
 
-        if self.plot_max_value_user is None:
-            profile_z_max = self.profiles.get_max_z()
+        if self.profiles.plot_params['plot_max_value_user'] is None:
+            profile_z_max = self.profiles.max_z()
         else:
-            profile_z_max = float(self.plot_max_value_use)
+            profile_z_max = self.profiles.plot_params['plot_max_value_user']
 
         delta_z = profile_z_max - profile_z_min
 
-        if self.plot_min_value_user is None:
+        if self.profiles.plot_params['plot_min_value_user'] is None:
             plot_z_min = profile_z_min - delta_z * z_padding
         else:
             plot_z_min = profile_z_min
 
-        if self.plot_max_value_user is None:
+        if self.profiles.plot_params['plot_max_value_user'] is None:
             plot_z_max = profile_z_max + delta_z * z_padding
         else:
             plot_z_max = profile_z_max
@@ -2829,13 +2837,12 @@ class qprof_QWidget(QWidget):
             return
 
         # if slopes to be calculated and plotted
-        if self.plotProfile_slope_checkbox.isChecked():
+        if self.profiles.plot_params['plot_slope_choice']:
             # defines slope value lists and the min and max values
-            if self.plotProfile_slope_absolute_qradiobutton.isChecked():
-                slope_list = [topo_profile.profile_3d.slopes_absolute_list() for topo_profile in
-                              self.profiles.topo_profiles]
+            if self.profiles.plot_params['plot_slope_absolute']:
+                slope_list = self.profiles.topo_profiles.dir_slopes
             else:
-                slope_list = [topo_profile.profile_3d.slopes_list() for topo_profile in self.profiles.topo_profiles]
+                slope_list = self.profiles.topo_profiles.absolute_slopes
 
             profiles_slope_min, profiles_slope_max = min_wo_nan(
                 [min_wo_nan(slist) for slist in slope_list]), max_wo_nan([max_wo_nan(slist) for slist in slope_list])
@@ -2845,12 +2852,8 @@ class qprof_QWidget(QWidget):
         # map
         profile_window = MplWidget()
 
-        if elev_type == 'DEM':
-            plot_height_choice = self.plotProfile_height_checkbox.isChecked()
-            plot_slope_choice = self.plotProfile_slope_checkbox.isChecked()
-        elif elev_type == 'GPX':
-            plot_height_choice = self.GPX_plot_height_checkbox.isChecked()
-            plot_slope_choice = self.GPX_plot_slope_checkbox.isChecked()
+        plot_height_choice = self.profiles.plot_params['plot_height_choice']
+        plot_slope_choice = self.profiles.plot_params['plot_slope_choice']
 
         if plot_height_choice and plot_slope_choice:
             mpl_code_list = [211, 212]
@@ -2866,9 +2869,9 @@ class qprof_QWidget(QWidget):
                                                                (plot_s_min, plot_s_max),
                                                                (plot_z_min, plot_z_max),
                                                                self.selected_dem_colors,
-                                                               self.plotProfile_height_filled_checkbox.isChecked())
+                                                               self.profiles.plot_params['filled_height'])
 
-            self.axes_elevation.set_aspect(aspect_ratio_numerator)
+            self.axes_elevation.set_aspect(self.profiles.plot_params['vertical_exaggeration'])
 
         if plot_slope_choice:
 
@@ -2882,7 +2885,7 @@ class qprof_QWidget(QWidget):
                                                             (plot_s_min, plot_s_max),
                                                             (plot_slope_min, plot_slope_max),
                                                             self.selected_dem_colors,
-                                                            self.plotProfile_slope_filled_checkbox.isChecked())
+                                                            self.profiles.plot_params['filled_slope'])
 
         if len(self.profiles.intersection_lines) > 0:
 
@@ -2914,7 +2917,7 @@ class qprof_QWidget(QWidget):
                                 plot_x_range,
                                 plot_y_range)
 
-        if self.plotProfile_swap_xaxis_checkbox.isChecked():
+        if self.profiles.plot_params['swap_xaxis']:
             axes.invert_xaxis()
 
         # label = unicode(name)
@@ -2924,7 +2927,7 @@ class qprof_QWidget(QWidget):
                 y_list = topo_profile.z_list()
                 plot_y_min = plot_y_range[0]
             elif topo_type == 'slope':
-                if self.plotProfile_slope_absolute_qradiobutton.isChecked():
+                if self.profiles.plot_params['plot_slope_absolute']:
                     y_list = topo_profile.slope_absolute_list()
                 else:
                     y_list = topo_profile.directional_slopes()
@@ -3710,7 +3713,6 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
 def get_profile_plot_params(dialog):
 
-    profile_params = {}
     # get profile plot parameters
 
     try:

@@ -2,21 +2,22 @@ from __future__ import division
 
 
 class Profile_Elements(object):
-    def __init__(self, max_spacing=None):
+    def __init__(self, sample_distance = None):
 
-        self.max_spacing = max_spacing  # max spacing along profile; float
+        self.profile_source_type = None
+        self.sample_distance = sample_distance  # max spacing along profile; float
 
         self.resamp_src_line = None
-        self.topo_profiles = []
+        self.topo_profiles = None
         self.plane_attitudes = []
         self.curves = []
         self.curves_ids = []
         self.intersection_pts = []
         self.intersection_lines = []
 
-    def add_topo_profile(self, topo_profile):
+    def set_topo_profiles(self, topo_profiles):
 
-        self.topo_profiles.append(topo_profile)
+        self.topo_profiles = topo_profiles
 
     def add_intersections_pts(self, intersection_list):
 
@@ -30,13 +31,9 @@ class Profile_Elements(object):
 
         return [topo_profile.dem_name for topo_profile in self.topo_profiles]
 
-    def get_min_s(self):
-
-        return min([topo_profile.length_2d() for topo_profile in self.topo_profiles])
-
     def get_max_s(self):
 
-        return max([topo_profile.length_2d() for topo_profile in self.topo_profiles])
+        return self.topo_profiles.get_max_x()
 
     def min_z_topo_profiles(self):
 
@@ -154,6 +151,8 @@ class TopoProfiles(object):
 
     def __init__(self):
 
+        self.statistics_defined = False
+        self.plot_params_defined = False
         self.xs = None
         self.ys = None
         self.lons = None
@@ -162,10 +161,18 @@ class TopoProfiles(object):
         self.names = []
         self.s = None
         self.s3d = []
-        self.elev = []
+        self.elevs = []
         self.dir_slopes = []
+        #self.sample_distance = None
         self.dem_params = []
-        self.sample_distance = None
+        self.gpx_params = None
+        self.colors = []
+
+    def get_min_s(self):
+        return 0
+
+    def get_max_s(self):
+        return max(s[-1] for s in self.s)
 
 
 class PlaneAttitude(object):

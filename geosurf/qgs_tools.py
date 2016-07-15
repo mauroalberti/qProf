@@ -236,6 +236,13 @@ def project_xy_list(src_crs_xy_list, srcCrs, destCrs):
     return pt_list_dest_crs
 
 
+def qcolor2rgbmpl(qcolor):
+    red = qcolor.red() / 255.0
+    green = qcolor.green() / 255.0
+    blue = qcolor.blue() / 255.0
+    return (red, green, blue)
+
+
 """
 Modified from: profiletool, script: tools/ptmaptool.py
 

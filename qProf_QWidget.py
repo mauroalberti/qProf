@@ -23,7 +23,7 @@ from geosurf.profile import Profile_Elements, TopoLine3D, TopoProfiles, DEMParam
 from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
     raster_qgis_params, loaded_monoband_raster_layers, \
     line_geoms_with_id, qgs_point_2d, project_qgs_point, vect_attrs, \
-    line_geoms_attrs, field_values, MapDigitizeTool
+    line_geoms_attrs, field_values, MapDigitizeTool, qcolor2rgbmpl
 from geosurf.qt_utils import lastUsedDir, setLastUsedDir
 from geosurf.qt_utils import new_file_path, old_file_path
 from geosurf.spatial import CartesianPoint2DT, CartesianMultiLine2DT, CartesianLine2DT
@@ -816,6 +816,7 @@ class qprof_QWidget(QWidget):
         else:
             return line2d_change_crs(profile_processed_line, line_layer_crs, project_crs)
 
+
     def get_selected_dems_params(self, dialog):
 
         selected_dems = []
@@ -825,10 +826,7 @@ class qprof_QWidget(QWidget):
             if curr_DEM_item.checkState(0) == 2:
                 selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
                 qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
-                red = qcolor.red() / 255.0
-                green = qcolor.green() / 255.0
-                blue = qcolor.blue() / 255.0
-                mpl_color = (red, green, blue)
+                mpl_color = qcolor2rgbmpl(qcolor)
                 selected_dem_colors.append(mpl_color)
 
         return selected_dems, selected_dem_colors
@@ -1713,6 +1711,9 @@ class qprof_QWidget(QWidget):
         else:
             self.warn("Plot profile aborted")
             return
+
+        if self.profiles.profile_source_type == self.gpxfile_source:
+            self.profiles.topoline_colors = [qcolor2rgbmpl(self.inputGPX_color_button.color())]
 
         # plot profiles
         self.plot_profile_elements()
@@ -2868,7 +2869,7 @@ class qprof_QWidget(QWidget):
                                                                'elevation',
                                                                (plot_s_min, plot_s_max),
                                                                (plot_z_min, plot_z_max),
-                                                               self.selected_dem_colors,
+                                                               self.profiles.topoline_colors,
                                                                self.profiles.plot_params['filled_height'])
 
             self.axes_elevation.set_aspect(self.profiles.plot_params['vertical_exaggeration'])
@@ -2884,7 +2885,7 @@ class qprof_QWidget(QWidget):
                                                             'slope',
                                                             (plot_s_min, plot_s_max),
                                                             (plot_slope_min, plot_slope_max),
-                                                            self.selected_dem_colors,
+                                                            self.profiles.topoline_colors,
                                                             self.profiles.plot_params['filled_slope'])
 
         if len(self.profiles.intersection_lines) > 0:
@@ -2910,7 +2911,7 @@ class qprof_QWidget(QWidget):
         self.profile_windows.append(profile_window)
 
     def plot_topo_profile_lines(self, subplot_code, profile_window, topo_profiles, topo_type, plot_x_range,
-                                plot_y_range, dem_colors, filled_choice):
+                                plot_y_range, topoline_colors, filled_choice):
 
         axes = self.create_axes(subplot_code,
                                 profile_window,
@@ -2921,30 +2922,34 @@ class qprof_QWidget(QWidget):
             axes.invert_xaxis()
 
         # label = unicode(name)
-        for topo_profile, dem_color in zip(topo_profiles, dem_colors):
 
-            if topo_type == 'elevation':
-                y_list = topo_profile.z_list()
-                plot_y_min = plot_y_range[0]
-            elif topo_type == 'slope':
-                if self.profiles.plot_params['plot_slope_absolute']:
-                    y_list = topo_profile.slope_absolute_list()
-                else:
-                    y_list = topo_profile.directional_slopes()
+        if topo_type == 'elevation':
+            ys = topo_profiles.elevs
+            plot_y_min = plot_y_range[0]
+        else:
+            if self.profiles.plot_params['plot_slope_absolute']:
+                ys = topo_profiles.absolute_slopes
+            else:
+                ys = topo_profiles.dir_slopes
+            plot_y_min = 0.0
 
-                plot_y_min = 0.0
+        s = topo_profiles.s
+
+        for y, topoline_color in zip(ys, topoline_colors):
+
+            print type(topoline_color)
 
             if filled_choice:
                 plot_filled_line(axes,
-                                 topo_profile.get_increm_dist_2d(),
-                                 y_list,
+                                 s,
+                                 y,
                                  plot_y_min,
-                                 dem_color)
+                                 topoline_color)
 
             plot_line(axes,
-                      topo_profile.get_increm_dist_2d(),
-                      y_list,
-                      dem_color)
+                      s,
+                      y,
+                      topoline_color)
 
         return axes
 
@@ -3712,6 +3717,8 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
 
 def get_profile_plot_params(dialog):
+
+    profile_params = {}
 
     # get profile plot parameters
 

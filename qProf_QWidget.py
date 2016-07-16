@@ -976,8 +976,10 @@ class qprof_QWidget(QWidget):
             else:
                 return ""
 
-        if not (self.profile_GPX or self.profiles):
-            self.warn("No profile defined")
+        try:
+            self.profiles.topo_profiles.s
+        except:
+            self.warn("Profile not yet calculated")
             return
 
         dialog = TopographicProfileExportDialog(self.selected_dems)
@@ -1479,7 +1481,7 @@ class qprof_QWidget(QWidget):
         # get project CRS information
         on_the_fly_projection, project_crs = self.get_on_the_fly_projection()
 
-        resampled_line_2d = self.current_profile_line2dt.densify(
+        resampled_line_2d = self.profiles.source_profile_line2dt.densify(
             self.profiles.sample_distance)  # line resampled by sample distance
 
         # calculate 3D profiles from DEMs
@@ -1649,7 +1651,7 @@ class qprof_QWidget(QWidget):
 
         # preliminar verification of source parameters
 
-        if self.profiles.profile_source_type is None:
+        if self.profiles is None or self.profiles.profile_source_type is None:
             self.warn("Source profile not yet defined")
             return
         elif self.profiles.profile_source_type == self.demline_source:  # sources are DEM(s) and line
@@ -1664,7 +1666,7 @@ class qprof_QWidget(QWidget):
 
         # calculates profiles
         if self.profiles.profile_source_type == self.demline_source:  # sources are DEM(s) and line
-            self.current_profile_line2dt = self.dem_source_profile_line2dt
+            self.profiles.source_profile_line2dt = self.dem_source_profile_line2dt
             try:
                 topo_profiles = self.topoprofiles_calculate_from_dems()
             except VectorIOException, msg:
@@ -1700,6 +1702,10 @@ class qprof_QWidget(QWidget):
         self.stop_profile_digitize_tool()
 
         # verify profile creation parameters
+        if self.profiles is None or self.profiles.topo_profiles is None:
+            self.warn("Profile not yet defined")
+            return
+
         if self.profiles.topo_profiles.statistics_defined == False:
             self.warn("Profile statistics not yet calculated")
             return
@@ -2433,7 +2439,7 @@ class qprof_QWidget(QWidget):
 
     def calculate_section_data(self):
 
-        sect_pt_1, sect_pt_2 = self.current_profile_line2dt.pts
+        sect_pt_1, sect_pt_2 = self.profiles.source_profile_line2dt.pts
 
         section_init_pt = CartesianPoint3DT(sect_pt_1.p_x, sect_pt_1.p_y, 0.0)
         section_final_pt = CartesianPoint3DT(sect_pt_2.p_x, sect_pt_2.p_y, 0.0)
@@ -2463,16 +2469,18 @@ class qprof_QWidget(QWidget):
     def check_struct_point_proj_parameters(self):
 
         # check if profile exists
-        if self.current_profile_line2dt is None:
-            return False, "Profile not calculated"
+        try:
+            self.profiles.topo_profiles.s
+        except:
+            return False, "Profile not yet calculated"
 
         # check that section is made up of only two points
-        if self.current_profile_line2dt.num_pts != 2:
+        if self.profiles.source_profile_line2dt.num_pts != 2:
             return False, "Profile not made up by only two points"
 
         # dem number
-        if len(self.profiles.topo_profiles) > 1:
-            return False, "One DEM (and only one DEM) has to be in the profile section"
+        if len(self.profiles.topo_profiles.s3d) > 1:
+            return False, "One (and only) topogaphic surface has to be used in the profile section"
 
             # get point structural layer with parameter fields
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2974,11 +2982,13 @@ class qprof_QWidget(QWidget):
 
     def line_intersection_reset(self):
 
-        self.profiles.intersection_pts = []
+        if self.profiles is not None:
+            self.profiles.intersection_pts = []
 
     def polygon_intersection_reset(self):
 
-        self.profiles.intersection_lines = []
+        if self.profiles is not None:
+            self.profiles.intersection_lines = []
 
     def plot_structural_attitude(self, axes, section_length, structural_attitude_list, color):
 
@@ -3047,10 +3057,10 @@ class qprof_QWidget(QWidget):
         try:
             num_dems_in_profile = len(self.profiles.topo_profiles)
         except:
-            return False, "Profile has not been calculated"
+            return False, "Profile not yet calculated"
         else:
             if num_dems_in_profile == 0:
-                return False, "Profile has not been calculated"
+                return False, "Profile not yet calculated"
             elif num_dems_in_profile > 1:
                 return False, "One DEM (and only one DEM) has to be used in the profile section"
 
@@ -3059,11 +3069,11 @@ class qprof_QWidget(QWidget):
     def check_src_profile_for_geological_profile(self):
 
         # check if profile exists
-        if self.current_profile_line2dt is None:
-            return False, "Profile has not been calculated"
+        if self.profiles.source_profile_line2dt is None:
+            return False, "Profile not yet calculated"
 
         # check that section is made up of only two points
-        if self.current_profile_line2dt.num_pts != 2:
+        if self.profiles.source_profile_line2dt.num_pts != 2:
             return False, "Current profile is not made up by only two points"
 
         return True, "ok"
@@ -3136,7 +3146,7 @@ class qprof_QWidget(QWidget):
         demParams = self.profiles.dems_params[0].params
 
         # profile line2d, in project CRS and densified 
-        profile_line2d_prjcrs_densif = self.current_profile_line2dt.densify(self.profiles.sample_distance)
+        profile_line2d_prjcrs_densif = self.profiles.source_profile_line2dt.densify(self.profiles.sample_distance)
 
         # polygon layer
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -3176,7 +3186,7 @@ class qprof_QWidget(QWidget):
         # create CartesianPoint3DT lists from intersection with source DEM
 
         polygon_classification_set = set()
-        sect_pt_1, sect_pt_2 = self.current_profile_line2dt.pts
+        sect_pt_1, sect_pt_2 = self.profiles.source_profile_line2dt.pts
         formation_list = []
         intersection_line3d_list = []
         intersection_polygon_s_list2 = []
@@ -3292,10 +3302,10 @@ class qprof_QWidget(QWidget):
 
         # calculated CartesianPoint2DT intersection list
         intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list, id_list,
-                                                                               self.current_profile_line2dt)
+                                                                               self.profiles.source_profile_line2dt)
 
         # sort intersection points by spat_distance from profile start point
-        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.current_profile_line2dt,
+        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.profiles.source_profile_line2dt,
                                                                                               intersection_point_id_list)
 
         # create CartesianPoint3DT from intersection with source DEM
@@ -3374,7 +3384,7 @@ class qprof_QWidget(QWidget):
         try:
             profile_window = self.profile_windows[-1]
         except:
-            self.warn("No profile available")
+            self.warn("Profile not yet calculated")
             return
 
         dialog = FigureExportDialog()

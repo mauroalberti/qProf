@@ -7,6 +7,7 @@ class Profile_Elements(object):
     def __init__(self):
 
         self.profile_source_type = None
+        self.source_profile_line2dt = None
         self.sample_distance = None  # max spacing along profile; float
         self.topoline_colors = None
         self.plot_params = None
@@ -163,7 +164,6 @@ class TopoProfiles(object):
         self.s3d = []
         self.elevs = []
         self.dir_slopes = []
-        #self.sample_distance = None
         self.dem_params = []
         self.gpx_params = None
         self.colors = []

@@ -282,7 +282,7 @@ class CartesianLine2DT(object):
 
         return CartesianLine2DT(self.pts)
 
-    def swap_horiz(self):
+    def reverse_direction(self):
 
         return CartesianLine2DT(self.pts[::-1])
 

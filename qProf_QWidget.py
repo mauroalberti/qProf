@@ -163,11 +163,6 @@ class qprof_QWidget(QWidget):
         inputLine_Layout.addWidget(QLabel(self.tr("Line densify distance")), 2, 0, 1, 1)
         self.profile_densify_distance_lineedit = QLineEdit()
         inputLine_Layout.addWidget(self.profile_densify_distance_lineedit, 2, 1, 1, 1)
-        # geodesic length
-        inputLine_Layout.addWidget(QLabel(self.tr("Use geodesic length")), 2, 2, 1, 1)
-        self.use_geodesic_combobox = QComboBox()
-        self.use_geodesic_combobox.addItems(["none", "WGS84"])
-        inputLine_Layout.addWidget(self.use_geodesic_combobox, 2, 3, 1, 1)
 
         inputLine_QGroupBox.setLayout(inputLine_Layout)
 
@@ -2480,7 +2475,7 @@ class qprof_QWidget(QWidget):
 
         # dem number
         if len(self.profiles.topo_profiles.s3d) > 1:
-            return False, "One (and only) topogaphic surface has to be used in the profile section"
+            return False, "One (and only) topographic surface has to be used in the profile section"
 
             # get point structural layer with parameter fields
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2807,36 +2802,28 @@ class qprof_QWidget(QWidget):
 
     def plot_profile_elements(self, z_padding=0.2, slope_padding=0.2):
 
-        def min_wo_nan(float_list):
-
-            return min([f for f in float_list if not isnan(f)])
-
-        def max_wo_nan(float_list):
-
-            return max([f for f in float_list if not isnan(f)])
-
         # defines the extent for the plot window: s min and max     
         plot_s_min, plot_s_max = 0, self.profiles.max_s()
 
-        # defines z min and max values
-        if self.profiles.plot_params['plot_min_value_user'] is None:
+        # defines elevation min and max values
+        if self.profiles.plot_params['plot_min_elevation_user'] is None:
             profile_z_min = self.profiles.min_z()
         else:
-            profile_z_min = self.profiles.plot_params['plot_min_value_user']
+            profile_z_min = self.profiles.plot_params['plot_min_elevation_user']
 
-        if self.profiles.plot_params['plot_max_value_user'] is None:
+        if self.profiles.plot_params['plot_max_elevation_user'] is None:
             profile_z_max = self.profiles.max_z()
         else:
-            profile_z_max = self.profiles.plot_params['plot_max_value_user']
+            profile_z_max = self.profiles.plot_params['plot_max_elevation_user']
 
         delta_z = profile_z_max - profile_z_min
 
-        if self.profiles.plot_params['plot_min_value_user'] is None:
+        if self.profiles.plot_params['plot_min_elevation_user'] is None:
             plot_z_min = profile_z_min - delta_z * z_padding
         else:
             plot_z_min = profile_z_min
 
-        if self.profiles.plot_params['plot_max_value_user'] is None:
+        if self.profiles.plot_params['plot_max_elevation_user'] is None:
             plot_z_max = profile_z_max + delta_z * z_padding
         else:
             plot_z_max = profile_z_max
@@ -2849,12 +2836,13 @@ class qprof_QWidget(QWidget):
         if self.profiles.plot_params['plot_slope_choice']:
             # defines slope value lists and the min and max values
             if self.profiles.plot_params['plot_slope_absolute']:
-                slope_list = self.profiles.topo_profiles.dir_slopes
+                slopes = self.profiles.topo_profiles.absolute_slopes
             else:
-                slope_list = self.profiles.topo_profiles.absolute_slopes
+                slopes = self.profiles.topo_profiles.dir_slopes
 
-            profiles_slope_min, profiles_slope_max = min_wo_nan(
-                [min_wo_nan(slist) for slist in slope_list]), max_wo_nan([max_wo_nan(slist) for slist in slope_list])
+            profiles_slope_min = min(map(np.nanmin, slopes))
+            profiles_slope_max = max(map(np.nanmax, slopes))
+
             delta_slope = profiles_slope_max - profiles_slope_min
             plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope * slope_padding, profiles_slope_max + delta_slope * slope_padding
 
@@ -2926,7 +2914,7 @@ class qprof_QWidget(QWidget):
                                 plot_x_range,
                                 plot_y_range)
 
-        if self.profiles.plot_params['swap_xaxis']:
+        if self.profiles.plot_params['invert_xaxis']:
             axes.invert_xaxis()
 
         # label = unicode(name)
@@ -3733,14 +3721,14 @@ def get_profile_plot_params(dialog):
     # get profile plot parameters
 
     try:
-        profile_params['plot_min_value_user'] = float(dialog.plot_min_value_QLineedit.text())
+        profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
     except:
-        profile_params['plot_min_value_user'] = None
+        profile_params['plot_min_elevation_user'] = None
 
     try:
-        profile_params['plot_max_value_user'] = float(dialog.plot_max_value_QLineedit.text())
+        profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
     except:
-        profile_params['plot_max_value_user'] = None
+        profile_params['plot_max_elevation_user'] = None
 
     try:
         profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
@@ -3754,9 +3742,8 @@ def get_profile_plot_params(dialog):
     profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
     profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
     profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
-    profile_params['slope_plot_unit'] = dialog.plotProfile_slopeunits_combobox.currentText()
-    profile_params['swap_horizontal'] = dialog.plotProfile_swap_horiz_checkbox.isChecked()
-    profile_params['swap_xaxis'] = dialog.plotProfile_swap_xaxis_checkbox.isChecked()
+    profile_params['reverse_direction'] = dialog.plotProfile_reverse_direction_checkbox.isChecked()
+    profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
 
     return profile_params
 
@@ -3808,7 +3795,7 @@ class PlotTopoProfileDialog(QDialog):
         self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("filled"))
         plotvariables_layout.addWidget(self.plotProfile_slope_filled_checkbox, 1, 0, 1, 1)
 
-        self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope"))
+        self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
         plotvariables_layout.addWidget(self.plotProfile_slope_checkbox, 1, 1, 1, 1)
 
         self.plotProfile_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
@@ -3818,10 +3805,6 @@ class PlotTopoProfileDialog(QDialog):
         self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
         plotvariables_layout.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 3, 1, 1)
 
-        self.plotProfile_slopeunits_combobox = QComboBox()
-        self.plotProfile_slopeunits_combobox.addItems(["degrees", "percent"])
-        plotvariables_layout.addWidget(self.plotProfile_slopeunits_combobox, 1, 4, 1, 1)
-
         plotVariables_groupbox.setLayout(plotvariables_layout)
 
         plotProfile_Layout.addWidget(plotVariables_groupbox)
@@ -3830,11 +3813,11 @@ class PlotTopoProfileDialog(QDialog):
 
         advparams_layout = QHBoxLayout()
 
-        self.plotProfile_swap_horiz_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
-        advparams_layout.addWidget(self.plotProfile_swap_horiz_checkbox)
+        self.plotProfile_reverse_direction_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
+        advparams_layout.addWidget(self.plotProfile_reverse_direction_checkbox)
 
-        self.plotProfile_swap_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
-        advparams_layout.addWidget(self.plotProfile_swap_xaxis_checkbox)
+        self.plotProfile_invert_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
+        advparams_layout.addWidget(self.plotProfile_invert_xaxis_checkbox)
 
         advanced_parameters_groupbox.setLayout(advparams_layout)
 
@@ -4394,16 +4377,16 @@ class StatisticsDialog(QDialog):
             type_report += 'max: %s\n' % (values['max'])
             type_report += 'mean: %s\n' % (values['mean'])
             type_report += 'variance: %s\n' % (values['var'])
-            type_report += 'standard deviation: %s\n\n\n' % (values['std'])
+            type_report += 'standard deviation: %s\n\n' % (values['std'])
 
             return type_report
 
         report = 'Statistics\n'
         types = ['elevations', 'directional slopes', 'absolute slopes']
         for name, stats in profiles_stats:
-            report += '\ndataset name: %s\n\n' % name
+            report += '\ndataset name\n%s\n\n' % name
             for type, stat_val in zip(types, stats):
-                report += '%s\n' % type
+                report += '%s\n\n' % type
                 report += type_report(stat_val)
 
         return report

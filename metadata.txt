@@ -3,7 +3,7 @@ name=qProf
 about=Generation of topographic and geological profiles
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological attitudes and traces on profiles
 category=Raster 
-version=0.3.2
+version=0.3.3
 experimental=False
 qgisMinimumVersion=2.0
 author=Mauro Alberti, Marco Zanieri
@@ -42,7 +42,8 @@ changelog=
           - removed two bugs related to GPX file plot
           - removed bug related to multiple-intersecting polygons
           - minor GUI changes
-  0.3.2 : - removed minor bug related to profile line definition
+  0.3.2 : - management of Matplotlib 1.5.0 API break
+  0.3.3 : - removed minor bug related to profile line definition
 
 
 ; tags are in comma separated value format, spaces are allowed

@@ -11,7 +11,9 @@ import numpy as np
 from PyQt4.QtGui import *
 from matplotlib import rcParams
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
+
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar  # changed for Matplotlib 1.5.0 API break
+
 from matplotlib.figure import Figure
 
 from .utils import valid_intervals

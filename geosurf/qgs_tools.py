@@ -10,6 +10,18 @@ from PyQt4.QtGui import *
 from .errors import VectorIOException
 
 
+
+def get_on_the_fly_projection(canvas):
+
+    on_the_fly_projection = True if canvas.hasCrsTransformEnabled() else False
+    if on_the_fly_projection:
+        project_crs = canvas.mapRenderer().destinationCrs()
+    else:
+        project_crs = None
+
+    return on_the_fly_projection, project_crs
+
+
 def vector_type(layer):
     if not layer.type() == QgsMapLayer.VectorLayer:
         raise VectorIOException, "Layer is not vector"

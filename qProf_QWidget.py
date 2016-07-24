@@ -57,7 +57,7 @@ class qprof_QWidget(QWidget):
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
 
-        self.profiles = None
+        self.profile_elements = None
 
         self.selected_dems = []
         self.selected_dem_colors = []
@@ -598,15 +598,13 @@ class qprof_QWidget(QWidget):
 
     def define_topographic_sources(self):
 
-        def get_topo_source_type():
-
-            # self.profiles.topo_profiles.plot_params = None
-            # self.profiles.topo_profiles.statistics_defined = False
+        def create_topo_profiles():
 
             selected_dems = None
             selected_dem_parameters = None
             topoline_colors = None
             sample_distance = None
+            source_profile_line2dt = None
 
             if topo_source_type == self.demline_source:
                 selected_dems = dialog.selected_dems
@@ -622,19 +620,57 @@ class qprof_QWidget(QWidget):
                 source_profile_line2dt = dialog.dem_source_profile_line2dt
 
             elif topo_source_type == self.gpxfile_source:
-                pass
+                try:
+                    source_gpx_path = unicode(dialog.input_gpx_lineEdit.text())
+                    if source_gpx_path == '':
+                        self.warn("Source GPX file is not set")
+                        return
+                except:
+                    self.warn("Source GPX file not correctly set")
+                    return
+                topoline_colors = [qcolor2rgbmpl(dialog.inputGPX_color_button.color())]
             else:
                 self.warn("Debug: uncorrect type source for topo sources def")
 
-            profiles = Profile_Elements()
-            profiles.profile_source_type = topo_source_type
-            profiles.topoline_colors = topoline_colors
-            profiles.source_profile_line2dt = source_profile_line2dt
-            profiles.sample_distance = sample_distance
-            self.selected_dems = selected_dems
-            self.selected_dem_parameters = selected_dem_parameters
 
-            return profiles
+
+            # self.stop_profile_digitize_tool() DISATTIVAIONE TEMPORANEA
+
+            # preliminar verification of source parameters
+
+            # calculates profiles
+
+            if topo_source_type == self.demline_source:  # sources are DEM(s) and line
+                # self.profiles.source_profile_line2dt = self.dem_source_profile_line2dt
+                try:
+                    topo_profiles = self.topoprofiles_calculate_from_dems(source_profile_line2dt,
+                                                                          sample_distance,
+                                                                          selected_dems,
+                                                                          selected_dem_parameters)
+                except VectorIOException, msg:
+                    self.warn(msg)
+                    return
+            elif topo_source_type == self.gpxfile_source:  # source is GPX file
+                try:
+                    topo_profiles = self.topoprofiles_calculate_from_gpxfile(source_gpx_path,
+                                                                             topoline_colors)
+                except:
+                    self.warn("Error with profile calculation from GPX file")
+                    return
+            else:  # source error
+                self.warn("Algorithm error: profile calculation not defined")
+                return
+
+            profile_elements = Profile_Elements()
+            profile_elements.profile_source_type = topo_source_type
+            profile_elements.topoline_colors = topoline_colors
+            profile_elements.source_profile_line2dt = source_profile_line2dt
+            profile_elements.sample_distance = sample_distance
+            #self.selected_dems = selected_dems
+            #self.selected_dem_parameters = selected_dem_parameters
+            profile_elements.set_topo_profiles(topo_profiles)
+
+            return profile_elements
 
 
         if self.prof_toposources_fromdems_checkbox.isChecked():
@@ -649,8 +685,8 @@ class qprof_QWidget(QWidget):
             return
 
         if dialog.exec_():
-            self.profiles = get_topo_source_type()
-            if self.profiles is None:
+            self.profile_elements = create_topo_profiles()
+            if self.profile_elements is None:
                 self.warn("Error in topographic source")
                 return
             else:
@@ -684,7 +720,7 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            self.profiles.topo_profiles.s
+            self.profile_elements.topo_profiles.s
         except:
             self.warn("Profile not yet calculated")
             return
@@ -739,7 +775,7 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_plane_attitudes_sets = len(self.profiles.plane_attitudes)
+            num_plane_attitudes_sets = len(self.profile_elements.plane_attitudes)
         except:
             self.warn("No available geological attitudes")
             return
@@ -786,7 +822,7 @@ class qprof_QWidget(QWidget):
                        'trc_dipdir']
 
         parsed_geologicalattitudes_results = self.export_parse_geologicalattitudes_results(
-            self.profiles.plane_attitudes)
+            self.profile_elements.plane_attitudes)
 
         # output for csv file
         if output_format == "csv":
@@ -802,7 +838,7 @@ class qprof_QWidget(QWidget):
     def do_export_project_geol_lines(self):
 
         try:
-            num_proj_lines_sets = len(self.profiles.curves)
+            num_proj_lines_sets = len(self.profile_elements.curves)
         except:
             self.warn("No available geological traces")
             return
@@ -839,7 +875,7 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_intersection_pts = len(self.profiles.intersection_pts)
+            num_intersection_pts = len(self.profile_elements.intersection_pts)
         except:
             self.warn("No available profile-line intersections")
             return
@@ -878,7 +914,7 @@ class qprof_QWidget(QWidget):
                        'y',
                        'z']
 
-        parsed_profilelineintersections = self.parse_profilelineintersections_for_export(self.profiles.intersection_pts)
+        parsed_profilelineintersections = self.parse_profilelineintersections_for_export(self.profile_elements.intersection_pts)
 
         # output for csv file
         if output_format == "csv":
@@ -965,7 +1001,7 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_intersection_lines = len(self.profiles.intersection_lines)
+            num_intersection_lines = len(self.profile_elements.intersection_lines)
         except:
             self.warn("No available profile-polygon intersections")
             return
@@ -1006,9 +1042,9 @@ class qprof_QWidget(QWidget):
 
         # output for csv file
         if output_format == "csv":
-            self.write_line_csv(output_filepath, header_list, self.profiles.intersection_lines)
+            self.write_line_csv(output_filepath, header_list, self.profile_elements.intersection_lines)
         elif output_format == "shapefile - line":
-            self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profiles.intersection_lines)
+            self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines)
         else:
             self.warn("Internal error in export format")
             return
@@ -1173,17 +1209,16 @@ class qprof_QWidget(QWidget):
 
         return profile_line3d
 
-    def topoprofiles_calculate_from_dems(self):
+    def topoprofiles_calculate_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters ):
 
         # get project CRS information
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
 
-        resampled_line_2d = self.profiles.source_profile_line2dt.densify(
-            self.profiles.sample_distance)  # line resampled by sample distance
+        resampled_line_2d = source_profile_line2dt.densify(sample_distance)  # line resampled by sample distance
 
         # calculate 3D profiles from DEMs
         dem_topolines3d = []
-        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+        for dem, dem_params in zip(selected_dems, selected_dem_parameters):
             dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
             dem_topolines3d.append(dem_topoline3d)
 
@@ -1192,22 +1227,17 @@ class qprof_QWidget(QWidget):
 
         topo_profiles.xs = np.asarray(resampled_line_2d.x_list)
         topo_profiles.ys = np.asarray(resampled_line_2d.y_list)
-        topo_profiles.names = map(lambda dem: dem.name(), self.selected_dems)
+        topo_profiles.names = map(lambda dem: dem.name(), selected_dems)
         topo_profiles.s = np.asarray(resampled_line_2d.incremental_length)
         topo_profiles.s3d = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
         topo_profiles.elevs = map(lambda cl3dt: np.asarray(cl3dt.zs()), dem_topolines3d)
         topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes_list()), dem_topolines3d)
         topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
-                        zip(self.selected_dems, self.selected_dem_parameters)]
-        #topo_profiles.sample_distance = self.sample_distance
+                        zip(selected_dems, selected_dem_parameters)]
 
         return topo_profiles
 
-    def topoprofiles_calculate_from_gpxfile(self):
-
-        self.profiles.topoline_colors = self.inputGPX_color_button.color()
-
-        source_gpx_path = unicode(self.input_gpx_lineEdit.text())
+    def topoprofiles_calculate_from_gpxfile(self, source_gpx_path, gpx_colors):
 
         doc = xml.dom.minidom.parse(source_gpx_path)
 
@@ -1291,43 +1321,9 @@ class qprof_QWidget(QWidget):
         topo_profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
         topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
         topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
+        topo_profiles.colors = gpx_colors
 
         return topo_profiles
-
-    def verify_GPXprofile_src_params(self):
-
-        source_gpx_path = unicode(self.input_gpx_lineEdit.text())
-        if source_gpx_path == '':
-            self.warn("Source GPX file is not set")
-            return False
-        else:
-            return True
-
-    """
-    UNUSED
-    def verify_DEMprofile_src_params(self):
-
-        # get profile creation parameters
-        if not self.selected_dems:
-            self.warn("DEM(s) not yet defined")
-            return False
-
-        try:
-            assert self.profiles.source_profile_line2dt.num_points > 1
-        except:
-            self.warn("Profile line not yet defined")
-            return False
-
-        try:
-            self.profiles.sample_distance = float(self.profile_densify_distance_lineedit.text())
-            assert self.profiles.sample_distance > 0
-        except:
-            self.profiles.sample_distance = None
-            self.warn("Line densify distance not correctly defined")
-            return False
-
-        return True
-    """
 
     def get_statistics(self, topo_array):
 
@@ -1347,42 +1343,12 @@ class qprof_QWidget(QWidget):
 
     def calculate_profile_statistics(self):
 
-        #self.stop_profile_digitize_tool() DISATTIVAIONE TEMPORANEA
-
-        # preliminar verification of source parameters
-
-        if self.profiles is None or self.profiles.profile_source_type is None:
+        if self.profile_elements is None or self.profile_elements.profile_source_type is None:
             self.warn("Source profile not yet defined")
             return
-        """
-        elif self.profiles.profile_source_type == self.gpxfile_source:  # source is GPX file
-            if not self.verify_GPXprofile_src_params():
-                return
-        else:  # source error
-            self.warn("Algorithm error: source profile not defined")
-            return
-        """
 
-        # calculates profiles
-        if self.profiles.profile_source_type == self.demline_source:  # sources are DEM(s) and line
-            #self.profiles.source_profile_line2dt = self.dem_source_profile_line2dt
-            try:
-                topo_profiles = self.topoprofiles_calculate_from_dems()
-            except VectorIOException, msg:
-                self.warn(msg)
-                return
-        elif self.profiles.profile_source_type == self.gpxfile_source:  # source is GPX file
-            try:
-                topo_profiles = self.topoprofiles_calculate_from_gpxfile()
-            except:
-                self.warn("Error with profile calculation from GPX file")
-                return
-        else:  # source error
-            self.warn("Algorithm error: profile calculation not defined")
-            return
-
-        if topo_profiles is not None:
-            self.profiles.set_topo_profiles(topo_profiles)
+        if self.profile_elements.topo_profiles is not None:
+            topo_profiles = self.profile_elements.topo_profiles
             statistics_elev = map(lambda p: self.get_statistics(p), topo_profiles.elevs)
             statistics_dirslopes = map(lambda p: self.get_statistics(p), topo_profiles.dir_slopes)
             statistics_slopes = map(lambda p: self.get_statistics(p), np.absolute(topo_profiles.dir_slopes))
@@ -1394,31 +1360,28 @@ class qprof_QWidget(QWidget):
         else:
             self.warn('Unable to calculate statistics')
 
-        self.profiles.topo_profiles.statistics_defined = True
+        self.profile_elements.topo_profiles.statistics_defined = True
 
     def plot_topo_profiles(self):
 
-        #self.stop_profile_digitize_tool() DISATTTIVATO
+        #self.stop_profile_digitize_tool() DISATTIVATO
 
         # verify profile creation parameters
-        if self.profiles is None or self.profiles.topo_profiles is None:
+        if self.profile_elements is None or self.profile_elements.topo_profiles is None:
             self.warn("Profile not yet defined")
             return
 
-        if self.profiles.topo_profiles.statistics_defined == False:
+        if self.profile_elements.topo_profiles.statistics_defined == False:
             self.warn("Profile statistics not yet calculated")
             return
 
         dialog = PlotTopoProfileDialog()
 
         if dialog.exec_():
-            self.profiles.plot_params = get_profile_plot_params(dialog)
+            self.profile_elements.plot_params = get_profile_plot_params(dialog)
         else:
             self.warn("Plot profile aborted")
             return
-
-        if self.profiles.profile_source_type == self.gpxfile_source:
-            self.profiles.topoline_colors = [qcolor2rgbmpl(self.inputGPX_color_button.color())]
 
         # plot profiles
         self.plot_profile_elements()
@@ -1454,12 +1417,12 @@ class qprof_QWidget(QWidget):
 
     def export_topography_all_dems(self, out_format, outfile_path):
 
-        if not self.profiles:
+        if not self.profile_elements:
             self.warn("No DEM-derived profile defined")
             return
 
             # process results for data export
-        dem_names, export_data = self.export_parse_DEM_results(self.profiles)
+        dem_names, export_data = self.export_parse_DEM_results(self.profile_elements)
 
         # definition of field names
         dem_headers = []
@@ -1488,12 +1451,12 @@ class qprof_QWidget(QWidget):
 
     def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path):
 
-        if not self.profiles:
+        if not self.profile_elements:
             self.warn("No DEM-derived profile defined")
             return
 
             # process results for data export
-        _, export_data = self.export_parse_DEM_results(self.profiles)
+        _, export_data = self.export_parse_DEM_results(self.profile_elements)
 
         # definition of field names         
         header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "slopdeg"]
@@ -2138,7 +2101,7 @@ class qprof_QWidget(QWidget):
 
     def calculate_section_data(self):
 
-        sect_pt_1, sect_pt_2 = self.profiles.source_profile_line2dt.pts
+        sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
 
         section_init_pt = CartesianPoint3DT(sect_pt_1.p_x, sect_pt_1.p_y, 0.0)
         section_final_pt = CartesianPoint3DT(sect_pt_2.p_x, sect_pt_2.p_y, 0.0)
@@ -2169,16 +2132,16 @@ class qprof_QWidget(QWidget):
 
         # check if profile exists
         try:
-            self.profiles.topo_profiles.s
+            self.profile_elements.topo_profiles.s
         except:
             return False, "Profile not yet calculated"
 
         # check that section is made up of only two points
-        if self.profiles.source_profile_line2dt.num_pts != 2:
+        if self.profile_elements.source_profile_line2dt.num_pts != 2:
             return False, "Profile not made up by only two points"
 
         # dem number
-        if len(self.profiles.topo_profiles.s3d) > 1:
+        if len(self.profile_elements.topo_profiles.s3d) > 1:
             return False, "One (and only) topographic surface has to be used in the profile section"
 
             # get point structural layer with parameter fields
@@ -2222,7 +2185,7 @@ class qprof_QWidget(QWidget):
 
         struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
                                                         structural_layer_crs,
-                                                        self.profiles.dems_params[0])
+                                                        self.profile_elements.dems_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2243,7 +2206,7 @@ class qprof_QWidget(QWidget):
             mapping_method['individual_axes_values'] = vect_attrs(structural_layer,
                                                                   [trend_field_name, plunge_field_name])
 
-        self.profiles.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
+        self.profile_elements.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
         ### plot structural points in section ###
         self.plot_profile_elements(self.vertical_exaggeration)
@@ -2251,7 +2214,7 @@ class qprof_QWidget(QWidget):
     def reset_struct_point_projection(self):
 
         try:
-            self.profiles.plane_attitudes = []
+            self.profile_elements.plane_attitudes = []
             self.plane_attitudes_colors = []
         except:
             pass
@@ -2290,8 +2253,8 @@ class qprof_QWidget(QWidget):
             return
 
         # input dem parameters
-        demLayer = self.profiles.dems_params[0].layer
-        demParams = self.profiles.dems_params[0].params
+        demLayer = self.profile_elements.dems_params[0].layer
+        demParams = self.profile_elements.dems_params[0].params
 
         # get line structural layer
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2386,7 +2349,7 @@ class qprof_QWidget(QWidget):
                 multiline_2d_list.append(CartesianLine2DT(line_2d_pts_list))
             curves_2d_list.append(CartesianMultiLine2DT(multiline_2d_list))
 
-        self.profiles.add_curves(curves_2d_list, id_list)
+        self.profile_elements.add_curves(curves_2d_list, id_list)
 
         # plot new cross section
         self.plot_profile_elements(self.vertical_exaggeration)
@@ -2394,8 +2357,8 @@ class qprof_QWidget(QWidget):
     def reset_structural_lines_projection(self):
 
         try:
-            self.profiles.curves = []
-            self.profiles.curves_ids = []
+            self.profile_elements.curves = []
+            self.profile_elements.curves_ids = []
             self.curve_colors = []
         except:
             pass
@@ -2430,7 +2393,7 @@ class qprof_QWidget(QWidget):
     def export_parse_geologicalcurves(self):
 
         data_list = []
-        for curve_set, id_set in zip(self.profiles.curves, self.profiles.curves_ids):
+        for curve_set, id_set in zip(self.profile_elements.curves, self.profile_elements.curves_ids):
             for curve, rec_id in zip(curve_set, id_set):
                 for line in curve.lines:
                     for pt in line.pts:
@@ -2507,27 +2470,27 @@ class qprof_QWidget(QWidget):
     def plot_profile_elements(self, z_padding=0.2, slope_padding=0.2):
 
         # defines the extent for the plot window: s min and max     
-        plot_s_min, plot_s_max = 0, self.profiles.max_s()
+        plot_s_min, plot_s_max = 0, self.profile_elements.max_s()
 
         # defines elevation min and max values
-        if self.profiles.plot_params['plot_min_elevation_user'] is None:
-            profile_z_min = self.profiles.min_z()
+        if self.profile_elements.plot_params['plot_min_elevation_user'] is None:
+            profile_z_min = self.profile_elements.min_z()
         else:
-            profile_z_min = self.profiles.plot_params['plot_min_elevation_user']
+            profile_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
 
-        if self.profiles.plot_params['plot_max_elevation_user'] is None:
-            profile_z_max = self.profiles.max_z()
+        if self.profile_elements.plot_params['plot_max_elevation_user'] is None:
+            profile_z_max = self.profile_elements.max_z()
         else:
-            profile_z_max = self.profiles.plot_params['plot_max_elevation_user']
+            profile_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
 
         delta_z = profile_z_max - profile_z_min
 
-        if self.profiles.plot_params['plot_min_elevation_user'] is None:
+        if self.profile_elements.plot_params['plot_min_elevation_user'] is None:
             plot_z_min = profile_z_min - delta_z * z_padding
         else:
             plot_z_min = profile_z_min
 
-        if self.profiles.plot_params['plot_max_elevation_user'] is None:
+        if self.profile_elements.plot_params['plot_max_elevation_user'] is None:
             plot_z_max = profile_z_max + delta_z * z_padding
         else:
             plot_z_max = profile_z_max
@@ -2537,12 +2500,12 @@ class qprof_QWidget(QWidget):
             return
 
         # if slopes to be calculated and plotted
-        if self.profiles.plot_params['plot_slope_choice']:
+        if self.profile_elements.plot_params['plot_slope_choice']:
             # defines slope value lists and the min and max values
-            if self.profiles.plot_params['plot_slope_absolute']:
-                slopes = self.profiles.topo_profiles.absolute_slopes
+            if self.profile_elements.plot_params['plot_slope_absolute']:
+                slopes = self.profile_elements.topo_profiles.absolute_slopes
             else:
-                slopes = self.profiles.topo_profiles.dir_slopes
+                slopes = self.profile_elements.topo_profiles.dir_slopes
 
             profiles_slope_min = min(map(np.nanmin, slopes))
             profiles_slope_max = max(map(np.nanmax, slopes))
@@ -2553,8 +2516,8 @@ class qprof_QWidget(QWidget):
         # map
         profile_window = MplWidget()
 
-        plot_height_choice = self.profiles.plot_params['plot_height_choice']
-        plot_slope_choice = self.profiles.plot_params['plot_slope_choice']
+        plot_height_choice = self.profile_elements.plot_params['plot_height_choice']
+        plot_slope_choice = self.profile_elements.plot_params['plot_slope_choice']
 
         if plot_height_choice and plot_slope_choice:
             mpl_code_list = [211, 212]
@@ -2565,14 +2528,14 @@ class qprof_QWidget(QWidget):
         if plot_height_choice:
             self.axes_elevation = self.plot_topo_profile_lines(subplot_code,
                                                                profile_window,
-                                                               self.profiles.topo_profiles,
+                                                               self.profile_elements.topo_profiles,
                                                                'elevation',
                                                                (plot_s_min, plot_s_max),
                                                                (plot_z_min, plot_z_max),
-                                                               self.profiles.topoline_colors,
-                                                               self.profiles.plot_params['filled_height'])
+                                                               self.profile_elements.topoline_colors,
+                                                               self.profile_elements.plot_params['filled_height'])
 
-            self.axes_elevation.set_aspect(self.profiles.plot_params['vertical_exaggeration'])
+            self.axes_elevation.set_aspect(self.profile_elements.plot_params['vertical_exaggeration'])
 
         if plot_slope_choice:
 
@@ -2581,30 +2544,30 @@ class qprof_QWidget(QWidget):
 
             self.axes_slopes = self.plot_topo_profile_lines(subplot_code,
                                                             profile_window,
-                                                            self.profiles.topo_profiles,
+                                                            self.profile_elements.topo_profiles,
                                                             'slope',
                                                             (plot_s_min, plot_s_max),
                                                             (plot_slope_min, plot_slope_max),
-                                                            self.profiles.topoline_colors,
-                                                            self.profiles.plot_params['filled_slope'])
+                                                            self.profile_elements.topoline_colors,
+                                                            self.profile_elements.plot_params['filled_slope'])
 
-        if len(self.profiles.intersection_lines) > 0:
+        if len(self.profile_elements.intersection_lines) > 0:
 
-            for line_intersection_value in self.profiles.intersection_lines:
+            for line_intersection_value in self.profile_elements.intersection_lines:
                 self.plot_profile_polygon_intersection_line(self.axes_elevation, line_intersection_value)
 
-        if len(self.profiles.plane_attitudes) > 0:
+        if len(self.profile_elements.plane_attitudes) > 0:
 
-            for plane_attitude_set, color in zip(self.profiles.plane_attitudes, self.plane_attitudes_colors):
+            for plane_attitude_set, color in zip(self.profile_elements.plane_attitudes, self.plane_attitudes_colors):
                 self.plot_structural_attitude(self.axes_elevation, plot_s_max, plane_attitude_set, color)
 
-        if len(self.profiles.curves) > 0:
+        if len(self.profile_elements.curves) > 0:
 
-            for curve_set, labels in zip(self.profiles.curves, self.profiles.curves_ids):
+            for curve_set, labels in zip(self.profile_elements.curves, self.profile_elements.curves_ids):
                 self.plot_projected_line_set(self.axes_elevation, curve_set, labels)
 
-        if len(self.profiles.intersection_pts) > 0:
-            self.plot_profile_lines_intersection_points(self.axes_elevation, self.profiles.intersection_pts)
+        if len(self.profile_elements.intersection_pts) > 0:
+            self.plot_profile_lines_intersection_points(self.axes_elevation, self.profile_elements.intersection_pts)
 
         profile_window.canvas.draw()
 
@@ -2618,7 +2581,7 @@ class qprof_QWidget(QWidget):
                                 plot_x_range,
                                 plot_y_range)
 
-        if self.profiles.plot_params['invert_xaxis']:
+        if self.profile_elements.plot_params['invert_xaxis']:
             axes.invert_xaxis()
 
         # label = unicode(name)
@@ -2627,7 +2590,7 @@ class qprof_QWidget(QWidget):
             ys = topo_profiles.elevs
             plot_y_min = plot_y_range[0]
         else:
-            if self.profiles.plot_params['plot_slope_absolute']:
+            if self.profile_elements.plot_params['plot_slope_absolute']:
                 ys = topo_profiles.absolute_slopes
             else:
                 ys = topo_profiles.dir_slopes
@@ -2674,13 +2637,13 @@ class qprof_QWidget(QWidget):
 
     def line_intersection_reset(self):
 
-        if self.profiles is not None:
-            self.profiles.intersection_pts = []
+        if self.profile_elements is not None:
+            self.profile_elements.intersection_pts = []
 
     def polygon_intersection_reset(self):
 
-        if self.profiles is not None:
-            self.profiles.intersection_lines = []
+        if self.profile_elements is not None:
+            self.profile_elements.intersection_lines = []
 
     def plot_structural_attitude(self, axes, section_length, structural_attitude_list, color):
 
@@ -2747,7 +2710,7 @@ class qprof_QWidget(QWidget):
 
         # dem parameters
         try:
-            num_dems_in_profile = len(self.profiles.topo_profiles)
+            num_dems_in_profile = len(self.profile_elements.topo_profiles)
         except:
             return False, "Profile not yet calculated"
         else:
@@ -2761,11 +2724,11 @@ class qprof_QWidget(QWidget):
     def check_src_profile_for_geological_profile(self):
 
         # check if profile exists
-        if self.profiles.source_profile_line2dt is None:
+        if self.profile_elements.source_profile_line2dt is None:
             return False, "Profile not yet calculated"
 
         # check that section is made up of only two points
-        if self.profiles.source_profile_line2dt.num_pts != 2:
+        if self.profile_elements.source_profile_line2dt.num_pts != 2:
             return False, "Current profile is not made up by only two points"
 
         return True, "ok"
@@ -2834,11 +2797,11 @@ class qprof_QWidget(QWidget):
             return
 
         # get dem parameters
-        demLayer = self.profiles.dems_params[0].layer
-        demParams = self.profiles.dems_params[0].params
+        demLayer = self.profile_elements.dems_params[0].layer
+        demParams = self.profile_elements.dems_params[0].params
 
         # profile line2d, in project CRS and densified 
-        profile_line2d_prjcrs_densif = self.profiles.source_profile_line2dt.densify(self.profiles.sample_distance)
+        profile_line2d_prjcrs_densif = self.profile_elements.source_profile_line2dt.densify(self.profile_elements.sample_distance)
 
         # polygon layer
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2878,7 +2841,7 @@ class qprof_QWidget(QWidget):
         # create CartesianPoint3DT lists from intersection with source DEM
 
         polygon_classification_set = set()
-        sect_pt_1, sect_pt_2 = self.profiles.source_profile_line2dt.pts
+        sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
         formation_list = []
         intersection_line3d_list = []
         intersection_polygon_s_list2 = []
@@ -2913,7 +2876,7 @@ class qprof_QWidget(QWidget):
         else:
             self.polygon_classification_colors = None
 
-        self.profiles.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
+        self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
         self.plot_profile_elements(self.vertical_exaggeration)
 
@@ -2973,8 +2936,8 @@ class qprof_QWidget(QWidget):
             return
 
         # get dem parameters
-        demLayer = self.profiles.dems_params[0].layer
-        demParams = self.profiles.dems_params[0].params
+        demLayer = self.profile_elements.dems_params[0].layer
+        demParams = self.profile_elements.dems_params[0].params
 
         # get line structural layer
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2994,10 +2957,10 @@ class qprof_QWidget(QWidget):
 
         # calculated CartesianPoint2DT intersection list
         intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list, id_list,
-                                                                               self.profiles.source_profile_line2dt)
+                                                                               self.profile_elements.source_profile_line2dt)
 
         # sort intersection points by spat_distance from profile start point
-        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.profiles.source_profile_line2dt,
+        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.profile_elements.source_profile_line2dt,
                                                                                               intersection_point_id_list)
 
         # create CartesianPoint3DT from intersection with source DEM
@@ -3006,7 +2969,7 @@ class qprof_QWidget(QWidget):
         intersection_point3d_list = self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
                                                             intersection_point_list)
 
-        self.profiles.add_intersections_pts(
+        self.profile_elements.add_intersections_pts(
             zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list))
 
         self.plot_profile_elements(self.vertical_exaggeration)
@@ -3593,9 +3556,27 @@ class TopoSourceFromGPXFileDialog(QDialog):
 
         profileGPX_Qwidget.setLayout(profileGPX_layout)
 
+        # accept/reject section
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        profileGPX_layout.addLayout(buttonLayout)
+
         self.setLayout(profileGPX_layout)
 
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self, SLOT("accept()"))
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+
         self.setWindowTitle("GPX file source")
+
 
     def select_input_gpxFile(self):
 
@@ -3611,7 +3592,7 @@ class TopoSourceFromGPXFileDialog(QDialog):
         setLastUsedDir(fileName)
         self.input_gpx_lineEdit.setText(fileName)
 
-        self.profiles.profile_source_type = self.gpxfile_source
+        #self.profiles.profile_source_type = self.gpxfile_source
 
 
 class SourceDEMsDialog(QDialog):

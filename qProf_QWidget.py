@@ -142,12 +142,12 @@ class qprof_QWidget(QWidget):
         self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
         prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 0, 2, 1, 1)
 
+        self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
+        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 1, 0, 1, 3)
+
         self.prof_toposources_pushbutton = QPushButton(self.tr("Define topographic sources"))
         self.prof_toposources_pushbutton.clicked.connect(self.define_topographic_sources)
-        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 1, 0, 1, 3)
-
-        self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 2, 0, 1, 3)
+        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 2, 0, 1, 3)
 
         prof_toposources_QGroupBox.setLayout(prof_toposources_Layout)
 
@@ -632,28 +632,23 @@ class qprof_QWidget(QWidget):
             else:
                 self.warn("Debug: uncorrect type source for topo sources def")
 
-
-
-            # self.stop_profile_digitize_tool() DISATTIVAIONE TEMPORANEA
-
-            # preliminar verification of source parameters
-
             # calculates profiles
-
+            invert_profile = self.prof_toposources_reverse_direction_checkbox.isChecked()
             if topo_source_type == self.demline_source:  # sources are DEM(s) and line
-                # self.profiles.source_profile_line2dt = self.dem_source_profile_line2dt
                 try:
                     topo_profiles = self.topoprofiles_calculate_from_dems(source_profile_line2dt,
                                                                           sample_distance,
                                                                           selected_dems,
-                                                                          selected_dem_parameters)
+                                                                          selected_dem_parameters,
+                                                                          invert_profile)
                 except VectorIOException, msg:
                     self.warn(msg)
                     return
             elif topo_source_type == self.gpxfile_source:  # source is GPX file
                 try:
                     topo_profiles = self.topoprofiles_calculate_from_gpxfile(source_gpx_path,
-                                                                             topoline_colors)
+                                                                             topoline_colors,
+                                                                             invert_profile)
                 except:
                     self.warn("Error with profile calculation from GPX file")
                     return
@@ -1209,12 +1204,17 @@ class qprof_QWidget(QWidget):
 
         return profile_line3d
 
-    def topoprofiles_calculate_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters ):
+    def topoprofiles_calculate_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
 
         # get project CRS information
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
 
-        resampled_line_2d = source_profile_line2dt.densify(sample_distance)  # line resampled by sample distance
+        if invert_profile:
+            line2dt = source_profile_line2dt.reverse_direction()
+        else:
+            line2dt = source_profile_line2dt
+
+        resampled_line_2d = line2dt.densify(sample_distance)  # line resampled by sample distance
 
         # calculate 3D profiles from DEMs
         dem_topolines3d = []
@@ -1237,7 +1237,7 @@ class qprof_QWidget(QWidget):
 
         return topo_profiles
 
-    def topoprofiles_calculate_from_gpxfile(self, source_gpx_path, gpx_colors):
+    def topoprofiles_calculate_from_gpxfile(self, source_gpx_path, gpx_colors, invert_profile):
 
         doc = xml.dom.minidom.parse(source_gpx_path)
 
@@ -1257,9 +1257,15 @@ class qprof_QWidget(QWidget):
                                            tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
                                            tkr_pt.getElementsByTagName("time")[0].childNodes[0].data))
 
+        # reverse profile orientation if requested
+        if invert_profile:
+            track_data = track_raw_data[::-1]
+        else:
+            track_data = track_raw_data
+
         # create list of TrackPointGPX elements
         track_points = []
-        for val in track_raw_data:
+        for val in track_data:
             gpx_trackpoint = TrackPointGPX(*val)
             track_points.append(gpx_trackpoint)
 
@@ -1371,16 +1377,17 @@ class qprof_QWidget(QWidget):
             self.warn("Profile not yet defined")
             return
 
+        """
         if self.profile_elements.topo_profiles.statistics_defined == False:
             self.warn("Profile statistics not yet calculated")
             return
+        """
 
         dialog = PlotTopoProfileDialog()
 
         if dialog.exec_():
             self.profile_elements.plot_params = get_profile_plot_params(dialog)
         else:
-            self.warn("Plot profile aborted")
             return
 
         # plot profiles
@@ -3237,6 +3244,14 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         self.setWindowTitle("DEM(s) and line sources")
 
 
+    def info(self, msg):
+        QMessageBox.information(self, _plugin_name_, msg)
+
+
+    def warn(self, msg):
+        QMessageBox.warning(self, "qProf", msg)
+
+
     def define_source_DEMs(self):
 
         ##self.profile_parameters = {}
@@ -3321,6 +3336,15 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
         return line_layer, order_field_ndx
+
+
+    def info(self, msg):
+        QMessageBox.information(self, _plugin_name_, msg)
+
+
+    def warn(self, msg):
+        QMessageBox.warning(self, "qProf", msg)
+
 
     def digitize_line(self):
 

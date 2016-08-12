@@ -84,6 +84,10 @@ class qprof_QWidget(QWidget):
 
         QMessageBox.warning(self, _plugin_name_, msg)
 
+    def error(self, msg):
+
+        QMessageBox.error(self, _plugin_name_, msg)
+
     def setup_gui(self):
 
         self.dialog_layout = QVBoxLayout()
@@ -607,9 +611,13 @@ class qprof_QWidget(QWidget):
             source_profile_line2dt = None
 
             if topo_source_type == self.demline_source:
-                selected_dems = dialog.selected_dems
-                selected_dem_parameters = dialog.selected_dem_parameters
-                topoline_colors = dialog.selected_dem_colors
+                try:
+                    selected_dems = dialog.selected_dems
+                    selected_dem_parameters = dialog.selected_dem_parameters
+                    topoline_colors = dialog.selected_dem_colors
+                except:
+                    self.warn("Input DEMs definition not correct")
+                    return
                 try:
                     sample_distance = float(dialog.profile_densify_distance_lineedit.text())
                     if sample_distance < 0.0:
@@ -617,7 +625,14 @@ class qprof_QWidget(QWidget):
                 except:
                     self.warn("Sample distance value not correct")
                     return
-                source_profile_line2dt = dialog.dem_source_profile_line2dt
+                try:
+                    source_profile_line2dt = dialog.dem_source_profile_line2dt
+                except:
+                    self.warn("DEM-line profile source not created correctly [1]")
+                    return
+                if source_profile_line2dt is None:
+                    self.warn("DEM-line profile source not created correctly [2]")
+                    return
 
             elif topo_source_type == self.gpxfile_source:
                 try:
@@ -631,6 +646,7 @@ class qprof_QWidget(QWidget):
                 topoline_colors = [qcolor2rgbmpl(dialog.inputGPX_color_button.color())]
             else:
                 self.warn("Debug: uncorrect type source for topo sources def")
+                return
 
             # calculates profiles
             invert_profile = self.prof_toposources_reverse_direction_checkbox.isChecked()
@@ -653,7 +669,11 @@ class qprof_QWidget(QWidget):
                     self.warn("Error with profile calculation from GPX file")
                     return
             else:  # source error
-                self.warn("Algorithm error: profile calculation not defined")
+                self.error("Algorithm error: profile calculation not defined")
+                return
+
+            if topo_profiles is None:
+                self.warn("Debug: profile not created")
                 return
 
             profile_elements = Profile_Elements()
@@ -682,7 +702,6 @@ class qprof_QWidget(QWidget):
         if dialog.exec_():
             self.profile_elements = create_topo_profiles()
             if self.profile_elements is None:
-                self.warn("Error in topographic source")
                 return
             else:
                 self.info("Topographic sources defined")
@@ -755,7 +774,7 @@ class qprof_QWidget(QWidget):
         elif output_source[0] == "gpx_file":
             self.export_topography_gpx_data(output_format, output_filepath)
         else:
-            self.warn("Internal error: output choice not correctly defined")
+            self.error("Debug: output choice not correctly defined")
             return
 
     def do_export_project_geol_attitudes(self):
@@ -825,7 +844,7 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - point":
             self.write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results)
         else:
-            self.warn("Internal error in export format")
+            self.error("Debug: error in export format")
             return
 
         self.info("Projected attitudes saved")
@@ -917,7 +936,7 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - point":
             self.write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections)
         else:
-            self.warn("Internal error in export format")
+            self.error("Debug: error in export format")
             return
 
         self.info("Profile-lines intersections saved")
@@ -1041,7 +1060,7 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - line":
             self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines)
         else:
-            self.warn("Internal error in export format")
+            self.error("Debug: error in export format")
             return
 
         self.info("Profile-polygon intersections saved")
@@ -1451,7 +1470,7 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_allDEMs_lnshp(outfile_path, header_list, dem_names, export_data)
         else:
-            self.warn("Internal error in export all DEMs")
+            self.error("Debug: error in export all DEMs")
             return
 
         self.info("Profile export completed")
@@ -1475,7 +1494,7 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export)
         else:
-            self.warn("Internal error in export single DEM")
+            self.error("Debug: error in export single DEM")
             return
 
         self.info("Profile export completed")
@@ -1500,7 +1519,7 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results)
         else:
-            self.warn("Internal error in export single DEM")
+            self.error("Debug: error in export single DEM")
             return
 
         self.info("Profile export completed")
@@ -3249,7 +3268,11 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
 
     def warn(self, msg):
-        QMessageBox.warning(self, "qProf", msg)
+        QMessageBox.warning(self, _plugin_name_, msg)
+
+
+    def error(self, msg):
+        QMessageBox.error(self, _plugin_name_, msg)
 
 
     def define_source_DEMs(self):
@@ -3311,6 +3334,9 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             self.load_line_layer()
         elif self.PointListforLine_checkbox.isChecked():
             self.load_point_list()
+        else:
+            self.error("Debug: profile line source error")
+            return
 
 
     def get_dem_parameters(self, dem):

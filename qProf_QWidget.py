@@ -137,21 +137,27 @@ class qprof_QWidget(QWidget):
 
         prof_toposources_Layout = QGridLayout()
 
-        prof_toposources_Layout.addWidget(QLabel(self.tr("Load from ")), 0, 0, 1, 1)
-
-        self.prof_toposources_fromdems_checkbox = QRadioButton(self.tr("DEM(s) and line"))
+        self.prof_toposources_fromdems_checkbox = QRadioButton(self.tr("DEM-line"))
         self.prof_toposources_fromdems_checkbox.setChecked(True)
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 0, 1, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 0, 0, 1, 1)
+
+        self.prof_digitizeline_pushbutton = QPushButton(self.tr("Digitize line"))
+        self.prof_digitizeline_pushbutton.clicked.connect(self.digitize_line)
+        prof_toposources_Layout.addWidget(self.prof_digitizeline_pushbutton, 0, 1, 1, 1)
+
+        self.prof_clearline_pushbutton = QPushButton(self.tr("Clear line"))
+        self.prof_clearline_pushbutton.clicked.connect(self.digitize_line)
+        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 0, 2, 1, 1)
 
         self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 0, 2, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 1, 0, 1, 1)
 
-        self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert profile line orientation"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 1, 0, 1, 3)
+        self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert source line orientation"))
+        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 2, 1, 1, 2)
 
         self.prof_toposources_pushbutton = QPushButton(self.tr("Define topographic sources"))
         self.prof_toposources_pushbutton.clicked.connect(self.define_topographic_sources)
-        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 2, 0, 1, 3)
+        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 3, 0, 1, 3)
 
         prof_toposources_QGroupBox.setLayout(prof_toposources_Layout)
 
@@ -628,10 +634,10 @@ class qprof_QWidget(QWidget):
                 try:
                     source_profile_line2dt = dialog.dem_source_profile_line2dt
                 except:
-                    self.warn("DEM-line profile source not created correctly [1]")
+                    self.warn("DEM-line profile source not correctly created [1]")
                     return
                 if source_profile_line2dt is None:
-                    self.warn("DEM-line profile source not created correctly [2]")
+                    self.warn("DEM-line profile source not correctly created [2]")
                     return
 
             elif topo_source_type == self.gpxfile_source:
@@ -691,7 +697,6 @@ class qprof_QWidget(QWidget):
         if self.prof_toposources_fromdems_checkbox.isChecked():
             dialog = TopoSourceFromDEMAndLineDialog(self.canvas)
             topo_source_type = self.demline_source
-            #self.profiles.profile_source_type = self.demline_source
         elif self.prof_toposources_fromgpxfile_checkbox.isChecked():
             dialog = TopoSourceFromGPXFileDialog()
             topo_source_type = self.gpxfile_source
@@ -708,6 +713,80 @@ class qprof_QWidget(QWidget):
         else:
             self.warn("No topographic source defined")
             return
+
+    def digitize_line(self):
+
+        self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+
+        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
+        self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
+        self.canvas.setMapTool(self.digitize_maptool)
+        self.connect_digitize_maptool()
+
+        self.polygon = False
+        self.rubberband = QgsRubberBand(self.canvas, self.polygon)
+        self.rubberband.setWidth(2)
+        self.rubberband.setColor(QColor(Qt.red))
+
+        self.profile_canvas_points = []
+
+    def connect_digitize_maptool(self):
+
+        QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
+        QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
+        QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+
+    def disconnect_digitize_maptool(self):
+
+        QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
+        QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
+        QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+
+    def xy_from_canvas(self, position):
+
+        mapPos = self.canvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])
+        return mapPos.x(), mapPos.y()
+
+    def refresh_rubberband(self, xy_list):
+
+        self.rubberband.reset(QGis.Line)
+        for x, y in xy_list:
+            self.rubberband.addPoint(QgsPoint(x, y))
+
+    def canvas_refresh_profile_line(self, position):
+
+        if len(self.profile_canvas_points) == 0:
+            return
+
+        x, y = self.xy_from_canvas(position)
+        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
+
+    def profile_add_point(self, position):
+
+        x, y = self.xy_from_canvas(position)
+        self.profile_canvas_points.append([x, y])
+
+    def canvas_add_point_to_profile(self, position):
+
+        if len(self.profile_canvas_points) == 0:
+            self.rubberband.reset(self.polygon)
+
+        self.profile_add_point(position)
+
+    def canvas_end_profile_line(self):
+
+        self.refresh_rubberband(self.profile_canvas_points)
+
+        self.dem_source_profile_line2dt = CartesianLine2DT(
+            [CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
+        self.profile_canvas_points = []
+
+        self.restore_previous_map_tool()
+
+    def restore_previous_map_tool(self):
+
+        self.canvas.unsetMapTool(self.digitize_maptool)
+        self.canvas.setMapTool(self.previous_maptool)
 
     def do_export_topo_profiles(self):
 
@@ -3158,7 +3237,10 @@ class qprof_QWidget(QWidget):
 
     def closeEvent(self, event):
 
-        self.reset_profile_defs()
+        try:
+            self.reset_profile_defs()
+        except:
+            pass
 
         try:
             QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
@@ -3220,21 +3302,33 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         inputLine_QGroupBox = QGroupBox()
         inputLine_QGroupBox.setTitle("Input line")
         inputLine_Layout = QGridLayout()
-        inputLine_Layout.addWidget(QLabel("Input from"), 0, 0, 1, 1)
+
+        self.DigitizeLine_checkbox = QRadioButton(self.tr("digitized line"))
+        self.DigitizeLine_checkbox.setChecked(True)
+        inputLine_Layout.addWidget(self.DigitizeLine_checkbox, 0, 0, 1, 1)
+
         self.LoadLineLayer_checkbox = QRadioButton(self.tr("line layer"))
-        self.LoadLineLayer_checkbox.setChecked(True)
-        inputLine_Layout.addWidget(self.LoadLineLayer_checkbox, 0, 1, 1, 1)
-        self.DigitizeLine_checkbox = QRadioButton(self.tr("map digitization"))
-        inputLine_Layout.addWidget(self.DigitizeLine_checkbox, 0, 2, 1, 1)
+        inputLine_Layout.addWidget(self.LoadLineLayer_checkbox, 1, 0, 1, 1)
+        self.DefineLineLayer_pushbutton = QPushButton(self.tr("Choose layer"))
+        self.DefineLineLayer_pushbutton.clicked.connect(self.load_line_layer)
+        inputLine_Layout.addWidget(self.DefineLineLayer_pushbutton, 1, 1, 1, 2)
+
         self.PointListforLine_checkbox = QRadioButton(self.tr("point list"))
-        inputLine_Layout.addWidget(self.PointListforLine_checkbox, 0, 3, 1, 1)
+        inputLine_Layout.addWidget(self.PointListforLine_checkbox, 2, 0, 1, 1)
+        self.DefinePointList_pushbutton = QPushButton(self.tr("Create"))
+        self.DefinePointList_pushbutton.clicked.connect(self.load_point_list)
+        inputLine_Layout.addWidget(self.DefinePointList_pushbutton, 2, 1, 1, 2)
+
+        """
         self.DefineLine_pushbutton = QPushButton(self.tr("Define profile line"))
         self.DefineLine_pushbutton.clicked.connect(self.define_line)
         inputLine_Layout.addWidget(self.DefineLine_pushbutton, 1, 0, 1, 4)
+        """
+
         # trace sampling spat_distance
-        inputLine_Layout.addWidget(QLabel(self.tr("Line densify distance")), 2, 0, 1, 1)
+        inputLine_Layout.addWidget(QLabel(self.tr("line densify distance")), 3, 0, 1, 1)
         self.profile_densify_distance_lineedit = QLineEdit()
-        inputLine_Layout.addWidget(self.profile_densify_distance_lineedit, 2, 1, 1, 1)
+        inputLine_Layout.addWidget(self.profile_densify_distance_lineedit, 3, 1, 1, 2)
 
         inputLine_QGroupBox.setLayout(inputLine_Layout)
 
@@ -3324,6 +3418,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         #self.profiles.profile_source_type = self.demline_source
 
+    """
     def define_line(self):
 
         self.reset_profile_defs()
@@ -3337,7 +3432,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         else:
             self.error("Debug: profile line source error")
             return
-
+    """
 
     def get_dem_parameters(self, dem):
         return QGisRasterParameters(*raster_qgis_params(dem))
@@ -3372,91 +3467,16 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         QMessageBox.warning(self, "qProf", msg)
 
 
-    def digitize_line(self):
-
-        self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
-
-        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
-        self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
-        self.canvas.setMapTool(self.digitize_maptool)
-        self.connect_digitize_maptool()
-
-        self.polygon = False
-        self.rubberband = QgsRubberBand(self.canvas, self.polygon)
-        self.rubberband.setWidth(1)
-        self.rubberband.setColor(QColor(Qt.red))
-
-        self.profile_canvas_points = []
-
     def get_point_list(self, dialog):
-
         raw_point_string = dialog.point_list_qtextedit.toPlainText()
         raw_point_list = raw_point_string.split("\n")
         raw_point_list = map(lambda unicode_txt: clean_string(str(unicode_txt)), raw_point_list)
         data_list = filter(lambda rp: rp != "", raw_point_list)
 
-        # try:
         point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
         line2d = xytuple_list_to_Line2D(point_list)
 
-        assert line2d.num_pts >= 2
-
         return line2d
-
-    def connect_digitize_maptool(self):
-
-        QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
-        QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
-
-    def disconnect_digitize_maptool(self):
-
-        QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
-        QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
-
-    def xy_from_canvas(self, position):
-
-        mapPos = self.canvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])
-        return mapPos.x(), mapPos.y()
-
-    def refresh_rubberband(self, xy_list):
-
-        self.rubberband.reset(QGis.Line)
-        for x, y in xy_list:
-            self.rubberband.addPoint(QgsPoint(x, y))
-
-    def canvas_refresh_profile_line(self, position):
-
-        if len(self.profile_canvas_points) == 0:
-            return
-
-        x, y = self.xy_from_canvas(position)
-        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
-
-    def profile_add_point(self, position):
-
-        x, y = self.xy_from_canvas(position)
-        self.profile_canvas_points.append([x, y])
-
-    def canvas_add_point_to_profile(self, position):
-
-        if len(self.profile_canvas_points) == 0:
-            self.rubberband.reset(self.polygon)
-
-        self.profile_add_point(position)
-
-    def canvas_end_profile_line(self):
-
-        self.refresh_rubberband(self.profile_canvas_points)
-
-        self.dem_source_profile_line2dt = CartesianLine2DT([CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
-        self.profile_canvas_points = []
-
-    def restore_previous_map_tool(self):
-
-        self.canvas.unsetMapTool(self.digitize_maptool)
-        self.canvas.setMapTool(self.previous_maptool)
 
     def load_point_list(self):
 
@@ -3465,6 +3485,14 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         if dialog.exec_():
             line2d = self.get_point_list(dialog)
         else:
+            self.warn("No defined line source")
+            return
+        try:
+            npts = line2d.num_pts
+            if npts < 2:
+                self.warn("Defined line source with less than two points")
+                return
+        except:
             self.warn("No defined line source")
             return
 

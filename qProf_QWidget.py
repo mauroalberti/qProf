@@ -151,9 +151,13 @@ class qprof_QWidget(QWidget):
                                                      "or a point list")
         prof_toposources_Layout.addWidget(self.prof_digitizeline_pushbutton, 0, 1, 1, 1)
 
-        self.prof_clearline_pushbutton = QPushButton(self.tr("Clear line"))
+        self.prof_clearline_pushbutton = QPushButton(self.tr("Clear"))
         self.prof_clearline_pushbutton.clicked.connect(self.clear_rubberband)
         prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 0, 2, 1, 1)
+
+        self.prof_clearline_pushbutton = QPushButton(self.tr("Save"))
+        self.prof_clearline_pushbutton.clicked.connect(self.save_rubberband)
+        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 0, 3, 1, 1)
 
         self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
         prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 1, 0, 1, 1)
@@ -163,7 +167,7 @@ class qprof_QWidget(QWidget):
 
         self.prof_toposources_pushbutton = QPushButton(self.tr("Define topographic sources"))
         self.prof_toposources_pushbutton.clicked.connect(self.define_topographic_sources)
-        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 3, 0, 1, 3)
+        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 3, 0, 1, 4)
 
         prof_toposources_QGroupBox.setLayout(prof_toposources_Layout)
 
@@ -742,6 +746,7 @@ class qprof_QWidget(QWidget):
         except:
             pass
 
+
     def digitize_line(self):
 
         self.clear_rubberband()
@@ -1113,6 +1118,103 @@ class qprof_QWidget(QWidget):
                  intersection_point3d.p_z])
 
         return result_data
+
+    def save_rubberband(self):
+
+        def get_format_type():
+
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
+
+        try:
+            if len(self.profile_canvas_points) == 0:
+                self.warn("No available line to save")
+                return
+        except:
+            self.warn("No available line to save")
+            return
+
+        dialog = LineDataExportDialog()
+        if dialog.exec_():
+            output_format = get_format_type()
+            if output_format == "":
+                self.warn("Error in output format")
+                return
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
+                self.warn("Error in output path")
+                return
+        else:
+            self.warn("No export defined")
+            return
+
+        self.output_profile_line(output_format, output_filepath, self.profile_canvas_points)
+
+    def output_profile_line(self, output_format, output_filepath, profile_canvas_points):
+
+        points = [[n, x, y] for n, (x, y) in enumerate(profile_canvas_points)]
+        # output for csv file
+        if output_format == "csv":
+            self.write_generic_csv(output_filepath,
+                                   ['id', 'x', 'y'],
+                                   points)
+        elif output_format == "shapefile - line":
+            self.write_profile_lnshp(output_filepath,
+                                     ['id'],
+                                     points)
+        else:
+            self.error("Debug: error in export format")
+            return
+
+        self.info("Line saved")
+
+    def write_profile_lnshp(self, fileName, header_list, points):
+
+        shape_driver_name = "ESRI Shapefile"
+        shape_driver = ogr.GetDriverByName(shape_driver_name)
+        if shape_driver is None:
+            self.warn("%s driver is not available" % shape_driver_name)
+            return
+
+        try:
+            shp_datasource = shape_driver.CreateDataSource(unicode(fileName))
+        except TypeError:
+            shp_datasource = shape_driver.CreateDataSource(str(fileName))
+
+        if shp_datasource is None:
+            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            return
+
+        lnshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString)
+        if lnshp_layer is None:
+            self.warn("Output layer creation failed")
+            return
+
+        # creates required fields
+        lnshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
+        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
+
+        # loops through output records
+
+        for ndx in range(len(points)-1):
+
+            _, x0, y0 = points[ndx]
+            _, x1, y1 = points[ndx+1]
+
+            ln_feature = ogr.Feature(lnshp_featureDefn)
+            segment_2d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (x0, y0, x1, y1))
+            ln_feature.SetGeometry(segment_2d)
+
+            ln_feature.SetField(header_list[0], 1)
+            lnshp_layer.CreateFeature(ln_feature)
+
+            ln_feature.Destroy()
+
+        shp_datasource.Destroy()
 
     def do_export_polygon_intersections(self):
 

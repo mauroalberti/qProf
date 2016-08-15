@@ -8,8 +8,8 @@ import unicodedata
 import xml.dom.minidom
 import webbrowser
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil
-from osgeo import ogr
-from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QGis, QgsGeometry
+from osgeo import ogr, osr
+from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QGis, QgsGeometry, QgsVectorLayer
 from qgis.gui import QgsRubberBand, QgsColorButtonV2
 
 from PyQt4.QtCore import *
@@ -768,13 +768,13 @@ class qprof_QWidget(QWidget):
     def connect_digitize_maptool(self):
 
         QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
+        QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
         QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
 
     def disconnect_digitize_maptool(self):
 
         QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.canvas_add_point_to_profile)
+        QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
         QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
 
     def xy_from_canvas(self, position):
@@ -800,15 +800,6 @@ class qprof_QWidget(QWidget):
 
         x, y = self.xy_from_canvas(position)
         self.profile_canvas_points.append([x, y])
-
-    def canvas_add_point_to_profile(self, position):
-
-        """
-        if len(self.profile_canvas_points) == 0:
-            self.rubberband.reset()
-        """
-
-        self.profile_add_point(position)
 
     def canvas_end_profile_line(self):
 
@@ -1131,11 +1122,11 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            if len(self.profile_canvas_points) == 0:
-                self.warn("No available line to save")
+            if self.digitized_profile_line2dt.num_pts == 0:
+                self.warn("No available line to save [1]")
                 return
         except:
-            self.warn("No available line to save")
+            self.warn("No available line to save [2]")
             return
 
         dialog = LineDataExportDialog()
@@ -1148,16 +1139,33 @@ class qprof_QWidget(QWidget):
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
             self.warn("No export defined")
             return
 
-        self.output_profile_line(output_format, output_filepath, self.profile_canvas_points)
+        # get project CRS information
+        _, project_crs = get_on_the_fly_projection(self.canvas)
+        proj4_str = str(project_crs.toProj4())
+        project_crs_osr = osr.SpatialReference()
+        project_crs_osr.ImportFromProj4(proj4_str)
 
-    def output_profile_line(self, output_format, output_filepath, profile_canvas_points):
+        self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts, project_crs_osr)
 
-        points = [[n, x, y] for n, (x, y) in enumerate(profile_canvas_points)]
-        # output for csv file
+        # add theme to QGis project
+        if output_format == "shapefile - line" and add_to_project:
+            try:
+                digitized_line_layer = QgsVectorLayer(output_filepath,
+                                                      QFileInfo(output_filepath).baseName(),
+                                                      "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(digitized_line_layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    def output_profile_line(self, output_format, output_filepath, pts2dt, proj_sr):
+
+        points = [[n, pt2dt.p_x, pt2dt.p_y] for n, pt2dt in enumerate(pts2dt)]
         if output_format == "csv":
             self.write_generic_csv(output_filepath,
                                    ['id', 'x', 'y'],
@@ -1165,14 +1173,15 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - line":
             self.write_profile_lnshp(output_filepath,
                                      ['id'],
-                                     points)
+                                     points,
+                                     proj_sr)
         else:
             self.error("Debug: error in export format")
             return
 
         self.info("Line saved")
 
-    def write_profile_lnshp(self, fileName, header_list, points):
+    def write_profile_lnshp(self, fileName, header_list, points, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1189,7 +1198,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        lnshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString)
+        lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString)
         if lnshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -1206,7 +1215,7 @@ class qprof_QWidget(QWidget):
             _, x1, y1 = points[ndx+1]
 
             ln_feature = ogr.Feature(lnshp_featureDefn)
-            segment_2d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (x0, y0, x1, y1))
+            segment_2d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f, %f %f)' % (x0, y0, x1, y1))
             ln_feature.SetGeometry(segment_2d)
 
             ln_feature.SetField(header_list[0], 1)
@@ -1238,25 +1247,24 @@ class qprof_QWidget(QWidget):
                 return
 
         dialog = LineDataExportDialog()
-
         if dialog.exec_():
-
             output_format = get_format_type()
             if output_format == "":
                 self.warn("Error in output format")
                 return
-
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
 
         else:
-
             self.warn("No export defined")
             return
 
         self.output_profile_polygons_intersections(output_format, output_filepath)
+
+
+
 
     def output_profile_polygons_intersections(self, output_format, output_filepath):
 
@@ -3377,6 +3385,11 @@ class qprof_QWidget(QWidget):
             pass
 
         try:
+            self.clear_rubberband()
+        except:
+            pass
+
+        try:
             QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
         except:
             pass
@@ -4432,10 +4445,10 @@ class TopographicProfileExportDialog(QDialog):
         self.outtype_shapefile_point_QRadioButton.setChecked(True)
 
         self.outtype_shapefile_line_QRadioButton = QRadioButton(self.tr("shapefile - line"))
-        output_type_layout.addWidget(self.outtype_shapefile_line_QRadioButton, 1, 0, 1, 1)
+        output_type_layout.addWidget(self.outtype_shapefile_line_QRadioButton, 0, 1, 1, 1)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 2, 0, 1, 1)
+        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 1, 0, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -4444,14 +4457,14 @@ class TopographicProfileExportDialog(QDialog):
         ##
         # Output name/path
 
-        output_path_groupBox = QGroupBox(self.tr("Output path"))
+        output_path_groupBox = QGroupBox(self.tr("Output file"))
 
         output_path_layout = QGridLayout()
 
         self.outpath_QLineEdit = QLineEdit()
         output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
 
-        self.outpath_QPushButton = QPushButton(self.tr("Choose"))
+        self.outpath_QPushButton = QPushButton(self.tr("..."))
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
         output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
 
@@ -4486,9 +4499,9 @@ class TopographicProfileExportDialog(QDialog):
     def define_outpath(self):
 
         if self.outtype_shapefile_line_QRadioButton.isChecked() or self.outtype_shapefile_point_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.shp", "Shapefile")
+            outfile_path = new_file_path(self, "Save file", "", "Shapefiles (*.shp)")
         elif self.outtype_csv_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.csv", "Csv")
+            outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
         else:
             self.warn(self.tr("Output type definiton error"))
             return
@@ -4595,7 +4608,7 @@ class LineDataExportDialog(QDialog):
         self.outtype_shapefile_line_QRadioButton.setChecked(True)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 1, 0, 1, 1)
+        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 0, 1, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -4604,16 +4617,19 @@ class LineDataExportDialog(QDialog):
         ##
         # Output name/path
 
-        output_path_groupBox = QGroupBox(self.tr("Output path"))
+        output_path_groupBox = QGroupBox(self.tr("Output file"))
 
         output_path_layout = QGridLayout()
 
         self.outpath_QLineEdit = QLineEdit()
         output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
 
-        self.outpath_QPushButton = QPushButton(self.tr("Choose"))
+        self.outpath_QPushButton = QPushButton("....")
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
         output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
+
+        self.load_output_checkBox = QCheckBox("load output in project")
+        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)
 
@@ -4646,9 +4662,9 @@ class LineDataExportDialog(QDialog):
     def define_outpath(self):
 
         if self.outtype_shapefile_line_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.shp", "Shapefile")
+            outfile_path = new_file_path(self, "Save file", "", "Shapefiles (*.shp)")
         elif self.outtype_csv_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.csv", "Csv")
+            outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
         else:
             self.warn(self.tr("Output type definiton error"))
             return

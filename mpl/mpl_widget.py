@@ -44,6 +44,12 @@ class MplCanvas(FigureCanvas):
 
         rcParams["figure.facecolor"] = 'white'
 
+# from: http://stackoverflow.com/questions/12695678/how-to-modify-the-navigation-toolbar-easily-in-a-matplotlib-figure-window
+class NavigatioToolbarModif(NavigationToolbar):
+
+    toolitems = [t for t in NavigationToolbar.toolitems if
+                 t[0] in ('Home', 'Pan', 'Zoom')]
+
 
 class MplWidget(QWidget):
     def __init__(self, window_title='Profile'):
@@ -53,7 +59,7 @@ class MplWidget(QWidget):
 
         # set the canvas and the navigation toolbar
         self.canvas = MplCanvas()
-        self.ntb = NavigationToolbar(self.canvas, self)
+        self.ntb = NavigatioToolbarModif(self.canvas, self)
 
         inputWidget = QWidget()
         inputLayout = QHBoxLayout()

@@ -173,22 +173,6 @@ class qprof_QWidget(QWidget):
 
         profile_layout.addWidget(prof_toposources_QGroupBox)
 
-        ## Create profile section
-
-        plotProfile_QGroupBox = QGroupBox(profile_widget)
-        plotProfile_QGroupBox.setTitle('Profile plot')
-
-        plotProfile_Layout = QGridLayout()
-
-        self.plotProfile_create_pushbutton = QPushButton(self.tr("Create profile"))
-        self.plotProfile_create_pushbutton.clicked.connect(self.plot_topo_profiles)
-
-        plotProfile_Layout.addWidget(self.plotProfile_create_pushbutton, 0, 0, 1, 4)
-
-        plotProfile_QGroupBox.setLayout(plotProfile_Layout)
-
-        profile_layout.addWidget(plotProfile_QGroupBox)
-
         ## Profile statistics
 
         prof_stats_QGroupBox = QGroupBox(profile_widget)
@@ -204,6 +188,22 @@ class qprof_QWidget(QWidget):
         prof_stats_QGroupBox.setLayout(prof_stats_Layout)
 
         profile_layout.addWidget(prof_stats_QGroupBox)
+
+        ## Create profile section
+
+        plotProfile_QGroupBox = QGroupBox(profile_widget)
+        plotProfile_QGroupBox.setTitle('Profile plot')
+
+        plotProfile_Layout = QGridLayout()
+
+        self.plotProfile_create_pushbutton = QPushButton(self.tr("Create profile"))
+        self.plotProfile_create_pushbutton.clicked.connect(self.plot_topo_profiles)
+
+        plotProfile_Layout.addWidget(self.plotProfile_create_pushbutton, 0, 0, 1, 4)
+
+        plotProfile_QGroupBox.setLayout(plotProfile_Layout)
+
+        profile_layout.addWidget(plotProfile_QGroupBox)
 
         ###################
 
@@ -614,6 +614,17 @@ class qprof_QWidget(QWidget):
 
         webbrowser.open('{}/help/help.html'.format(os.path.dirname(__file__)), new=True)
 
+    def stop_rubberband(self):
+
+        try:
+            self.canvas_end_profile_line()
+        except:
+            pass
+
+        try:
+            self.clear_rubberband()
+        except:
+            pass
 
     def define_topographic_sources(self):
 
@@ -649,20 +660,20 @@ class qprof_QWidget(QWidget):
                         self.warn("No digitized line available")
                         return
                 else:
-                    self.canvas_end_profile_line()
-                    self.clear_rubberband()
-                    try:
-                        source_profile_line2dt = dialog.dem_source_profile_line2dt
+                    self.stop_rubberband()
+                    #try:
+                    source_profile_line2dt = dialog.dem_source_profile_line2dt
+                    """
                     except:
                         self.warn("DEM-line profile source not correctly created [1]")
                         return
+                    """
                     if source_profile_line2dt is None:
                         self.warn("DEM-line profile source not correctly created [2]")
                         return
 
             elif topo_source_type == self.gpxfile_source:
-                self.canvas_end_profile_line()
-                self.clear_rubberband()
+                self.stop_rubberband()
                 try:
                     source_gpx_path = unicode(dialog.input_gpx_lineEdit.text())
                     if source_gpx_path == '':
@@ -1589,41 +1600,41 @@ class qprof_QWidget(QWidget):
 
     def calculate_profile_statistics(self):
 
-        if self.profile_elements is None or self.profile_elements.profile_source_type is None:
+        if self.profile_elements is None or \
+           self.profile_elements.profile_source_type is None or \
+           self.profile_elements.topo_profiles is None:
             self.warn("Source profile not yet defined")
             return
 
-        if self.profile_elements.topo_profiles is not None:
-            topo_profiles = self.profile_elements.topo_profiles
-            statistics_elev = map(lambda p: self.get_statistics(p), topo_profiles.elevs)
-            statistics_dirslopes = map(lambda p: self.get_statistics(p), topo_profiles.dir_slopes)
-            statistics_slopes = map(lambda p: self.get_statistics(p), np.absolute(topo_profiles.dir_slopes))
+        topo_profiles = self.profile_elements.topo_profiles
+        self.profile_elements.topo_profiles.statistics_elev = map(lambda p: self.get_statistics(p), topo_profiles.elevs)
+        self.profile_elements.topo_profiles.statistics_dirslopes = map(lambda p: self.get_statistics(p), topo_profiles.dir_slopes)
+        self.profile_elements.topo_profiles.statistics_slopes = map(lambda p: self.get_statistics(p), np.absolute(topo_profiles.dir_slopes))
 
-            dialog = StatisticsDialog(zip(topo_profiles.names, zip(statistics_elev,
-                                                                   statistics_dirslopes,
-                                                                   statistics_slopes)))
-            dialog.exec_()
-        else:
-            self.warn('Unable to calculate statistics')
+        self.profile_elements.topo_profiles.profile_length = topo_profiles.s[-1] - topo_profiles.s[0]
+        statistics_elev = self.profile_elements.topo_profiles.statistics_elev
+        self.profile_elements.topo_profiles.natural_elev_range = (min(map(lambda ds_stats: ds_stats["min"], statistics_elev)),
+                                                                 max(map(lambda ds_stats: ds_stats["max"], statistics_elev)))
+
+        dialog = StatisticsDialog(self.profile_elements.topo_profiles)
+        dialog.exec_()
 
         self.profile_elements.topo_profiles.statistics_defined = True
 
     def plot_topo_profiles(self):
-
-        #self.stop_profile_digitize_tool() DISATTIVATO
 
         # verify profile creation parameters
         if self.profile_elements is None or self.profile_elements.topo_profiles is None:
             self.warn("Profile not yet defined")
             return
 
-        """
-        if self.profile_elements.topo_profiles.statistics_defined == False:
-            self.warn("Profile statistics not yet calculated")
+        if not self.profile_elements.topo_profiles.statistics_defined:
+            self.warn("Statistics not yet calculated")
             return
-        """
 
-        dialog = PlotTopoProfileDialog()
+        natural_elev_min, natural_elev_max = self.profile_elements.topo_profiles.natural_elev_range
+        profile_length = self.profile_elements.topo_profiles.profile_length
+        dialog = PlotTopoProfileDialog(profile_length, natural_elev_min, natural_elev_max)
 
         if dialog.exec_():
             self.profile_elements.plot_params = get_profile_plot_params(dialog)
@@ -2714,37 +2725,13 @@ class qprof_QWidget(QWidget):
 
         shp_datasource.Destroy()
 
-    def plot_profile_elements(self, z_padding=0.2, slope_padding=0.2):
+    def plot_profile_elements(self, slope_padding=0.2):
 
-        # defines the extent for the plot window: s min and max     
-        plot_s_min, plot_s_max = 0, self.profile_elements.max_s()
+        # defines plot min and max values
+        plot_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
+        plot_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
 
-        # defines elevation min and max values
-        if self.profile_elements.plot_params['plot_min_elevation_user'] is None:
-            profile_z_min = self.profile_elements.min_z()
-        else:
-            profile_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
-
-        if self.profile_elements.plot_params['plot_max_elevation_user'] is None:
-            profile_z_max = self.profile_elements.max_z()
-        else:
-            profile_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
-
-        delta_z = profile_z_max - profile_z_min
-
-        if self.profile_elements.plot_params['plot_min_elevation_user'] is None:
-            plot_z_min = profile_z_min - delta_z * z_padding
-        else:
-            plot_z_min = profile_z_min
-
-        if self.profile_elements.plot_params['plot_max_elevation_user'] is None:
-            plot_z_max = profile_z_max + delta_z * z_padding
-        else:
-            plot_z_max = profile_z_max
-
-        if plot_z_max < plot_z_min:
-            self.warn("Error: maximum plot value lower than minimum plot value")
-            return
+        plot_s_min, plot_s_max = 0, self.profile_elements.topo_profiles.profile_length
 
         # if slopes to be calculated and plotted
         if self.profile_elements.plot_params['plot_slope_choice']:
@@ -4072,9 +4059,34 @@ def get_profile_plot_params(dialog):
     return profile_params
 
 class PlotTopoProfileDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, profile_length, natural_elev_min, natural_elev_max, parent=None):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
+
+        # preprocess elevation values
+
+        # suggested plot elevation range
+        z_padding = 0.2
+        delta_z = natural_elev_max - natural_elev_min
+        if delta_z < 0.0:
+            self.warn("Error: min elevation larger then max elevation")
+            return
+        elif delta_z == 0.0:
+            plot_z_min = floor((natural_elev_min - 100) / 100) * 100.0
+            plot_z_max = ceil((natural_elev_max + 100) / 100) * 100.0
+        else:
+            plot_z_min = floor((natural_elev_min - delta_z * z_padding)/100)*100.0
+            plot_z_max = ceil((natural_elev_max + delta_z * z_padding)/100)*100.0
+        delta_plot_z = plot_z_max - plot_z_min
+
+        # suggested exxageration value
+        w_to_h_rat = float(profile_length) / float(delta_plot_z)
+        if w_to_h_rat < 1.0:
+            sugg_ve = w_to_h_rat / 5.0
+        elif w_to_h_rat > 10:
+            sugg_ve = 100.0/ w_to_h_rat
+        else:
+            sugg_ve = 1.0
 
         layout = QVBoxLayout()
 
@@ -4088,17 +4100,17 @@ class PlotTopoProfileDialog(QDialog):
 
         plotsetting_layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 0, 1, 1)
         self.DEM_exageration_ratio_Qlineedit = QLineEdit()
-        self.DEM_exageration_ratio_Qlineedit.setText("1")
+        self.DEM_exageration_ratio_Qlineedit.setText("%f" % sugg_ve)
         plotsetting_layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 1, 1, 1)
 
         plotsetting_layout.addWidget(QLabel(self.tr("Plot z min value")), 1, 0, 1, 1)
         self.plot_min_value_QLineedit = QLineEdit()
-        self.plot_min_value_QLineedit.setText("[automatic]")
+        self.plot_min_value_QLineedit.setText("%f" % plot_z_min)
         plotsetting_layout.addWidget(self.plot_min_value_QLineedit, 1, 1, 1, 1)
 
         plotsetting_layout.addWidget(QLabel(self.tr("Plot z max value")), 1, 2, 1, 1)
         self.plot_max_value_QLineedit = QLineEdit()
-        self.plot_max_value_QLineedit.setText("[automatic]")
+        self.plot_max_value_QLineedit.setText("%f" % plot_z_max)
         plotsetting_layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)
 
         plotsettings_groupbox.setLayout(plotsetting_layout)
@@ -4673,17 +4685,25 @@ class LineDataExportDialog(QDialog):
 
 
 class StatisticsDialog(QDialog):
-    def __init__(self, profiles_stats, parent=None):
+    def __init__(self, topo_profiles, parent=None):
         super(StatisticsDialog, self).__init__(parent)
 
-        self.profiles_stats = profiles_stats
+        profiles_stats = zip(topo_profiles.names,
+                             zip(topo_profiles.statistics_elev,
+                             topo_profiles.statistics_dirslopes,
+                             topo_profiles.statistics_slopes))
 
         layout = QVBoxLayout()
 
         self.text_widget = QTextEdit()
         self.text_widget.setReadOnly(True)
 
-        stat_report = self.report_stats(profiles_stats)
+        stat_report =  "General statistics\n"
+        stat_report += "Profile length: %f\n" % topo_profiles.profile_length
+        stat_report += "Topographic elevations\n"
+        stat_report += " - min: %f\n" % topo_profiles.natural_elev_range[0]
+        stat_report += " - max: %f\n\n" % topo_profiles.natural_elev_range[1]
+        stat_report += self.report_stats(profiles_stats)
 
         self.text_widget.setPlainText(stat_report)
 
@@ -4705,7 +4725,7 @@ class StatisticsDialog(QDialog):
 
             return type_report
 
-        report = 'Statistics\n'
+        report = 'Dataset statistics\n'
         types = ['elevations', 'directional slopes', 'absolute slopes']
         for name, stats in profiles_stats:
             report += '\ndataset name\n%s\n\n' % name

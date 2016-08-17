@@ -4141,6 +4141,7 @@ class PlotTopoProfileDialog(QDialog):
         self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
         plotvariables_layout.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 3, 1, 1)
 
+        plotvariables_layout.addWidget(QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"), 2, 1, 2, 3)
         plotVariables_groupbox.setLayout(plotvariables_layout)
 
         plotProfile_Layout.addWidget(plotVariables_groupbox)

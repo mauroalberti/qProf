@@ -63,7 +63,6 @@ class qprof_QWidget(QWidget):
         self.selected_dem_colors = []
         self.selected_dem_parameters = []
 
-
         self.profile_windows = []
         self.cross_section_windows = []
         #self.dem_source_profile_line2dt = None
@@ -232,7 +231,7 @@ class qprof_QWidget(QWidget):
 
         # input point geological layer
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Layer: "), 0, 0, 1, 1)
+        xs_input_point_proj_Layout.addWidget(QLabel("Layer "), 0, 0, 1, 1)
         self.prj_struct_point_comboBox = QComboBox()
         self.prj_struct_point_comboBox.currentIndexChanged[int].connect(self.update_point_layers_boxes)
 
@@ -242,14 +241,19 @@ class qprof_QWidget(QWidget):
         xs_input_point_proj_Layout.addWidget(QLabel("Fields:"), 1, 0, 1, 1)
 
         xs_input_point_proj_Layout.addWidget(QLabel("Id"), 1, 1, 1, 1)
+
         self.proj_point_id_fld_comboBox = QComboBox()
         xs_input_point_proj_Layout.addWidget(self.proj_point_id_fld_comboBox, 1, 2, 1, 1)
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Dip dir."), 1, 3, 1, 1)
-        self.proj_point_dipdir_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget(self.proj_point_dipdir_fld_comboBox, 1, 4, 1, 1)
+        self.plot_prj_use_rhrstrike_QRadioButt = QRadioButton("RHR str.")
+        self.plot_prj_use_rhrstrike_QRadioButt.setChecked(True)
+        self.plot_prj_use_dipdire_QRadioButt = QRadioButton("Dip dir.")
+        xs_input_point_proj_Layout.addWidget(self.plot_prj_use_rhrstrike_QRadioButt, 1, 3, 1, 1)
+        xs_input_point_proj_Layout.addWidget(self.plot_prj_use_dipdire_QRadioButt, 2, 3, 1, 1)
+        self.proj_point_orient_fld_comboBox = QComboBox()
+        xs_input_point_proj_Layout.addWidget(self.proj_point_orient_fld_comboBox, 1, 4, 1, 1)
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Dip ang. field"), 1, 5, 1, 1)
+        xs_input_point_proj_Layout.addWidget(QLabel("Dip"), 1, 5, 1, 1)
         self.proj_point_dipang_fld_comboBox = QComboBox()
         xs_input_point_proj_Layout.addWidget(self.proj_point_dipang_fld_comboBox, 1, 6, 1, 1)
 
@@ -264,6 +268,7 @@ class qprof_QWidget(QWidget):
         xs_method_point_proj_Layout = QGridLayout()
 
         self.nearest_point_proj_choice = QRadioButton("nearest intersection")
+        self.nearest_point_proj_choice.setChecked(True)
         xs_method_point_proj_Layout.addWidget(self.nearest_point_proj_choice, 0, 0, 1, 3)
 
         self.axis_common_point_proj_choice = QRadioButton("axis with trend")
@@ -305,7 +310,7 @@ class qprof_QWidget(QWidget):
 
         xs_plot_proj_Layout.addWidget(QLabel("Labels"), 0, 0, 1, 1)
 
-        self.plot_prj_add_trendplunge_label = QCheckBox("dip dir/plunge")
+        self.plot_prj_add_trendplunge_label = QCheckBox("or./dip")
         xs_plot_proj_Layout.addWidget(self.plot_prj_add_trendplunge_label, 0, 1, 1, 1)
 
         self.plot_prj_add_pt_id_label = QCheckBox("id")
@@ -329,7 +334,7 @@ class qprof_QWidget(QWidget):
         xs_point_proj_Layout.addWidget(xs_plot_proj_QGroupBox)
 
         self.flds_prj_point_comboBoxes = [self.proj_point_id_fld_comboBox,
-                                          self.proj_point_dipdir_fld_comboBox,
+                                          self.proj_point_orient_fld_comboBox,
                                           self.proj_point_dipang_fld_comboBox,
                                           self.proj_point_indivax_trend_fld_comboBox,
                                           self.proj_point_indivax_plunge_fld_comboBox]
@@ -632,7 +637,7 @@ class qprof_QWidget(QWidget):
 
             selected_dems = None
             selected_dem_parameters = None
-            topoline_colors = None
+            #topoline_colors = None
             sample_distance = None
             source_profile_line2dt = None
 
@@ -661,13 +666,12 @@ class qprof_QWidget(QWidget):
                         return
                 else:
                     self.stop_rubberband()
-                    #try:
-                    source_profile_line2dt = dialog.dem_source_profile_line2dt
-                    """
+                    try:
+                        source_profile_line2dt = dialog.dem_source_profile_line2dt
                     except:
                         self.warn("DEM-line profile source not correctly created [1]")
                         return
-                    """
+
                     if source_profile_line2dt is None:
                         self.warn("DEM-line profile source not correctly created [2]")
                         return
@@ -722,12 +726,12 @@ class qprof_QWidget(QWidget):
             profile_elements.topoline_colors = topoline_colors
             profile_elements.source_profile_line2dt = source_profile_line2dt
             profile_elements.sample_distance = sample_distance
-            #self.selected_dems = selected_dems
-            #self.selected_dem_parameters = selected_dem_parameters
             profile_elements.set_topo_profiles(topo_profiles)
 
-            return profile_elements
+            #self.selected_dems = selected_dems
+            #self.selected_dem_parameters = selected_dem_parameters
 
+            return profile_elements
 
         if self.prof_toposources_fromdems_checkbox.isChecked():
             dialog = TopoSourceFromDEMAndLineDialog(self.canvas)
@@ -1473,6 +1477,7 @@ class qprof_QWidget(QWidget):
             dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
             dem_topolines3d.append(dem_topoline3d)
 
+
         # setup topoprofiles properties
         topo_profiles = TopoProfiles()
 
@@ -1485,6 +1490,7 @@ class qprof_QWidget(QWidget):
         topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes_list()), dem_topolines3d)
         topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                         zip(selected_dems, selected_dem_parameters)]
+        topo_profiles.statistics_defined = False
 
         return topo_profiles
 
@@ -1579,6 +1585,7 @@ class qprof_QWidget(QWidget):
         topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
         topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
         topo_profiles.colors = gpx_colors
+        topo_profiles.statistics_defined = False
 
         return topo_profiles
 
@@ -1613,8 +1620,8 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.topo_profiles.profile_length = topo_profiles.s[-1] - topo_profiles.s[0]
         statistics_elev = self.profile_elements.topo_profiles.statistics_elev
-        self.profile_elements.topo_profiles.natural_elev_range = (min(map(lambda ds_stats: ds_stats["min"], statistics_elev)),
-                                                                 max(map(lambda ds_stats: ds_stats["max"], statistics_elev)))
+        self.profile_elements.topo_profiles.natural_elev_range = (np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
+                                                                  np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
 
         dialog = StatisticsDialog(self.profile_elements.topo_profiles)
         dialog.exec_()
@@ -1624,8 +1631,10 @@ class qprof_QWidget(QWidget):
     def plot_topo_profiles(self):
 
         # verify profile creation parameters
-        if self.profile_elements is None or self.profile_elements.topo_profiles is None:
-            self.warn("Profile not yet defined")
+        if self.profile_elements is None or \
+           self.profile_elements.profile_source_type is None or \
+           self.profile_elements.topo_profiles is None:
+            self.warn("Source profile not yet defined")
             return
 
         if not self.profile_elements.topo_profiles.statistics_defined:
@@ -2443,7 +2452,7 @@ class qprof_QWidget(QWidget):
 
         struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
                                                         structural_layer_crs,
-                                                        self.profile_elements.dems_params[0])
+                                                       self.profile_elements.topo_profiles.dem_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2467,7 +2476,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
         ### plot structural points in section ###
-        self.plot_profile_elements(self.vertical_exaggeration)
+        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
 
     def reset_struct_point_projection(self):
 
@@ -2511,8 +2520,8 @@ class qprof_QWidget(QWidget):
             return
 
         # input dem parameters
-        demLayer = self.profile_elements.dems_params[0].layer
-        demParams = self.profile_elements.dems_params[0].params
+        demLayer =self.profile_elements.topo_profiles.dem_params[0].layer
+        demParams =self.profile_elements.topo_profiles.dem_params[0].params
 
         # get line structural layer
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2610,7 +2619,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_curves(curves_2d_list, id_list)
 
         # plot new cross section
-        self.plot_profile_elements(self.vertical_exaggeration)
+        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
 
     def reset_structural_lines_projection(self):
 
@@ -2727,31 +2736,32 @@ class qprof_QWidget(QWidget):
 
     def plot_profile_elements(self, slope_padding=0.2):
 
-        # defines plot min and max values
-        plot_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
-        plot_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
-
         plot_s_min, plot_s_max = 0, self.profile_elements.topo_profiles.profile_length
 
+        plot_height_choice = self.profile_elements.plot_params['plot_height_choice']
+        plot_slope_choice = self.profile_elements.plot_params['plot_slope_choice']
+
+        if plot_height_choice:
+            # defines plot min and max values
+            plot_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
+            plot_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
+
         # if slopes to be calculated and plotted
-        if self.profile_elements.plot_params['plot_slope_choice']:
+        if plot_slope_choice:
             # defines slope value lists and the min and max values
             if self.profile_elements.plot_params['plot_slope_absolute']:
                 slopes = self.profile_elements.topo_profiles.absolute_slopes
             else:
                 slopes = self.profile_elements.topo_profiles.dir_slopes
 
-            profiles_slope_min = min(map(np.nanmin, slopes))
-            profiles_slope_max = max(map(np.nanmax, slopes))
+            profiles_slope_min = np.nanmin(np.array(map(np.nanmin, slopes)))
+            profiles_slope_max = np.nanmax(np.array(map(np.nanmax, slopes)))
 
             delta_slope = profiles_slope_max - profiles_slope_min
             plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope * slope_padding, profiles_slope_max + delta_slope * slope_padding
 
         # map
         profile_window = MplWidget()
-
-        plot_height_choice = self.profile_elements.plot_params['plot_height_choice']
-        plot_slope_choice = self.profile_elements.plot_params['plot_slope_choice']
 
         if plot_height_choice and plot_slope_choice:
             mpl_code_list = [211, 212]
@@ -3031,8 +3041,8 @@ class qprof_QWidget(QWidget):
             return
 
         # get dem parameters
-        demLayer = self.profile_elements.dems_params[0].layer
-        demParams = self.profile_elements.dems_params[0].params
+        demLayer =self.profile_elements.topo_profiles.dem_params[0].layer
+        demParams =self.profile_elements.topo_profiles.dem_params[0].params
 
         # profile line2d, in project CRS and densified 
         profile_line2d_prjcrs_densif = self.profile_elements.source_profile_line2dt.densify(self.profile_elements.sample_distance)
@@ -3112,7 +3122,7 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
-        self.plot_profile_elements(self.vertical_exaggeration)
+        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
 
     def classification_colors(self, dialog):
 
@@ -3170,8 +3180,8 @@ class qprof_QWidget(QWidget):
             return
 
         # get dem parameters
-        demLayer = self.profile_elements.dems_params[0].layer
-        demParams = self.profile_elements.dems_params[0].params
+        demLayer = self.profile_elements.topo_profiles.dem_params[0].layer
+        demParams = self.profile_elements.topo_profiles.dem_params[0].params
 
         # get line structural layer
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -3206,7 +3216,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_intersections_pts(
             zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list))
 
-        self.plot_profile_elements(self.vertical_exaggeration)
+        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
 
     def intersect_with_dem(self, demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list):
 
@@ -3509,7 +3519,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         self.selected_dems = None
         self.selected_dem_colors = None
-        #self.selected_dem_parameters = []
+        self.selected_dem_parameters = []
 
         current_raster_layers = loaded_monoband_raster_layers()
         if len(current_raster_layers) == 0:
@@ -3543,6 +3553,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
             dem_resolutions_prj_crs_list.append(
                 self.get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
+
         min_dem_resolution = min(dem_resolutions_prj_crs_list)
         if min_dem_resolution > 1:
             min_dem_proposed_resolution = round(min_dem_resolution)
@@ -3552,21 +3563,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         #self.profiles.profile_source_type = self.demline_source
 
-    """
-    def define_line(self):
-
-        self.reset_profile_defs()
-
-        if self.DigitizeLine_checkbox.isChecked():
-            self.digitize_line()
-        elif self.LoadLineLayer_checkbox.isChecked():
-            self.load_line_layer()
-        elif self.PointListforLine_checkbox.isChecked():
-            self.load_point_list()
-        else:
-            self.error("Debug: profile line source error")
-            return
-    """
 
     def get_dem_parameters(self, dem):
         return QGisRasterParameters(*raster_qgis_params(dem))
@@ -4081,12 +4077,7 @@ class PlotTopoProfileDialog(QDialog):
 
         # suggested exxageration value
         w_to_h_rat = float(profile_length) / float(delta_plot_z)
-        if w_to_h_rat < 1.0:
-            sugg_ve = w_to_h_rat / 5.0
-        elif w_to_h_rat > 10:
-            sugg_ve = 100.0/ w_to_h_rat
-        else:
-            sugg_ve = 1.0
+        sugg_ve = 0.2*w_to_h_rat
 
         layout = QVBoxLayout()
 

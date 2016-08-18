@@ -17,7 +17,7 @@ def calculate_distance_with_sign(projected_point, section_init_pt, section_vecto
     projected_vector = CartesianSegment3DT(section_init_pt, projected_point).as_vector3d()
     cos_alpha = section_vector.vectors_cos_angle(projected_vector)
 
-    return projected_vector.length() * cos_alpha
+    return projected_vector.length * cos_alpha
 
 
 def get_intersection_slope(intersection_versor_3d, section_vector):
@@ -44,9 +44,9 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
     dummy_distance = dummy_structural_vector.scalar_product(intersection_versor_3d)
     offset_vector = intersection_versor_3d.scale(dummy_distance)
 
-    return CartesianPoint3DT(dummy_inters_point.p_x + offset_vector.p_x,
-                             dummy_inters_point.p_y + offset_vector.p_y,
-                             dummy_inters_point.p_z + offset_vector.p_z)
+    return CartesianPoint3DT(dummy_inters_point.p_x + offset_vector.x,
+                             dummy_inters_point.p_y + offset_vector.y,
+                             dummy_inters_point.p_z + offset_vector.z)
 
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):

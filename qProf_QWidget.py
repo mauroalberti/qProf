@@ -7,7 +7,7 @@ import os
 import unicodedata
 import xml.dom.minidom
 import webbrowser
-from math import isnan, sin, cos, asin, radians, degrees, floor, ceil
+from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
 from osgeo import ogr, osr
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QGis, QgsGeometry, QgsVectorLayer
 from qgis.gui import QgsRubberBand, QgsColorButtonV2
@@ -2298,26 +2298,38 @@ class qprof_QWidget(QWidget):
 
         return [combobox.currentText() for combobox in combobox_list]
 
-    def define_plot_structural_segment(self, structural_attitude, profile_length):
+    def define_plot_structural_segment(self, structural_attitude, profile_length, vertical_exaggeration, segment_scale_factor=70.0):
 
-        slope_radians = structural_attitude.slope_rad
-        intersection_downward_sense = structural_attitude.dwnwrd_sense
+        ve = float(vertical_exaggeration)
         intersection_point = structural_attitude.pt_3d
-        horiz_distance = structural_attitude.sign_hor_dist
-
-        segment_horiz_scale_factor = 50.0
-        segment_emilength = profile_length / segment_horiz_scale_factor
-
-        delta_height = segment_emilength * sin(float(slope_radians))
-        delta_distance = segment_emilength * cos(float(slope_radians))
-
         z0 = intersection_point.p_z
 
-        structural_segment_s = [horiz_distance - delta_distance, horiz_distance + delta_distance]
-        structural_segment_z = [z0 + delta_height, z0 - delta_height]
+        h_dist = structural_attitude.sign_hor_dist
+        slope_rad = structural_attitude.slope_rad
+        intersection_downward_sense = structural_attitude.dwnwrd_sense
+        length = profile_length / segment_scale_factor
 
-        if intersection_downward_sense == "left":
-            structural_segment_z = [z0 - delta_height, z0 + delta_height]
+        s_slope = sin(float(slope_rad))
+        c_slope = cos(float(slope_rad))
+
+        if c_slope == 0.0:
+            height_corr = length / ve
+            structural_segment_s = [h_dist, h_dist]
+            structural_segment_z = [z0 + height_corr, z0 - height_corr]
+        else:
+            t_slope = s_slope / c_slope
+            width = length * c_slope
+
+            length_exag = width * sqrt(1 + ve*ve * t_slope*t_slope)
+
+            corr_width = width * length / length_exag
+            corr_height = corr_width * t_slope
+
+            structural_segment_s = [h_dist - corr_width, h_dist + corr_width]
+            structural_segment_z = [z0 + corr_height, z0 - corr_height]
+
+            if intersection_downward_sense == "left":
+                structural_segment_z = [z0 - corr_height, z0 + corr_height]
 
         return structural_segment_s, structural_segment_z
 
@@ -2736,6 +2748,7 @@ class qprof_QWidget(QWidget):
 
     def plot_profile_elements(self, slope_padding=0.2):
 
+        vertical_exaggeration = self.profile_elements.plot_params['vertical_exaggeration']
         plot_s_min, plot_s_max = 0, self.profile_elements.topo_profiles.profile_length
 
         plot_height_choice = self.profile_elements.plot_params['plot_height_choice']
@@ -2779,7 +2792,7 @@ class qprof_QWidget(QWidget):
                                                                self.profile_elements.topoline_colors,
                                                                self.profile_elements.plot_params['filled_height'])
 
-            self.axes_elevation.set_aspect(self.profile_elements.plot_params['vertical_exaggeration'])
+            self.axes_elevation.set_aspect(vertical_exaggeration)
 
         if plot_slope_choice:
 
@@ -2803,7 +2816,11 @@ class qprof_QWidget(QWidget):
         if len(self.profile_elements.plane_attitudes) > 0:
 
             for plane_attitude_set, color in zip(self.profile_elements.plane_attitudes, self.plane_attitudes_colors):
-                self.plot_structural_attitude(self.axes_elevation, plot_s_max, plane_attitude_set, color)
+                self.plot_structural_attitude(self.axes_elevation,
+                                              plot_s_max,
+                                              vertical_exaggeration,
+                                              plane_attitude_set,
+                                              color)
 
         if len(self.profile_elements.curves) > 0:
 
@@ -2889,7 +2906,7 @@ class qprof_QWidget(QWidget):
         if self.profile_elements is not None:
             self.profile_elements.intersection_lines = []
 
-    def plot_structural_attitude(self, axes, section_length, structural_attitude_list, color):
+    def plot_structural_attitude(self, axes, section_length, vertical_exaggeration, structural_attitude_list, color):
 
         # TODO:  manage case for possible nan z values
         projected_z = [structural_attitude.pt_3d.p_z for structural_attitude in structural_attitude_list if
@@ -2908,7 +2925,8 @@ class qprof_QWidget(QWidget):
         for structural_attitude in structural_attitude_list:
             if 0.0 <= structural_attitude.sign_hor_dist <= section_length:
                 structural_segment_s, structural_segment_z = self.define_plot_structural_segment(structural_attitude,
-                                                                                                 section_length)
+                                                                                                 section_length,
+                                                                                                 vertical_exaggeration)
 
                 axes.plot(structural_segment_s, structural_segment_z, '-', color=color)
 
@@ -4049,7 +4067,6 @@ def get_profile_plot_params(dialog):
     profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
     profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
     profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
-    #profile_params['reverse_direction'] = dialog.plotProfile_reverse_direction_checkbox.isChecked()
     profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
 
     return profile_params
@@ -4062,17 +4079,17 @@ class PlotTopoProfileDialog(QDialog):
         # preprocess elevation values
 
         # suggested plot elevation range
-        z_padding = 0.2
+        z_padding = 0.5
         delta_z = natural_elev_max - natural_elev_min
         if delta_z < 0.0:
             self.warn("Error: min elevation larger then max elevation")
             return
         elif delta_z == 0.0:
-            plot_z_min = floor((natural_elev_min - 100) / 100) * 100.0
-            plot_z_max = ceil((natural_elev_max + 100) / 100) * 100.0
+            plot_z_min = floor(natural_elev_min) - 10
+            plot_z_max = ceil(natural_elev_max) + 10
         else:
-            plot_z_min = floor((natural_elev_min - delta_z * z_padding)/100)*100.0
-            plot_z_max = ceil((natural_elev_max + delta_z * z_padding)/100)*100.0
+            plot_z_min = floor(natural_elev_min - delta_z * z_padding)
+            plot_z_max = ceil(natural_elev_max + delta_z * z_padding)
         delta_plot_z = plot_z_max - plot_z_min
 
         # suggested exxageration value

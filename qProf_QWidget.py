@@ -317,9 +317,10 @@ class qprof_QWidget(QWidget):
         xs_plot_proj_Layout.addWidget(self.plot_prj_add_pt_id_label, 0, 2, 1, 1)
 
         xs_plot_proj_Layout.addWidget(QLabel("Color"), 0, 3, 1, 1)
-        self.proj_point_color_comboBox = QComboBox()
-        self.proj_point_color_comboBox.addItems(qprof_QWidget.colors)
-        xs_plot_proj_Layout.addWidget(self.proj_point_color_comboBox, 0, 4, 1, 1)
+
+        self.proj_point_color_QgsColorButtonV2 = QgsColorButtonV2()
+        self.proj_point_color_QgsColorButtonV2.setColor(QColor('orange'))
+        xs_plot_proj_Layout.addWidget(self.proj_point_color_QgsColorButtonV2, 0, 4, 1, 1)
 
         self.project_point_pushbutton = QPushButton(self.tr("Plot"))
         self.project_point_pushbutton.clicked.connect(self.create_struct_point_projection)
@@ -466,6 +467,11 @@ class qprof_QWidget(QWidget):
         inters_line_input_Layout.addWidget(self.inters_input_id_fld_line_comboBox, 1, 1, 1, 3)
 
         self.flds_inters_line_comboBoxes = [self.inters_input_id_fld_line_comboBox]
+
+        inters_line_input_Layout.addWidget(QLabel("Color"), 2, 0, 1, 1)
+        self.inters_line_point_color_QgsColorButtonV2 = QgsColorButtonV2()
+        self.inters_line_point_color_QgsColorButtonV2.setColor(QColor('blue'))
+        inters_line_input_Layout.addWidget(self.inters_line_point_color_QgsColorButtonV2, 2, 1, 1, 1)
 
         inters_line_input_QGroupBox.setLayout(inters_line_input_Layout)
         line_intersect_Layout.addWidget(inters_line_input_QGroupBox)
@@ -1679,8 +1685,8 @@ class qprof_QWidget(QWidget):
     def export_parse_DEM_results(self, profiles):
 
         # definition of output results         
-        x_list = profiles.topo_profiles[0].x_list()
-        y_list = profiles.topo_profiles[0].y_list()
+        x_list = profiles.topo_profiles[0].x_list
+        y_list = profiles.topo_profiles[0].y_list
         elev_list = [topo_profile.z_list() for topo_profile in profiles.topo_profiles]
         cumdist_2D_list = profiles.topo_profiles[0].get_increm_dist_2d()
         cumdist_3d_list = [topo_profile.get_increm_dist_3d() for topo_profile in profiles.topo_profiles]
@@ -2466,7 +2472,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get color for projected points
-        color = self.proj_point_color_comboBox.currentText()
+        color = qcolor2rgbmpl(self.proj_point_color_QgsColorButtonV2.color())
 
         # define structural layer 
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2583,7 +2589,7 @@ class qprof_QWidget(QWidget):
 
         # project to Dem CRS
         if on_the_fly_projection and demParams.crs != project_crs:
-            densified_dem_crs_MultiLine2D_list = [multiline_2d.crs_project_2d(project_crs, demParams.crs) for
+            densified_dem_crs_MultiLine2D_list = [multiline_2d.crs_project(project_crs, demParams.crs) for
                                                   multiline_2d in densified_proj_crs_MultiLine2D_list]
         else:
             densified_dem_crs_MultiLine2D_list = densified_proj_crs_MultiLine2D_list
@@ -2885,9 +2891,6 @@ class qprof_QWidget(QWidget):
         s = topo_profiles.s
 
         for y, topoline_color in zip(ys, topoline_colors):
-
-            print type(topoline_color)
-
             if filled_choice:
                 plot_filled_line(axes,
                                  s,
@@ -2916,9 +2919,9 @@ class qprof_QWidget(QWidget):
 
     def plot_profile_lines_intersection_points(self, axes, profile_lines_intersection_points):
 
-        for s, pt3d, intersection_id in profile_lines_intersection_points:
-            axes.plot(s, pt3d.p_z, 'o', color="blue")
-            if str(intersection_id).upper() != "NULL":
+        for s, pt3d, intersection_id, color in profile_lines_intersection_points:
+            axes.plot(s, pt3d.p_z, 'o', color=color)
+            if str(intersection_id).upper() != "NULL" or str(intersection_id) != '':
                 axes.annotate(str(intersection_id), (s + 25, pt3d.p_z + 25))
 
     def line_intersection_reset(self):
@@ -2979,7 +2982,7 @@ class qprof_QWidget(QWidget):
         colors = qprof_QWidget.colors_addit * (int(len(curve_set) / len(qprof_QWidget.colors_addit)) + 1)
         for multiline_2d, label, color in zip(curve_set, labels, colors):
             for line_2d in multiline_2d.lines:
-                plot_line(axes, line_2d.x_list(), line_2d.y_list(), color, name=label)
+                plot_line(axes, line_2d.x_list, line_2d.y_list, color, name=label)
 
     def plot_profile_polygon_intersection_line(self, axes, intersection_line_value):
 
@@ -3033,7 +3036,7 @@ class qprof_QWidget(QWidget):
 
         # project input line layer to project CRS
         if on_the_fly_projection:
-            line_proj_crs_MultiLine2D_list = [multiline2d.crs_project_2d(structural_line_layer_crs, project_crs) for
+            line_proj_crs_MultiLine2D_list = [multiline2d.crs_project(structural_line_layer_crs, project_crs) for
                                               multiline2d in line_orig_crs_clean_MultiLine2D_list]
         else:
             line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
@@ -3136,8 +3139,9 @@ class qprof_QWidget(QWidget):
         for classification_ndx in range(dialog.polygon_classifications_treeWidget.topLevelItemCount()):
             class_itemwidget = dialog.polygon_classifications_treeWidget.topLevelItem(classification_ndx)
             classification = unicode(class_itemwidget.text(0))
-            polygon_classification_colors_dict[classification] = dialog.polygon_classifications_treeWidget.itemWidget(
-                class_itemwidget, 1).currentText()
+            # get color
+            color = qcolor2rgbmpl(dialog.polygon_classifications_treeWidget.itemWidget(class_itemwidget, 1).color())
+            polygon_classification_colors_dict[classification] = color
 
         return polygon_classification_colors_dict
 
@@ -3158,8 +3162,16 @@ class qprof_QWidget(QWidget):
 
             intersection_qgsgeometry = poly_geom.intersection(profile_qgsgeometry)
 
-            if intersection_qgsgeometry.isEmpty():
-                continue
+            try:
+                if intersection_qgsgeometry.isEmpty():
+                    continue
+            except:
+                try:
+                    if intersection_qgsgeometry.isGeosEmpty():
+                        continue
+                except:
+                    self.warn("Missing function for checking empty geometries.\nPlease upgrade QGIS")
+                    return
 
             if inters_polygon_classifaction_field_ndx >= 0:
                 attrs = polygon_feature.attributes()
@@ -3183,6 +3195,9 @@ class qprof_QWidget(QWidget):
         if not self.check_intersection_line_inputs():
             return
 
+        # get color for projected points
+        color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButtonV2.color())
+
         # get dem parameters
         demLayer = self.profile_elements.topo_profiles.dem_params[0].layer
         demParams = self.profile_elements.topo_profiles.dem_params[0].params
@@ -3199,12 +3214,17 @@ class qprof_QWidget(QWidget):
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
 
         # read structural line values
-        id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
+        if intersection_line_id_field_ndx == -1:
+            id_list = None
+        else:
+            id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
+
         line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
                                                                        project_crs)
 
         # calculated CartesianPoint2DT intersection list
-        intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list, id_list,
+        intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
+                                                                               id_list,
                                                                                self.profile_elements.source_profile_line2dt)
 
         # sort intersection points by spat_distance from profile start point
@@ -3216,9 +3236,10 @@ class qprof_QWidget(QWidget):
         intersection_id_list = [id for _, id in intersection_point_id_list]
         intersection_point3d_list = self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
                                                             intersection_point_list)
+        intersection_colors = [color] * len(intersection_point_list)
 
         self.profile_elements.add_intersections_pts(
-            zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list))
+            zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list, intersection_colors))
 
         self.plot_profile_elements()
 
@@ -3229,7 +3250,7 @@ class qprof_QWidget(QWidget):
             qgs_point2d_list = [qgs_point_2d(point2D.p_x, point2D.p_y) for point2D in intersection_point_list]
             dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                    qgs_point2d_list]
-            dem_crs_intersection_point_list = [CartesianPoint2DT(qgispt.p_x(), qgispt.y()) for qgispt in
+            dem_crs_intersection_point_list = [CartesianPoint2DT(qgispt.x(), qgispt.y()) for qgispt in
                                                dem_crs_intersection_qgispoint_list]
         else:
             dem_crs_intersection_point_list = intersection_point_list
@@ -3241,16 +3262,16 @@ class qprof_QWidget(QWidget):
 
     def calculate_profile_lines_intersection(self, multilines2d_list, id_list, profile_line2d):
 
-        # debug
-        assert len(multilines2d_list) == len(id_list)
-
         profile_segment2d_list = profile_line2d.as_segments2dt()
-        # debug
-        assert len(profile_segment2d_list) == 1
+
         profile_segment2d = profile_segment2d_list[0]
 
         intersection_list = []
-        for multiline2d, multiline_id in zip(multilines2d_list, id_list):
+        for ndx, multiline2d in enumerate(multilines2d_list):
+            if id_list is None:
+                multiline_id = ''
+            else:
+                multiline_id = id_list[ndx]
             for line2d in multiline2d.lines:
                 for line_segment2d in line2d.as_segments2dt():
                     try:
@@ -3260,7 +3281,7 @@ class qprof_QWidget(QWidget):
                     if intersection_point2d is None:
                         continue
                     if line_segment2d.contains_pt(intersection_point2d) and \
-                            profile_segment2d.contains_pt(intersection_point2d):
+                       profile_segment2d.contains_pt(intersection_point2d):
                         intersection_list.append([intersection_point2d, multiline_id])
 
         return intersection_list
@@ -4010,16 +4031,24 @@ class PolygonIntersectionRepresentationDialog(QDialog):
         self.setWindowTitle("Polygon intersection colors")
 
     def refresh_classification_colors_treewidget(self):
+
+        if len(PolygonIntersectionRepresentationDialog.colors) < len(self.polygon_classifications):
+            dupl_factor = 1 + int(len(self.polygon_classifications) / len(PolygonIntersectionRepresentationDialog.colors))
+            curr_colors = dupl_factor * PolygonIntersectionRepresentationDialog.colors
+        else:
+            curr_colors = PolygonIntersectionRepresentationDialog.colors
+
         self.polygon_classifications_treeWidget.clear()
 
-        for classification_id in self.polygon_classifications:
+        for classification_id, color in zip(self.polygon_classifications, curr_colors):
             tree_item = QTreeWidgetItem(self.polygon_classifications_treeWidget)
             tree_item.setText(0, unicode(classification_id))
-            combo_box = QComboBox()
-            combo_box.setSizeAdjustPolicy(0)
-            combo_box.addItems(PolygonIntersectionRepresentationDialog.colors)
-            self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, combo_box)
 
+            color_QgsColorButtonV2 = QgsColorButtonV2()
+            color_QgsColorButtonV2.setColor(QColor(color))
+            #combo_box.setSizeAdjustPolicy(0)
+            #combo_box.addItems(PolygonIntersectionRepresentationDialog.colors)
+            self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButtonV2)
 
 def get_profile_plot_params(dialog):
 

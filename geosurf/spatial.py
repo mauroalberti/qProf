@@ -108,8 +108,8 @@ class CartesianSegment2DT(object):
 
     def intersection_pt(self, another):
 
-        assert self.length_2d() > 0.0
-        assert another.length_2d() > 0.0
+        assert self.length_2d > 0.0
+        assert another.length_2d > 0.0
 
         # at least one segment vertical
         if self.start_pt.p_x == self.end_pt.p_x:
@@ -468,7 +468,7 @@ class CartesianMultiLine2DT(object):
 
         lines = []
         for line_2d in self.lines:
-            lines.append(line_2d.crs_project_2d(srcCrs, destCrs))
+            lines.append(line_2d.crs_project(srcCrs, destCrs))
 
         return CartesianMultiLine2DT(lines)
 

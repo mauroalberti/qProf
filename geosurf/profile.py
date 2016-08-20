@@ -11,7 +11,6 @@ class Profile_Elements(object):
         self.sample_distance = None  # max spacing along profile; float
         self.topoline_colors = None
         self.plot_params = None
-        self.statistics_defined = False
 
         self.resamp_src_line = None
         self.topo_profiles = None
@@ -101,12 +100,10 @@ class Profile_Elements(object):
         self.curves.append(multiline_2d_list)
         self.curves_ids.append(ids_list)
 
-
 class DEMParams(object):
     def __init__(self, layer, params):
         self.layer = layer
         self.params = params
-
 
 class TopoLine3D(object):
     def __init__(self, name, line3d):
@@ -149,7 +146,6 @@ class TopoLine3D(object):
     def get_increm_dist_2d(self):
         return self.profile_3d.incremental_length_2d()
 
-
 class TopoProfiles(object):
 
     def __init__(self):
@@ -167,6 +163,8 @@ class TopoProfiles(object):
         self.dem_params = []
         self.gpx_params = None
         self.colors = []
+        self.statistics_defined = False
+        self.profile_defined = False
 
     def max_s(self):
         return self.s[-1]

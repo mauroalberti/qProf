@@ -50,8 +50,8 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
 
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
-    axis_versor = map_axis.as_versor3d()
-    l, m, n = axis_versor.p_x, axis_versor.p_y, axis_versor.p_z
+    axis_versor = map_axis.versor_3d()
+    l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
     axis_param_line = CartesianParamLine(structural_pt, l, m, n)
     return axis_param_line.intersect_cartes_plane(section_cartes_plane)
 
@@ -95,7 +95,7 @@ def map_measure_to_section(structural_rec, section_data, map_axis=None):
 def map_struct_pts_on_section(structural_data, section_data, mapping_method):
     """
     defines:
-        - 2D p_x-p_y location in section
+        - 2D x-y location in section
         - plane-plane segment intersection
     """
 
@@ -167,7 +167,7 @@ class Intersections(object):
         num_intersections = len(list(self.xcoords_x[np.logical_not(np.isnan(self.xcoords_x))])) + \
                             len(list(self.ycoords_y[np.logical_not(np.isnan(self.ycoords_y))]))
 
-        # creation and initialization of structured array of valid intersections in the p_x-direction
+        # creation and initialization of structured array of valid intersections in the x-direction
         links = np.zeros((num_intersections), dtype=dt)
 
         # filling array with values
@@ -176,13 +176,13 @@ class Intersections(object):
         for i in xrange((self.xcoords_x.shape)[0]):
             for j in xrange(self.xcoords_x.shape[1]):
                 if not isnan(self.xcoords_x[i, j]):
-                    links[curr_ndx] = (curr_ndx + 1, i, j, 'p_x', 0, 0, False)
+                    links[curr_ndx] = (curr_ndx + 1, i, j, 'x', 0, 0, False)
                     curr_ndx += 1
 
         for i in xrange(self.ycoords_y.shape[0]):
             for j in xrange(self.ycoords_y.shape[1]):
                 if not isnan(self.ycoords_y[i, j]):
-                    links[curr_ndx] = (curr_ndx + 1, i, j, 'p_y', 0, 0, False)
+                    links[curr_ndx] = (curr_ndx + 1, i, j, 'y', 0, 0, False)
                     curr_ndx += 1
 
         return links
@@ -207,14 +207,14 @@ class Intersections(object):
             # check possible connected spdata
             near_intersections = []
 
-            if curr_dir == 'p_x':
+            if curr_dir == 'x':
 
                 if curr_i < num_rows - 1 and curr_j < num_cols - 1:
 
                     try:  # -- A
                         id_link = self.links[(self.links['i'] == curr_i + 1) & \
                                              (self.links['j'] == curr_j + 1) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -222,7 +222,7 @@ class Intersections(object):
                     try:  # -- B
                         id_link = self.links[(self.links['i'] == curr_i + 1) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -230,7 +230,7 @@ class Intersections(object):
                     try:  # -- C
                         id_link = self.links[(self.links['i'] == curr_i + 1) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -241,7 +241,7 @@ class Intersections(object):
                     try:  # -- E
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -249,7 +249,7 @@ class Intersections(object):
                     try:  # -- F
                         id_link = self.links[(self.links['i'] == curr_i - 1) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -257,20 +257,20 @@ class Intersections(object):
                     try:  # -- G
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j + 1) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
                         pass
 
-            if curr_dir == 'p_y':
+            if curr_dir == 'y':
 
                 if curr_i > 0 and curr_j < num_cols - 1:
 
                     try:  # -- D
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -278,7 +278,7 @@ class Intersections(object):
                     try:  # -- F
                         id_link = self.links[(self.links['i'] == curr_i - 1) & \
                                              (self.links['j'] == curr_j) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -286,7 +286,7 @@ class Intersections(object):
                     try:  # -- G
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j + 1) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -297,7 +297,7 @@ class Intersections(object):
                     try:  # -- H
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j - 1) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -305,7 +305,7 @@ class Intersections(object):
                     try:  # -- I
                         id_link = self.links[(self.links['i'] == curr_i) & \
                                              (self.links['j'] == curr_j - 1) & \
-                                             (self.links['pi_dir'] == 'p_y')]['id']
+                                             (self.links['pi_dir'] == 'y')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:
@@ -313,7 +313,7 @@ class Intersections(object):
                     try:  # -- L
                         id_link = self.links[(self.links['i'] == curr_i - 1) & \
                                              (self.links['j'] == curr_j - 1) & \
-                                             (self.links['pi_dir'] == 'p_x')]['id']
+                                             (self.links['pi_dir'] == 'x')]['id']
                         if len(list(id_link)) == 1:
                             near_intersections.append(id_link[0])
                     except:

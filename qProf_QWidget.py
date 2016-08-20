@@ -1490,7 +1490,6 @@ class qprof_QWidget(QWidget):
         topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes_list()), dem_topolines3d)
         topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                         zip(selected_dems, selected_dem_parameters)]
-        topo_profiles.statistics_defined = False
 
         return topo_profiles
 
@@ -1585,7 +1584,6 @@ class qprof_QWidget(QWidget):
         topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
         topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
         topo_profiles.colors = gpx_colors
-        topo_profiles.statistics_defined = False
 
         return topo_profiles
 
@@ -1605,12 +1603,10 @@ class qprof_QWidget(QWidget):
 
         return stats
 
+
     def calculate_profile_statistics(self):
 
-        if self.profile_elements is None or \
-           self.profile_elements.profile_source_type is None or \
-           self.profile_elements.topo_profiles is None:
-            self.warn("Source profile not yet defined")
+        if not self.check_pre_statistics():
             return
 
         topo_profiles = self.profile_elements.topo_profiles
@@ -1628,17 +1624,42 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.topo_profiles.statistics_defined = True
 
-    def plot_topo_profiles(self):
 
-        # verify profile creation parameters
+    def check_pre_statistics(self):
+
         if self.profile_elements is None or \
            self.profile_elements.profile_source_type is None or \
            self.profile_elements.topo_profiles is None:
             self.warn("Source profile not yet defined")
-            return
+            return False
+
+        return True
+
+    def check_pre_profile(self):
+
+        if not self.check_pre_statistics():
+            return False
 
         if not self.profile_elements.topo_profiles.statistics_defined:
             self.warn("Statistics not yet calculated")
+            return False
+
+        return True
+
+    def check_post_profile(self):
+
+        if not self.check_pre_profile():
+            return False
+
+        if not self.profile_elements.topo_profiles.profile_defined:
+            self.warn("Topographic profile not yet created")
+            return False
+
+        return True
+
+    def plot_topo_profiles(self):
+
+        if not self.check_pre_profile():
             return
 
         natural_elev_min, natural_elev_max = self.profile_elements.topo_profiles.natural_elev_range
@@ -1649,6 +1670,8 @@ class qprof_QWidget(QWidget):
             self.profile_elements.plot_params = get_profile_plot_params(dialog)
         else:
             return
+
+        self.profile_elements.topo_profiles.profile_defined = True
 
         # plot profiles
         self.plot_profile_elements()
@@ -2407,37 +2430,42 @@ class qprof_QWidget(QWidget):
                     'trend field': unicode(self.proj_point_indivax_trend_fld_comboBox.currentText()),
                     'plunge field': unicode(self.proj_point_indivax_plunge_fld_comboBox.currentText())}
 
-    def check_struct_point_proj_parameters(self):
+    def check_for_struc_process(self):
 
-        # check if profile exists
-        try:
-            self.profile_elements.topo_profiles.s
-        except:
-            return False, "Profile not yet calculated"
+        if not self.check_post_profile():
+            return False
 
         # check that section is made up of only two points
         if self.profile_elements.source_profile_line2dt.num_pts != 2:
-            return False, "Profile not made up by only two points"
+            self.warn("Profile not made up by only two points")
+            return False
 
-        # dem number
+        # check dem number is 1
         if len(self.profile_elements.topo_profiles.s3d) > 1:
-            return False, "One (and only) topographic surface has to be used in the profile section"
+            self.warn("One (and only) topographic surface has to be used in the profile section")
+            return False
 
-            # get point structural layer with parameter fields
+        return True
+
+    def check_struct_point_proj_parameters(self):
+
+        if not self.check_for_struc_process():
+            return False
+
+        # get point structural layer with parameter fields
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if prj_struct_point_qgis_ndx < 0:
-            return False, "No defined point layer for structural data"
+            self.warn("No defined point layer for structural data")
+            return False
 
-        return True, "OK"
+        return True
 
     def create_struct_point_projection(self):
 
-        parameters_check_ok, parameters_check_msg = self.check_struct_point_proj_parameters()
-        if not parameters_check_ok:
-            self.warn(parameters_check_msg)
+        if not self.check_struct_point_proj_parameters():
             return
 
-            # get color for projected points
+        # get color for projected points
         color = self.proj_point_color_comboBox.currentText()
 
         # define structural layer 
@@ -2445,26 +2473,27 @@ class qprof_QWidget(QWidget):
         structural_layer = self.pointLayers[prj_struct_point_qgis_ndx]
         structural_layer_crs = structural_layer.crs()
         structural_field_list = self.get_current_combobox_values(self.flds_prj_point_comboBoxes)
+        isRHRStrike = self.plot_prj_use_rhrstrike_QRadioButt.isChecked()
 
-        # retrieve selected structural points with their attributes        
+        # retrieve selected structural points with their attributes
         structural_pts_attrs = pt_geoms_attrs(structural_layer, structural_field_list)
 
         # list of structural points with original crs
-        struct_pts_in_orig_crs = [CartesianPoint3DT(rec[0], rec[1]) for rec in structural_pts_attrs]
+        struct_pts_in_orig_crs = [CartesianPoint3DT(float(rec[0]), float(rec[1])) for rec in structural_pts_attrs]
 
         # IDs of structural points
         struct_pts_ids = [rec[2] for rec in structural_pts_attrs]
 
         # - geological planes (3D), as geological planes
         try:
-            structural_planes = [GeolPlane(rec[3], rec[4]) for rec in structural_pts_attrs]
+            structural_planes = [GeolPlane(float(rec[3]), float(rec[4]), isRHRStrike) for rec in structural_pts_attrs]
         except:
             self.warn("Check defined fields for possible errors")
             return
 
         struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
                                                         structural_layer_crs,
-                                                       self.profile_elements.topo_profiles.dem_params[0])
+                                                        self.profile_elements.topo_profiles.dem_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2488,7 +2517,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
         ### plot structural points in section ###
-        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
+        self.plot_profile_elements()
 
     def reset_struct_point_projection(self):
 
@@ -2500,35 +2529,31 @@ class qprof_QWidget(QWidget):
 
     def check_structural_line_projection_inputs(self):
 
-        dem_check, msg = self.check_src_dem_for_geological_profile()
-        if not dem_check:
-            return False, msg
-
-        profile_check, msg = self.check_src_profile_for_geological_profile()
-        if not profile_check:
-            return False, msg
+        if not self.check_for_struc_process():
+            return False
 
         # line structural layer with parameter fields
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if prj_struct_line_qgis_ndx < 0:
-            return False, "No defined structural line layer"
+            self.warn("No defined structural line layer")
+            return False
 
         try:
             densify_distance = float(self.project_line_densify_distance_lineedit.text())
         except:
-            return False, "No valid numeric value for densify line spat_distance"
+            self.warn("No valid numeric value for densify line distance")
+            return False
         else:
             if densify_distance <= 0.0:
-                return False, "Densify line spat_distance must be larger than zero"
+                self.warn("Densify line distance must be larger than zero")
+                return False
 
-        return True, "OK"
+        return True
 
     def create_struct_line_projection(self):
 
         # check input values
-        input_values_ok, msg = self.check_structural_line_projection_inputs()
-        if not input_values_ok:
-            self.warn(msg)
+        if not self.check_structural_line_projection_inputs():
             return
 
         # input dem parameters
@@ -2631,7 +2656,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_curves(curves_2d_list, id_list)
 
         # plot new cross section
-        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
+        self.plot_profile_elements()
 
     def reset_structural_lines_projection(self):
 
@@ -2968,66 +2993,31 @@ class qprof_QWidget(QWidget):
 
         plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
-    def check_src_dem_for_geological_profile(self):
-
-        # dem parameters
-        try:
-            num_dems_in_profile = len(self.profile_elements.topo_profiles)
-        except:
-            return False, "Profile not yet calculated"
-        else:
-            if num_dems_in_profile == 0:
-                return False, "Profile not yet calculated"
-            elif num_dems_in_profile > 1:
-                return False, "One DEM (and only one DEM) has to be used in the profile section"
-
-        return True, "ok"
-
-    def check_src_profile_for_geological_profile(self):
-
-        # check if profile exists
-        if self.profile_elements.source_profile_line2dt is None:
-            return False, "Profile not yet calculated"
-
-        # check that section is made up of only two points
-        if self.profile_elements.source_profile_line2dt.num_pts != 2:
-            return False, "Current profile is not made up by only two points"
-
-        return True, "ok"
-
     def check_intersection_polygon_inputs(self):
 
-        dem_check, msg = self.check_src_dem_for_geological_profile()
-        if not dem_check:
-            return False, msg
+        if not self.check_for_struc_process():
+            return False
 
-        profile_check, msg = self.check_src_profile_for_geological_profile()
-        if not profile_check:
-            return False, msg
-
-            # polygon layer with parameter fields
+        # polygon layer with parameter fields
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if intersection_polygon_qgis_ndx < 0:
-            return False, "No defined polygon layer"
+            self.warn("No defined polygon layer")
+            return False
 
-        return True, "OK"
+        return True
 
     def check_intersection_line_inputs(self):
 
-        dem_check, msg = self.check_src_dem_for_geological_profile()
-        if not dem_check:
-            return False, msg
-
-        profile_check, msg = self.check_src_profile_for_geological_profile()
-        if not profile_check:
-            return False, msg
+        if not self.check_for_struc_process():
+            return False
 
         # line structural layer with parameter fields
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
         if intersection_line_qgis_ndx < 0:
-            return False, "No defined geological line layer"
+            self.warn("No defined geological line layer")
+            return False
 
-        return True, "OK"
+        return True
 
     def extract_multiline2d_list(self, structural_line_layer, on_the_fly_projection, project_crs):
 
@@ -3053,9 +3043,7 @@ class qprof_QWidget(QWidget):
     def do_polygon_intersection(self):
 
         # check input values
-        input_values_ok, msg = self.check_intersection_polygon_inputs()
-        if not input_values_ok:
-            self.warn(msg)
+        if not self.check_intersection_polygon_inputs():
             return
 
         # get dem parameters
@@ -3140,7 +3128,7 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
-        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
+        self.plot_profile_elements()
 
     def classification_colors(self, dialog):
 
@@ -3192,9 +3180,7 @@ class qprof_QWidget(QWidget):
     def do_line_intersection(self):
 
         # check input values
-        input_values_ok, msg = self.check_intersection_line_inputs()
-        if not input_values_ok:
-            self.warn(msg)
+        if not self.check_intersection_line_inputs():
             return
 
         # get dem parameters
@@ -3234,7 +3220,7 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_intersections_pts(
             zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list))
 
-        self.plot_profile_elements(self.profile_elements.plot_params['vertical_exaggeration'])
+        self.plot_profile_elements()
 
     def intersect_with_dem(self, demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list):
 
@@ -3551,10 +3537,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         else:
             self.warn("No chosen DEM")
             return
-
-        #self.profiles = Profile_Elements()
-        # self.profiles.topo_profiles.plot_params = None
-        # self.profiles.topo_profiles.statistics_defined = False
 
         if len(selected_dems) == 0:
             self.warn("No selected DEM")

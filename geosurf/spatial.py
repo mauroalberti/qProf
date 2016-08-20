@@ -1189,6 +1189,11 @@ class CartesianPlane(object):
         return angle_degr
 
 
+def rhrstrike2dipdir(rhr_strk):
+
+    return (rhr_strk + 90.0) % 360.0
+
+
 class GeolPlane(object):
     """
     Structural plane, following geological conventions:
@@ -1196,12 +1201,12 @@ class GeolPlane(object):
     
     """
 
-    def __init__(self, srcDipDir, srcDipAngle):
+    def __init__(self, srcAzimuth, srcDipAngle, isRHRStrike=False):
         """
         Class constructor
-        
-        @param  srcDipDir:  Dip direction of the plane (0-360�).
-        @type  srcDipDir:  number or string convertible to float.
+
+        @param  srcAzimuth:  Azimuth of the plane (RHR strike or dip direction).
+        @type  srcAzimuth:  number or string convertible to float.
         @param  srcDipAngle:  Dip angle of the plane (0-90�).
         @type  srcDipAngle:  number or string convertible to float.
            
@@ -1209,11 +1214,11 @@ class GeolPlane(object):
     
         """
 
-        assert 0.0 <= float(srcDipDir) < 360.0
-        assert 0.0 <= float(srcDipAngle) <= 90.0
-
-        self._dipdir = float(srcDipDir)
-        self._dipangle = float(srcDipAngle)
+        if isRHRStrike:
+            self._dipdir = rhrstrike2dipdir(srcAzimuth)
+        else:
+            self._dipdir = srcAzimuth % 360.0
+        self._dipangle = srcDipAngle
 
     @property
     def dipdir(self):

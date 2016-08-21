@@ -59,9 +59,9 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements = None
 
-        self.selected_dems = []
-        self.selected_dem_colors = []
-        self.selected_dem_parameters = []
+        #self.selected_dems = []
+        #self.selected_dem_colors = []
+        #self.selected_dem_parameters = []
 
         self.profile_windows = []
         self.cross_section_windows = []
@@ -643,7 +643,7 @@ class qprof_QWidget(QWidget):
 
             selected_dems = None
             selected_dem_parameters = None
-            #topoline_colors = None
+
             sample_distance = None
             source_profile_line2dt = None
 
@@ -867,7 +867,8 @@ class qprof_QWidget(QWidget):
             self.warn("Profile not yet calculated")
             return
 
-        dialog = TopographicProfileExportDialog(self.selected_dems)
+        selected_dems_params = self.profile_elements.topo_profiles.dem_params
+        dialog = TopographicProfileExportDialog(selected_dems_params)
 
         if dialog.exec_():
 
@@ -885,22 +886,36 @@ class qprof_QWidget(QWidget):
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
-
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
             self.warn("No export defined")
             return
 
-        self.output_topography(output_source, output_format, output_filepath)
+        # get project CRS information
+        project_crs_osr = self.get_prjcrs_as_proj4str()
 
-    def output_topography(self, output_source, output_format, output_filepath):
+        self.output_topography(output_source, output_format, output_filepath, project_crs_osr)
+
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                      QFileInfo(output_filepath).baseName(),
+                                      "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    def output_topography(self, output_source, output_format, output_filepath, project_crs_osr):
 
         if output_source[0] == "all_dems":
-            self.export_topography_all_dems(output_format, output_filepath)
+            self.export_topography_all_dems(output_format, output_filepath, project_crs_osr)
         elif output_source[0] == "single_dem":
             ndx_dem_to_export = output_source[1]
-            self.export_topography_single_dem(output_format, ndx_dem_to_export, output_filepath)
+            self.export_topography_single_dem(output_format, ndx_dem_to_export, output_filepath, project_crs_osr)
         elif output_source[0] == "gpx_file":
-            self.export_topography_gpx_data(output_format, output_filepath)
+            self.export_topography_gpx_data(output_format, output_filepath, project_crs_osr)
         else:
             self.error("Debug: output choice not correctly defined")
             return
@@ -1131,6 +1146,16 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
+    def get_prjcrs_as_proj4str(self):
+
+        # get project CRS information
+        _, project_crs = get_on_the_fly_projection(self.canvas)
+        proj4_str = str(project_crs.toProj4())
+        project_crs_osr = osr.SpatialReference()
+        project_crs_osr.ImportFromProj4(proj4_str)
+
+        return project_crs_osr
+
     def save_rubberband(self):
 
         def get_format_type():
@@ -1166,10 +1191,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        _, project_crs = get_on_the_fly_projection(self.canvas)
-        proj4_str = str(project_crs.toProj4())
-        project_crs_osr = osr.SpatialReference()
-        project_crs_osr.ImportFromProj4(proj4_str)
+        project_crs_osr = self.get_prjcrs_as_proj4str()
 
         self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts, project_crs_osr)
 
@@ -1480,9 +1502,12 @@ class qprof_QWidget(QWidget):
         # calculate 3D profiles from DEMs
         dem_topolines3d = []
         for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-            dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d, on_the_fly_projection, project_crs, dem, dem_params)
+            dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d,
+                                                            on_the_fly_projection,
+                                                            project_crs,
+                                                            dem,
+                                                            dem_params)
             dem_topolines3d.append(dem_topoline3d)
-
 
         # setup topoprofiles properties
         topo_profiles = TopoProfiles()
@@ -1682,15 +1707,15 @@ class qprof_QWidget(QWidget):
         # plot profiles
         self.plot_profile_elements()
 
-    def export_parse_DEM_results(self, profiles):
+    def export_parse_DEM_results(self, profiles_elements):
 
         # definition of output results         
-        x_list = profiles.topo_profiles[0].x_list
-        y_list = profiles.topo_profiles[0].y_list
-        elev_list = [topo_profile.z_list() for topo_profile in profiles.topo_profiles]
-        cumdist_2D_list = profiles.topo_profiles[0].get_increm_dist_2d()
-        cumdist_3d_list = [topo_profile.get_increm_dist_3d() for topo_profile in profiles.topo_profiles]
-        slopes = [topo_profile.directional_slopes() for topo_profile in profiles.topo_profiles]
+        x_list = profiles_elements.topo_profiles.xs
+        y_list = profiles_elements.topo_profiles.ys
+        elev_list = profiles_elements.topo_profiles.elevs
+        cumdist_2D_list = profiles_elements.topo_profiles.s
+        cumdist_3d_list = profiles_elements.topo_profiles.s3d
+        slopes = profiles_elements.topo_profiles.dir_slopes
 
         elev_list_zip = zip(*elev_list)
         cumdist_3d_list_zip = zip(*cumdist_3d_list)
@@ -1709,9 +1734,9 @@ class qprof_QWidget(QWidget):
                 record += [z, cum3d_dist, slope]
             result_data.append(record)
 
-        return profiles.get_current_dem_names(), result_data
+        return profiles_elements.get_current_dem_names(), result_data
 
-    def export_topography_all_dems(self, out_format, outfile_path):
+    def export_topography_all_dems(self, out_format, outfile_path, proj_sr):
 
         if not self.profile_elements:
             self.warn("No DEM-derived profile defined")
@@ -1736,16 +1761,16 @@ class qprof_QWidget(QWidget):
         if out_format == "csv":
             self.write_topography_allDEMs_csv(outfile_path, header_list, export_data)
         elif out_format == "shapefile - point":
-            self.write_topography_allDEMs_ptshp(outfile_path, header_list, dem_names, export_data)
+            self.write_topography_allDEMs_ptshp(outfile_path, header_list, dem_names, export_data, proj_sr)
         elif out_format == "shapefile - line":
-            self.write_topography_allDEMs_lnshp(outfile_path, header_list, dem_names, export_data)
+            self.write_topography_allDEMs_lnshp(outfile_path, header_list, dem_names, export_data, proj_sr)
         else:
             self.error("Debug: error in export all DEMs")
             return
 
         self.info("Profile export completed")
 
-    def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path):
+    def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
 
         if not self.profile_elements:
             self.warn("No DEM-derived profile defined")
@@ -1760,22 +1785,22 @@ class qprof_QWidget(QWidget):
         if out_format == "csv":
             self.write_topography_singleDEM_csv(outfile_path, header_list, export_data, ndx_dem_to_export)
         elif out_format == "shapefile - point":
-            self.write_topography_singleDEM_ptshp(outfile_path, header_list, export_data, ndx_dem_to_export)
+            self.write_topography_singleDEM_ptshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
         elif out_format == "shapefile - line":
-            self.write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export)
+            self.write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
         else:
             self.error("Debug: error in export single DEM")
             return
 
         self.info("Profile export completed")
 
-    def export_topography_gpx_data(self, out_format, output_filepath):
+    def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
 
         if not self.profile_GPX:
             self.warn("No GPX-derived profile defined")
             return
 
-            # process results from export
+        # process results from export
         gpx_parsed_results = self.export_gpx_parse_results(self.profile_GPX)
 
         # definition of field names        
@@ -1785,9 +1810,9 @@ class qprof_QWidget(QWidget):
         if out_format == "csv":
             self.write_generic_csv(output_filepath, header_list, gpx_parsed_results)
         elif out_format == "shapefile - point":
-            self.write_topography_GPX_ptshp(output_filepath, header_list, gpx_parsed_results)
+            self.write_topography_GPX_ptshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
         elif out_format == "shapefile - line":
-            self.write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results)
+            self.write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
         else:
             self.error("Debug: error in export single DEM")
             return
@@ -1837,7 +1862,7 @@ class qprof_QWidget(QWidget):
                     out_val_strings = [str(val) for val in out_values]
                     f.write(sep.join(out_val_strings) + '\n')
 
-    def write_topography_allDEMs_ptshp(self, fileName, header_list, dem_names, export_data):
+    def write_topography_allDEMs_ptshp(self, fileName, header_list, dem_names, export_data, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1854,7 +1879,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        ptshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbPoint)
+        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -1906,7 +1931,7 @@ class qprof_QWidget(QWidget):
             pt_feature.Destroy()
         shp_datasource.Destroy()
 
-    def write_topography_singleDEM_ptshp(self, fileName, header_list, export_data, current_dem_ndx):
+    def write_topography_singleDEM_ptshp(self, fileName, header_list, export_data, current_dem_ndx, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1923,7 +1948,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        ptshp_layer = ptshp_datasource.CreateLayer('profile', geom_type=ogr.wkbPoint)
+        ptshp_layer = ptshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -1971,7 +1996,7 @@ class qprof_QWidget(QWidget):
             pt_feature.Destroy()
         ptshp_datasource.Destroy()
 
-    def write_topography_GPX_ptshp(self, output_filepath, header_list, gpx_parsed_results):
+    def write_topography_GPX_ptshp(self, output_filepath, header_list, gpx_parsed_results, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1988,7 +2013,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
             return
 
-        ptshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbPoint)
+        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
             self.warn("Point layer creation failed")
             return
@@ -2035,7 +2060,7 @@ class qprof_QWidget(QWidget):
 
         shp_datasource.Destroy()
 
-    def write_topography_allDEMs_lnshp(self, fileName, header_list, dem_names, export_data):
+    def write_topography_allDEMs_lnshp(self, fileName, header_list, dem_names, export_data, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -2052,7 +2077,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        lnshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString)
+        lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString)
         if lnshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -2102,7 +2127,7 @@ class qprof_QWidget(QWidget):
             ln_feature.Destroy()
         shp_datasource.Destroy()
 
-    def write_topography_singleDEM_lnshp(self, fileName, header_list, export_data, current_dem_ndx):
+    def write_topography_singleDEM_lnshp(self, fileName, header_list, export_data, current_dem_ndx, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -2119,7 +2144,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        lnshp_layer = lnshp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString25D)
+        lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -2165,7 +2190,7 @@ class qprof_QWidget(QWidget):
             ln_feature.Destroy()
         lnshp_datasource.Destroy()
 
-    def write_topography_GPX_lnshp(self, output_filepath, header_list, gpx_parsed_results):
+    def write_topography_GPX_lnshp(self, output_filepath, header_list, gpx_parsed_results, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -2182,7 +2207,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
             return
 
-        lnshp_layer = lnshp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString25D)
+        lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -3445,6 +3470,7 @@ class qprof_QWidget(QWidget):
 class TopoSourceFromDEMAndLineDialog(QDialog):
 
     def __init__(self, canvas, parent=None):
+
         super(TopoSourceFromDEMAndLineDialog, self).__init__(parent)
 
         self.canvas = canvas
@@ -3487,12 +3513,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         self.DefinePointList_pushbutton = QPushButton(self.tr("Create"))
         self.DefinePointList_pushbutton.clicked.connect(self.load_point_list)
         inputLine_Layout.addWidget(self.DefinePointList_pushbutton, 2, 1, 1, 2)
-
-        """
-        self.DefineLine_pushbutton = QPushButton(self.tr("Define profile line"))
-        self.DefineLine_pushbutton.clicked.connect(self.define_line)
-        inputLine_Layout.addWidget(self.DefineLine_pushbutton, 1, 0, 1, 4)
-        """
 
         # trace sampling spat_distance
         inputLine_Layout.addWidget(QLabel(self.tr("line densify distance")), 3, 0, 1, 1)
@@ -3567,11 +3587,11 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             self.selected_dem_colors = selected_dem_colors
 
         # get geodata
-        self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
+        selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
 
         # get DEMs resolutions in project CRS and choose the min value
         dem_resolutions_prj_crs_list = []
-        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+        for dem, dem_params in zip(selected_dems, selected_dem_parameters):
             dem_resolutions_prj_crs_list.append(
                 self.get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
 
@@ -3581,9 +3601,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         else:
             min_dem_proposed_resolution = min_dem_resolution
         self.profile_densify_distance_lineedit.setText(str(min_dem_proposed_resolution))
-
-        #self.profiles.profile_source_type = self.demline_source
-
 
     def get_dem_parameters(self, dem):
         return QGisRasterParameters(*raster_qgis_params(dem))
@@ -3816,12 +3833,8 @@ class TopoSourceFromGPXFileDialog(QDialog):
         if not fileName:
             return
 
-        #self.profiles = Profile_Elements()
-
         setLastUsedDir(fileName)
         self.input_gpx_lineEdit.setText(fileName)
-
-        #self.profiles.profile_source_type = self.gpxfile_source
 
 
 class SourceDEMsDialog(QDialog):
@@ -4046,8 +4059,6 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
             color_QgsColorButtonV2 = QgsColorButtonV2()
             color_QgsColorButtonV2.setColor(QColor(color))
-            #combo_box.setSizeAdjustPolicy(0)
-            #combo_box.addItems(PolygonIntersectionRepresentationDialog.colors)
             self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButtonV2)
 
 def get_profile_plot_params(dialog):
@@ -4087,7 +4098,7 @@ class PlotTopoProfileDialog(QDialog):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
 
-        # preprocess elevation values
+        # pre-process elevation values
 
         # suggested plot elevation range
         z_padding = 0.5
@@ -4309,7 +4320,7 @@ class FigureExportDialog(QDialog):
 
         # output file parameters
 
-        output_file_groupBox = QGroupBox(self.tr("Output file"))
+        output_file_groupBox = QGroupBox(self.tr("Output file - formats: tif, pdf, svg"))
 
         output_file_layout = QGridLayout()
 
@@ -4416,7 +4427,7 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
 
     def define_figure_outpath(self):
 
-        outfile_path = new_file_path(self, "Path", "*.svg; *.pdf; *.tif", "svg; pdf; tif")
+        outfile_path = new_file_path(self, "Create", "", "Images (*.svg *.pdf *.tif)")
 
         self.figure_outpath_QLineEdit.setText(outfile_path)
 
@@ -4430,12 +4441,9 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
 
 
 class TopographicProfileExportDialog(QDialog):
-    def __init__(self, selected_dem_list=None, parent=None):
+    def __init__(self, selected_dem_params, parent=None):
 
         super(TopographicProfileExportDialog, self).__init__(parent)
-
-        if selected_dem_list is None:
-            selected_dem_list = []
 
         layout = QVBoxLayout()
 
@@ -4454,7 +4462,8 @@ class TopographicProfileExportDialog(QDialog):
         source_layout.addWidget(self.src_singledem_QRadioButton, 2, 0, 1, 1)
 
         self.src_singledemlist_QComboBox = QComboBox()
-        for qgsRasterLayer in selected_dem_list:
+        selected_dems = [layer for layer, _ in selected_dem_params]
+        for qgsRasterLayer in selected_dems:
             self.src_singledemlist_QComboBox.addItem(qgsRasterLayer.name())
         source_layout.addWidget(self.src_singledemlist_QComboBox, 2, 1, 1, 1)
 
@@ -4477,10 +4486,10 @@ class TopographicProfileExportDialog(QDialog):
         self.outtype_shapefile_point_QRadioButton.setChecked(True)
 
         self.outtype_shapefile_line_QRadioButton = QRadioButton(self.tr("shapefile - line"))
-        output_type_layout.addWidget(self.outtype_shapefile_line_QRadioButton, 0, 1, 1, 1)
+        output_type_layout.addWidget(self.outtype_shapefile_line_QRadioButton, 1, 0, 1, 1)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 1, 0, 1, 1)
+        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 2, 0, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -4496,9 +4505,13 @@ class TopographicProfileExportDialog(QDialog):
         self.outpath_QLineEdit = QLineEdit()
         output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
 
-        self.outpath_QPushButton = QPushButton(self.tr("..."))
+        self.outpath_QPushButton = QPushButton("....")
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
         output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
+
+        self.load_output_checkBox = QCheckBox("load output shapefile in project")
+        self.load_output_checkBox.setChecked(True)
+        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)
 

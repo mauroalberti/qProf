@@ -34,7 +34,7 @@ class Profile_Elements(object):
 
     def get_current_dem_names(self):
 
-        return [topo_profile.dem_name for topo_profile in self.topo_profiles]
+        return self.topo_profiles.names
 
     def max_s(self):
         return self.topo_profiles.max_s()
@@ -101,11 +101,13 @@ class Profile_Elements(object):
         self.curves_ids.append(ids_list)
 
 class DEMParams(object):
+
     def __init__(self, layer, params):
         self.layer = layer
         self.params = params
 
 class TopoLine3D(object):
+
     def __init__(self, name, line3d):
         self.name = name
         self.profile_3d = line3d  # class CartesianLine3DT, a list of CartesianPoint3DT

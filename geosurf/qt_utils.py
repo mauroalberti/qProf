@@ -17,10 +17,10 @@ def setLastUsedDir(lastDir):
     settings.setValue("/qProf/lastDir", str(path))
 
 
-def new_file_path(parent, show_msg, filter_extension, filter_text):
+def new_file_path(parent, show_msg, path, filter_text):
     output_filename = QFileDialog.getSaveFileName(parent,
                                                   show_msg,
-                                                  filter_extension,
+                                                  path,
                                                   filter_text)
     if not output_filename:
         return ''

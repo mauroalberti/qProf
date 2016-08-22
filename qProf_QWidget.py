@@ -64,11 +64,11 @@ class qprof_QWidget(QWidget):
         #self.selected_dem_parameters = []
 
         self.profile_windows = []
-        self.cross_section_windows = []
+        #self.cross_section_windows = []
         #self.dem_source_profile_line2dt = None
 
-        self.DEM_data_export = None
-        self.profile_GPX = None
+        #self.DEM_data_export = None
+        #self.profile_GPX = None
 
         self.plane_attitudes_colors = []
         self.curve_colors = []
@@ -140,6 +140,9 @@ class qprof_QWidget(QWidget):
         self.prof_toposources_fromdems_checkbox.setChecked(True)
         prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 0, 0, 1, 1)
 
+        self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
+        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 1, 0, 1, 1)
+
         self.prof_digitizeline_pushbutton = QPushButton(self.tr("Digitize line"))
         self.prof_digitizeline_pushbutton.clicked.connect(self.digitize_line)
         self.prof_digitizeline_pushbutton.setToolTip("Digitize a line on the map.\n"
@@ -148,25 +151,22 @@ class qprof_QWidget(QWidget):
                                                      "From: Define topographic sources (below)\n"
                                                      "you can use also an existing line\n"
                                                      "or a point list")
-        prof_toposources_Layout.addWidget(self.prof_digitizeline_pushbutton, 0, 1, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_digitizeline_pushbutton, 2, 1, 1, 1)
 
         self.prof_clearline_pushbutton = QPushButton(self.tr("Clear"))
         self.prof_clearline_pushbutton.clicked.connect(self.clear_rubberband)
-        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 0, 2, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 2, 2, 1, 1)
 
         self.prof_clearline_pushbutton = QPushButton(self.tr("Save"))
         self.prof_clearline_pushbutton.clicked.connect(self.save_rubberband)
-        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 0, 3, 1, 1)
-
-        self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 1, 0, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 2, 3, 1, 1)
 
         self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert source line orientation"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 2, 1, 1, 2)
+        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 3, 1, 1, 2)
 
         self.prof_toposources_pushbutton = QPushButton(self.tr("Define topographic sources"))
         self.prof_toposources_pushbutton.clicked.connect(self.define_topographic_sources)
-        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 3, 0, 1, 4)
+        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 4, 0, 1, 4)
 
         prof_toposources_QGroupBox.setLayout(prof_toposources_Layout)
 
@@ -1149,12 +1149,14 @@ class qprof_QWidget(QWidget):
     def get_prjcrs_as_proj4str(self):
 
         # get project CRS information
-        _, project_crs = get_on_the_fly_projection(self.canvas)
-        proj4_str = str(project_crs.toProj4())
-        project_crs_osr = osr.SpatialReference()
-        project_crs_osr.ImportFromProj4(proj4_str)
-
-        return project_crs_osr
+        hasOTFP, project_crs = get_on_the_fly_projection(self.canvas)
+        if hasOTFP:
+            proj4_str = str(project_crs.toProj4())
+            project_crs_osr = osr.SpatialReference()
+            project_crs_osr.ImportFromProj4(proj4_str)
+            return project_crs_osr
+        else:
+            return None
 
     def save_rubberband(self):
 
@@ -1738,7 +1740,7 @@ class qprof_QWidget(QWidget):
 
     def export_topography_all_dems(self, out_format, outfile_path, proj_sr):
 
-        if not self.profile_elements:
+        if self.profile_elements.profile_source_type != self.demline_source:
             self.warn("No DEM-derived profile defined")
             return
 
@@ -1772,15 +1774,15 @@ class qprof_QWidget(QWidget):
 
     def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
 
-        if not self.profile_elements:
+        if self.profile_elements.profile_source_type != self.demline_source:
             self.warn("No DEM-derived profile defined")
             return
 
-            # process results for data export
+        # process results for data export
         _, export_data = self.export_parse_DEM_results(self.profile_elements)
 
         # definition of field names         
-        header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "slopdeg"]
+        header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "dirslop"]
 
         if out_format == "csv":
             self.write_topography_singleDEM_csv(outfile_path, header_list, export_data, ndx_dem_to_export)
@@ -1796,15 +1798,15 @@ class qprof_QWidget(QWidget):
 
     def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
 
-        if not self.profile_GPX:
+        if self.profile_elements.profile_source_type != self.gpxfile_source:
             self.warn("No GPX-derived profile defined")
             return
 
         # process results from export
-        gpx_parsed_results = self.export_gpx_parse_results(self.profile_GPX)
+        gpx_parsed_results = self.export_gpx_parse_results()
 
         # definition of field names        
-        header_list = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "slopdeg"]
+        header_list = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "dirslop"]
         # header_list = [unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
 
         if out_format == "csv":
@@ -2271,21 +2273,22 @@ class qprof_QWidget(QWidget):
 
         return True, 'OK'
 
-    def export_gpx_parse_results(self, GPXprofile):
+    def export_gpx_parse_results(self):
 
-        # definition of output results        
-        lat_list = GPXprofile['lats']
-        lon_list = GPXprofile['lons']
-        time_list = GPXprofile['times']
-        cumdist_2D_list = GPXprofile['cum_distances_2D']
-        elev_list = GPXprofile['elevations'][0]  # [0] required for compatibility with DEM processing
-        cumdist_3d_list = GPXprofile['cum_distances_3D'][0]  # [0] required for compatibility with DEM processing
-        slope_list = GPXprofile['slopes'][0]  # [0] required for compatibility with DEM processing
+        # definition of output results
+        topo_profile = self.profile_elements.topo_profiles
+        lat_list = topo_profile.lats
+        lon_list = topo_profile.lons
+        time_list = topo_profile.times
+        cumdist_2D_list = topo_profile.s
+        elev_list = topo_profile.elevs[0]  # [0] required for compatibility with DEM processing
+        cumdist_3d_list = topo_profile.s3d[0]  # [0] required for compatibility with DEM processing
+        dirslope_list = topo_profile.dir_slopes[0]  # [0] required for compatibility with DEM processing
 
         result_data = []
         rec_id = 0
         for lat, lon, time, elev, cumdist_2D, cumdist_3D, slope in zip(lat_list, lon_list, time_list, elev_list,
-                                                                       cumdist_2D_list, cumdist_3d_list, slope_list):
+                                                                       cumdist_2D_list, cumdist_3d_list, dirslope_list):
             rec_id += 1
             if isnan(elev):
                 elev = ''
@@ -3587,11 +3590,11 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             self.selected_dem_colors = selected_dem_colors
 
         # get geodata
-        selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
+        self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
 
         # get DEMs resolutions in project CRS and choose the min value
         dem_resolutions_prj_crs_list = []
-        for dem, dem_params in zip(selected_dems, selected_dem_parameters):
+        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
             dem_resolutions_prj_crs_list.append(
                 self.get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
 
@@ -4462,8 +4465,8 @@ class TopographicProfileExportDialog(QDialog):
         source_layout.addWidget(self.src_singledem_QRadioButton, 2, 0, 1, 1)
 
         self.src_singledemlist_QComboBox = QComboBox()
-        selected_dems = [layer for layer, _ in selected_dem_params]
-        for qgsRasterLayer in selected_dems:
+        selected_dem_layers = [dem_param.layer for dem_param in selected_dem_params]
+        for qgsRasterLayer in selected_dem_layers:
             self.src_singledemlist_QComboBox.addItem(qgsRasterLayer.name())
         source_layout.addWidget(self.src_singledemlist_QComboBox, 2, 1, 1, 1)
 

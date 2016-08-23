@@ -949,20 +949,32 @@ class qprof_QWidget(QWidget):
             if output_format == "":
                 self.warn("Error in output format")
                 return
-
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
-
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-
             self.warn("No export defined")
             return
 
-        self.output_geological_attitudes(output_format, output_filepath)
+        # get project CRS information
+        project_crs_osr = self.get_prjcrs_as_proj4str()
 
-    def output_geological_attitudes(self, output_format, output_filepath):
+        self.output_geological_attitudes(output_format, output_filepath, project_crs_osr)
+
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    def output_geological_attitudes(self, output_format, output_filepath, project_crs_osr):
 
         # definition of field names
         header_list = ['id',
@@ -985,7 +997,7 @@ class qprof_QWidget(QWidget):
         if output_format == "csv":
             self.write_generic_csv(output_filepath, header_list, parsed_geologicalattitudes_results)
         elif output_format == "shapefile - point":
-            self.write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results)
+            self.write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
         else:
             self.error("Debug: error in export format")
             return
@@ -1044,25 +1056,36 @@ class qprof_QWidget(QWidget):
         dialog = PointDataExportDialog()
 
         if dialog.exec_():
-
             output_format = get_format_type()
             if output_format == "":
                 self.warn("Error in output format")
                 return
-
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
-
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-
             self.warn("No export defined")
             return
 
-        self.output_profile_lines_intersections(output_format, output_filepath)
+        # get project CRS information
+        project_crs_osr = self.get_prjcrs_as_proj4str()
 
-    def output_profile_lines_intersections(self, output_format, output_filepath):
+        self.output_profile_lines_intersections(output_format, output_filepath, project_crs_osr)
+
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    def output_profile_lines_intersections(self, output_format, output_filepath, project_crs_osr):
 
         # definition of field names
         header_list = ['id',
@@ -1077,14 +1100,12 @@ class qprof_QWidget(QWidget):
         if output_format == "csv":
             self.write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
         elif output_format == "shapefile - point":
-            self.write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections)
+            self.write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
         else:
             self.error("Debug: error in export format")
             return
 
-        self.info("Profile-lines intersections saved")
-
-    def write_intersection_line_ptshp(self, fileName, header_list, intersline_results):
+    def write_intersection_line_ptshp(self, fileName, header_list, intersline_results, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1101,7 +1122,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        ptshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbPoint25D)
+        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint25D)
         if ptshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -1139,7 +1160,7 @@ class qprof_QWidget(QWidget):
 
         result_data = []
 
-        for distances_from_profile_start, intersection_point3d, intersection_id in profile_intersection_pts:
+        for distances_from_profile_start, intersection_point3d, intersection_id, _ in profile_intersection_pts:
             result_data.append(
                 [intersection_id, distances_from_profile_start, intersection_point3d.p_x, intersection_point3d.p_y,
                  intersection_point3d.p_z])
@@ -1301,17 +1322,28 @@ class qprof_QWidget(QWidget):
             if len(output_filepath) == 0:
                 self.warn("Error in output path")
                 return
-
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
             self.warn("No export defined")
             return
 
-        self.output_profile_polygons_intersections(output_format, output_filepath)
+        # get project CRS information
+        project_crs_osr = self.get_prjcrs_as_proj4str()
 
+        self.output_profile_polygons_intersections(output_format, output_filepath, project_crs_osr)
 
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
 
-
-    def output_profile_polygons_intersections(self, output_format, output_filepath):
+    def output_profile_polygons_intersections(self, output_format, output_filepath, sr):
 
         # definition of field names
         header_list = ['class_fld',
@@ -1324,14 +1356,12 @@ class qprof_QWidget(QWidget):
         if output_format == "csv":
             self.write_line_csv(output_filepath, header_list, self.profile_elements.intersection_lines)
         elif output_format == "shapefile - line":
-            self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines)
+            self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines, sr)
         else:
             self.error("Debug: error in export format")
             return
 
-        self.info("Profile-polygon intersections saved")
-
-    def write_intersection_polygon_lnshp(self, fileName, header_list, intersline_results):
+    def write_intersection_polygon_lnshp(self, fileName, header_list, intersline_results, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -1348,7 +1378,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        lnshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbLineString25D)
+        lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -2738,7 +2768,7 @@ class qprof_QWidget(QWidget):
                         data_list.append([rec_id, pt.p_x, pt.p_y])
         return data_list
 
-    def write_geological_attitudes_ptshp(self, fileName, parsed_crosssect_results):
+    def write_geological_attitudes_ptshp(self, fileName, parsed_crosssect_results, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -2755,7 +2785,7 @@ class qprof_QWidget(QWidget):
             self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
-        ptshp_layer = shp_datasource.CreateLayer('profile', geom_type=ogr.wkbPoint25D)
+        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint25D)
         if ptshp_layer is None:
             self.warn("Output layer creation failed")
             return
@@ -4323,7 +4353,7 @@ class FigureExportDialog(QDialog):
 
         # output file parameters
 
-        output_file_groupBox = QGroupBox(self.tr("Output file - formats: tif, pdf, svg"))
+        output_file_groupBox = QGroupBox(self.tr("Output file - available formats: tif, pdf, svg"))
 
         output_file_layout = QGridLayout()
 
@@ -4596,6 +4626,10 @@ class PointDataExportDialog(QDialog):
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
         output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
 
+        self.load_output_checkBox = QCheckBox("load output shapefile in project")
+        self.load_output_checkBox.setChecked(True)
+        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
+
         output_path_groupBox.setLayout(output_path_layout)
 
         layout.addWidget(output_path_groupBox)
@@ -4622,7 +4656,7 @@ class PointDataExportDialog(QDialog):
         self.connect(cancelButton, SIGNAL("clicked()"),
                      self, SLOT("reject()"))
 
-        self.setWindowTitle("Export")
+        self.setWindowTitle("Export geological attitudes")
 
     def define_outpath(self):
 
@@ -4677,6 +4711,7 @@ class LineDataExportDialog(QDialog):
         output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
 
         self.load_output_checkBox = QCheckBox("load output in project")
+        self.load_output_checkBox.setChecked(True)
         output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)

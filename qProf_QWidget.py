@@ -39,6 +39,7 @@ _plugin_name_ = "qProf"
 
 
 class qprof_QWidget(QWidget):
+
     colors = ['orange', 'green', 'red', 'grey', 'brown', 'yellow', 'magenta', 'black', 'blue', 'white', 'cyan',
               'chartreuse']
 
@@ -46,6 +47,9 @@ class qprof_QWidget(QWidget):
                     "palevioletred",
                     "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
                     "chartreuse"]
+
+    map_digitations = 0
+
 
     def __init__(self, canvas):
 
@@ -56,19 +60,11 @@ class qprof_QWidget(QWidget):
 
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
+        self.digitized_profile_line2dt = None
 
         self.profile_elements = None
 
-        #self.selected_dems = []
-        #self.selected_dem_colors = []
-        #self.selected_dem_parameters = []
-
         self.profile_windows = []
-        #self.cross_section_windows = []
-        #self.dem_source_profile_line2dt = None
-
-        #self.DEM_data_export = None
-        #self.profile_GPX = None
 
         self.plane_attitudes_colors = []
         self.curve_colors = []
@@ -665,11 +661,12 @@ class qprof_QWidget(QWidget):
                     return
 
                 if dialog.DigitizeLine_checkbox.isChecked():
-                    try:
-                        source_profile_line2dt = self.digitized_profile_line2dt
-                    except:
+                    if self.digitized_profile_line2dt is None or \
+                       self.digitized_profile_line2dt.num_pts < 2:
                         self.warn("No digitized line available")
                         return
+                    else:
+                        source_profile_line2dt = self.digitized_profile_line2dt
                 else:
                     self.stop_rubberband()
                     try:
@@ -677,7 +674,6 @@ class qprof_QWidget(QWidget):
                     except:
                         self.warn("DEM-line profile source not correctly created [1]")
                         return
-
                     if source_profile_line2dt is None:
                         self.warn("DEM-line profile source not correctly created [2]")
                         return
@@ -762,6 +758,8 @@ class qprof_QWidget(QWidget):
 
     def clear_rubberband(self):
 
+        self.profile_canvas_points = []
+        self.digitized_profile_line2dt = None
         try:
             self.rubberband.reset()
         except:
@@ -770,17 +768,19 @@ class qprof_QWidget(QWidget):
 
     def digitize_line(self):
 
+        qprof_QWidget.map_digitations += 1
+
         self.clear_rubberband()
         self.profile_canvas_points = []
 
-        #self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+        if qprof_QWidget.map_digitations == 1:
+            self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
 
         self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
         self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
         self.canvas.setMapTool(self.digitize_maptool)
         self.connect_digitize_maptool()
 
-        #self.polygon = False
         self.rubberband = QgsRubberBand(self.canvas)
         self.rubberband.setWidth(2)
         self.rubberband.setColor(QColor(Qt.red))
@@ -826,8 +826,12 @@ class qprof_QWidget(QWidget):
 
         self.refresh_rubberband(self.profile_canvas_points)
 
-        self.digitized_profile_line2dt = CartesianLine2DT(
-            [CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
+        if len(self.profile_canvas_points) > 1:
+            self.digitized_profile_line2dt = CartesianLine2DT(
+                [CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
+        else:
+            self.digitized_profile_line2dt = None
+
         self.profile_canvas_points = []
 
         self.restore_previous_map_tool()
@@ -1190,11 +1194,10 @@ class qprof_QWidget(QWidget):
             else:
                 return ""
 
-        try:
-            if self.digitized_profile_line2dt.num_pts == 0:
-                self.warn("No available line to save [1]")
-                return
-        except:
+        if self.digitized_profile_line2dt is None:
+            self.warn("No available line to save [1]")
+            return
+        elif self.digitized_profile_line2dt.num_pts < 2:
             self.warn("No available line to save [2]")
             return
 

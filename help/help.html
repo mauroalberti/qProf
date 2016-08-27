@@ -6,14 +6,29 @@
 
 <body style="margin: 20px 30px 10px 30; font-family: Calibri, Candara, Segoe, 'Segoe UI', Optima, Arial, sans-serif;">
 
-<h1>qProf plugin help</h1>
+<h1>qProf vers. 0.3.3</h1>
 
 <div>
-	The purpose of this plugin is to help create geological profiles. Georeferenced data describing topography, geological outcrops and attitudes can be used.
+	The purpose of this QGIS plugin is to help in creating geological profiles. 
+	Georeferenced data describing topography, geological outcrops and attitudes can be used as source data.
 	<br /><br />
-	This plugin was realized by M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri.
-	<br />The original concept is by M. Zanieri, while the implementation is by M. Alberti.
-	<br />Some people contributed with their suggestions and testing, among them we want to thank S. Peduzzi, for his vigorous testing.
+	Plugin creators are M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri.
+	The original concept is by M. Zanieri, while the implementation is by M. Alberti.
+	A few people otheer contributed with suggestions and testing. Among them we want to thank S. Peduzzi.
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/f01.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 1. Example of a topographic profile comprising directional slopes, created from a GPX file (data courtesy
+	of S. Peduzzi).
+</div>
+
+	<br />Note that currently qProf allows to project/intersect geological data (attitudes, outcrops,
+	lineaments or faults) only when the profile is constituted by a straight line, with just an 
+	initial and a final point. Due to this constrain, GPX file input, generally comprising multiple
+	points, or profile lines with more than two points can be used to construct topographic profiles
+	but the functionalities of geological data projection and intersection are not allowed on such 
+	profiles. This constraint will be relaxed as much as possible in future versions, at least for geological
+	intersection processings.
 </div>
 <br />
 <div>A few posts describing the plugin are:
@@ -39,22 +54,11 @@
 <h2>1. General workflow</h2>
 
 <div>
-	To construct a geological profile, the first step consists in the construction of a topographic profile, with input data
-	represented by one or more DEMs.
-	</div>
-<br />
-<div>
-	While for constructing topographic profiles lines made up by more than just two points may be used,
-	for further geological projections or intersections it is required that the profile line is made up by just two points,
-	i.e., its start and end point. This constraint will probably be relaexed in future versions at least for geological
-	intersection processings.
-</div>
-<br />
-<div>
-	Subsequently, for profiles created by lines with jst two points, we can process geological data, expressed by point,
-	line or polygon layers with useful 	geological attributes stored in the their attribute tables.
-	<br />The subsequent processings can be:
-	<ul>
+	To construct a geological profile with qProf, the first step is to create a topographic profile, with input data represented by one or more DEMs or alternatively by a GPX file.
+<br /><br />
+	Afterwards, <u>for profiles created using a line made up by just two points</u>, the user can add to the topographic profile 
+	geological data, by projecting them on the profile (e.g., geological attitudes) or intersecting them with 
+	the profile (e.g., faults, geological outcrops). This geological data are stored as point, line or polygon layers with geological attributes in the their attribute tables. In details, these processings can be:<ul>
 		<li>the projection of geological attitudes on the profile section;</li>
 		<li>the projection of geological lines;</li>
 		<li>the intersection of geological lines (e.g., faults) on the profile section;</li>
@@ -62,7 +66,7 @@
 	</ul>
 </div>
 <div>
-	Last step is the export of the produced datasets as graphics and/or GIS data, for further elaborations in graphic or
+	The last step consists in exporting created datasets as graphics or GIS data, for further elaborations in graphic or
 	geological software.
 </div>
 
@@ -71,77 +75,73 @@
 <h2>2. Topographic profile creation</h2>
 
 <div>
-	It is possible to create a topographic profile in two ways:
-	<ol>
-		<li>from one or more DEMs and a line element, digitized or stored in a layer;
-		<li>directly from a GPX file storing track points.</li>
-	</ol>
-	In the former case, data sources can be projected in different CRS, while the
-	<u>created profile will be in the assigned project CRS</u>.
-	<br />In the latter case, i.e. when creating a profile from a GPX file, the original latitude-longitude values are automatically converted
-	to cartesian metric values, and from those the topographic profile is constructed.
+	It is possible to create a topographic profile, by first defining its source (in the "Topographic data sources" section).
+	After the profile definition, its statistics are calculated ("Profile statistics" section) and then the profile can be visualised ("Profile plot" section). 
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/f02.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 2. The plugin interface for topographic profile creation from DEMs or GPX files.
 </div>
 
-<h3>2.1 Topographic profile creation from DEM(s)</h3>
+	Elevation data sources may have two origins:
+	<ol>
+		<li>from one or more DEMs and a line element, directly digitized in the map canvas or already available in a line layer;
+		<li>directly from a GPX file storing track points.</li>
+	</ol>
+	In the former case, original data sources can have different source CRS if on-the-fly projection is activated 
+	for the project. The created profile will be created using the assigned project CRS if defined. Otherwise the user will have to manually set the CRS after exporting the profile.
+	<br /><br />
+	In the latter case, i.e. when creating a profile from a source GPX file, the original latitude-longitude values are automatically converted to a WGS84-based cartesian metric values, and from those values the topographic profile is constructed.
+</div>
 
-<div>One or more DEM(s) sources have to be defined, as well a source profile line. The line can derive from a source line layer,
-a on-the-fly-digitized line or a list of points.</div>
+<h3>2.1 Topographic profile creation from DEM(s) and a line trace</h3>
 
-<br />
+<div>As previously said, a topographic profile can be extracted from one or more DEMs, given a source profile line. This line can derive from a previously digitized line, a source line layer or a list of points. The orientation of the line can be reversed by checking the "Invert source line orientation" checkbox: the start will become the end and the former end will become the profile start.</div>
+
+<h4>2.1.1 Preliminar digitation of a line trace</h4>
+ 
+ <div>A profile line may be digitised on the map canvas by using the "Digitize line" button. After activating the button, you add a point with a left click, and terminate the line with a right click. 
+ It is possible to delete the digitized line by cliking the "Clear" button. With the "Save" button it is possible to save the line as a shapefile and add it to the project.
+</div>
+
+<h4>2.1.2 Other line trace input types</h4>
+
 <div>
-    When using a line layer, all the elements will be used, irrespective of eventual selections in the layer.
+    When using an already existing line trace, stored in a line layer, all the elements will be used, irrespective of eventual selections in the layer.
     Multiple lines will be merged into a single line, based on the chosen order field when available,
     or otherwise based on the internal line order. Some errors in derived profiles can be due to erroneous line ordering,
     not adjusted via the choice of a correct sequential order stored in an integer field (order values start from 1).
-</div>
-<br />
-<div>
-	When directly digitizing a line in the map, you add points wtih left clicks, and stops a line with a right click.
-</div>
-<br />
-<div>
+	<br />
 	It is also possible to define the profile as a list point coordinates.
-	Each point is defined by a x-p_y coordinates pair, comma-separated, on a single row, for instance:
+	Each point is defined by a x-y coordinates pair, comma-separated, on a single row, for instance:
 	<br /><i>549242.7, 242942.2</i>
 	<br /><i>578370.3, 322634.5</i>
 </div>
 <br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_01.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 1. The plugin interface for topographic profile creation from DEM(s).
+	<img src="images/f03.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 3. Definition of source data for DEMs and line-derived profiles.
 </div>
+
+<h4>2.1.3 Definition of input DEMs</h4>
+
+By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs to use, also choosing the color that will represent it in the resulting profile.
 <br />
-<div>
-	The elevation statistics along the profile for each chosen DEM may be calculate with the "<i>Calculate profile statistics</i>" button.
-	These statistics can be used as a help in the definition of the profile plot minimum and maximum elevations ("<i>plot p_z min value</i>"
-	and "<i>plot p_z max value</i>" options). Otherwise, automatic values will be applied.
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/f04.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 4. Definition of source DEMs.
 </div>
-<br />
+
+<h4>2.1.4 Definition of sample distance</h4>
 <div>
 	You may define the "<i>Line densify spat_distance</i>" option, i.e. the spat_distance between consecutive sampling point automatically added
 	when the original vertices of the used path have distances larger than this value.
 	It is advisable to use a value comparable to the resolution of the used DEM,
 	for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
 	of the DEM with the highest spatial resolution.
-    </div>
-<br />
-<div>
-	By using "<i>Invert profile line orientation</i>", the profile line will have its orientation inverted, i.e., the start will become
-	the end and the former end will become the profile start.
-	<br />With the option "<i>Flip x-axis direction</i>", the start of the x-axis in the plot will be at the right, not at the left,
-	so that distances will increase from left to right.
-</div>
-<br />
-<div>
-	The profile plot is created by using the "<i>Create profile</i>" button. Sometimes the plot creation may require more than just a few
-	seconds, so please be patient... ;)
-</div>
-<br />
-<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_02.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 2. Topographic profile extracted in the eastern border of Mt. Alpi zone (southern Italy).
-</div>
-<br />
+ </div>
+
+
 <h3>2.2 Topographic profile creation from GPX</h3>
 <div>
 	Topographic profiles can be created also using a GPX file as a source.
@@ -149,11 +149,36 @@ a on-the-fly-digitized line or a list of points.</div>
 	data projections and intersections. So if you just want to create a topographic profile, GPX profile sources are fine.
 	In future releases, the only-two-points constraint for geological intersections should be removed.
 </div>
+
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_03.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 3. The plugin interface for topographic profile creation from GPX files.
+	<img src="images/f05.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 5. The window for input GPX file choice.
 </div>
 <br />
+
+<h3>2.3 Profile statistics</h3>
+<div>
+	The elevation statistics along the profile for each chosen DEM may be calculate with the "<i>Calculate profile statistics</i>" button.
+	These statistics can be used as a help in the definition of the profile plot minimum and maximum elevations ("<i>plot z min value</i>"
+	and "<i>plot z max value</i>" options). Otherwise, automatic values will be applied.
+</div>
+<h3>2.4 Profile plot</h3>
+<div>
+	The profile plot is created by using the "<i>Create profile</i>" button. Sometimes the plot creation may require more than just a few
+	seconds, so please be patient... ;)
+
+	<br />With the option "<i>Flip x-axis direction</i>", the start of the x-axis in the plot will be at the right, not at the left,
+	so that distances will increase from left to right.
+</div>
+<br />
+
+<br />
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/Fig_02.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 2. Topographic profile extracted in the eastern border of Mt. Alpi zone (southern Italy).
+</div>
+<br />
+
 <h2>3. Geological element projections on the profile</h2>
 
 Having already created a topographic profile as previously described,
@@ -270,7 +295,7 @@ it is then possible to perform on the same profile the projection of geological 
 <div style="font-size: 85%; font-style: italic;">
 -----
 <br /><br />
-Doc version 2016-04-17, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
+Doc version 2016-08-27, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
 </div>
 
 <br /><br />

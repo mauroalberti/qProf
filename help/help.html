@@ -8,13 +8,18 @@
 
 <h1>qProf vers. 0.3.3</h1>
 
+<div style="font-size: 90%; font-style: italic;">
+	Plugin creators are M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri. 
+	<br />The original concept is by M. Zanieri, while the implementation is by M. Alberti. 
+	<br />A few people otheer contributed with suggestions and testing. Among them we want to thank S. Peduzzi.
+</div>
+<br />
 <div>
-	The purpose of this QGIS plugin is to help in creating geological profiles. 
+	The purpose of this QGIS plugin is to help in the creation of geological profiles. 
+	<br />
 	Georeferenced data describing topography, geological outcrops and attitudes can be used as source data.
-	<br /><br />
-	Plugin creators are M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri.
-	The original concept is by M. Zanieri, while the implementation is by M. Alberti.
-	A few people otheer contributed with suggestions and testing. Among them we want to thank S. Peduzzi.
+</div>
+
 
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/f01.png" style="align:middle; max_width: 80%"/>
@@ -83,10 +88,10 @@
 	<br /><br />Fig. 2. The plugin interface for topographic profile creation from DEMs or GPX files.
 </div>
 
-	Elevation data sources may have two origins:
+	Elevation data sources may originate from:
 	<ol>
-		<li>from one or more DEMs and a line element, directly digitized in the map canvas or already available in a line layer;
-		<li>directly from a GPX file storing track points.</li>
+		<li>one or more DEMs and a profile line, to be digitized in the map canvas or already available in a line layer;
+		<li>a GPX file storing track points.</li>
 	</ol>
 	In the former case, original data sources can have different source CRS if on-the-fly projection is activated 
 	for the project. The created profile will be created using the assigned project CRS if defined. Otherwise the user will have to manually set the CRS after exporting the profile.
@@ -104,16 +109,20 @@
  It is possible to delete the digitized line by cliking the "Clear" button. With the "Save" button it is possible to save the line as a shapefile and add it to the project.
 </div>
 
-<h4>2.1.2 Other line trace input types</h4>
+<h4>2.1.2 Line stored in a layer</h4>
 
 <div>
     When using an already existing line trace, stored in a line layer, all the elements will be used, irrespective of eventual selections in the layer.
     Multiple lines will be merged into a single line, based on the chosen order field when available,
     or otherwise based on the internal line order. Some errors in derived profiles can be due to erroneous line ordering,
     not adjusted via the choice of a correct sequential order stored in an integer field (order values start from 1).
-	<br />
-	It is also possible to define the profile as a list point coordinates.
+</div>
+<h4>2.1.3 Line from numeric input</h4>
+<div>
+	It is also possible to define the source profile as a list of point coordinates, in the used CRS of the project, if set, or of the used datasets.
 	Each point is defined by a x-y coordinates pair, comma-separated, on a single row, for instance:
+</div>
+<div style="font-size: 90%; font-style: italic;">
 	<br /><i>549242.7, 242942.2</i>
 	<br /><i>578370.3, 322634.5</i>
 </div>
@@ -123,7 +132,7 @@
 	<br /><br />Fig. 3. Definition of source data for DEMs and line-derived profiles.
 </div>
 
-<h4>2.1.3 Definition of input DEMs</h4>
+<h4>2.1.4 Definition of input DEMs</h4>
 
 By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs to use, also choosing the color that will represent it in the resulting profile.
 <br />
@@ -132,10 +141,9 @@ By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs
 	<br /><br />Fig. 4. Definition of source DEMs.
 </div>
 
-<h4>2.1.4 Definition of sample distance</h4>
+<h4>2.1.5 Definition of sample distance</h4>
 <div>
-	You may define the "<i>Line densify spat_distance</i>" option, i.e. the spat_distance between consecutive sampling point automatically added
-	when the original vertices of the used path have distances larger than this value.
+	You may define the "<i>line densify distance</i>" option, i.e. the distance between consecutive sampling point automatically added when the original vertices of the used path have distances larger than this value.
 	It is advisable to use a value comparable to the resolution of the used DEM,
 	for instance 30 m for Aster DEMs. A suggested value is added automatically based on the resolution
 	of the DEM with the highest spatial resolution.
@@ -166,18 +174,18 @@ By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs
 <div>
 	The profile plot is created by using the "<i>Create profile</i>" button. Sometimes the plot creation may require more than just a few
 	seconds, so please be patient... ;)
+	Values for the vertical exaggeration and minimum and maximum elevation in the plot are precomputed, however the user may modify them.
 
-	<br />With the option "<i>Flip x-axis direction</i>", the start of the x-axis in the plot will be at the right, not at the left,
-	so that distances will increase from left to right.
+	<br />Both height and slope can be plotted. Slopes are in degrees, and can be computed a absolute or direction values. When directional, positive values indicate upslope segments in the profile direction, while negative values indicate downslope segments. 
+
+	<br />With the option "<i>Flip x-axis direction</i>", the start of the x-axis in the plot will be at the right, not at the left, so that distances will increase from left to right.
 </div>
-<br />
-
 <br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
-	<img src="images/Fig_02.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 2. Topographic profile extracted in the eastern border of Mt. Alpi zone (southern Italy).
+	<img src="images/f06.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 6. The window for the definition of the plot parameters.
 </div>
-<br />
+
 
 <h2>3. Geological element projections on the profile</h2>
 

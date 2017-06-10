@@ -1,0 +1,5 @@
+
+class RakeInputException(Exception):
+
+    pass
+

@@ -5,7 +5,7 @@
  topographic and geologic profiles
                               -------------------
         begin                : 2012.11.06
-        copyright            : (C) 2012-2016 M. Alberti (implementation and concept) and M. Zaniero (concept)
+        copyright            : (C) 2012-2017 M. Alberti (implementation and concept) and M. Zaniero (concept)
         email                : alberti.m65@gmail.com
         
  ***************************************************************************/

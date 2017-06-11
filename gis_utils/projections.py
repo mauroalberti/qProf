@@ -1,11 +1,10 @@
 
-from geosurf.spatial import CartesianPoint2DT, CartesianLine2DT
-
-from geosurf.qgs_tools import project_qgs_point
-
 from qgis.core import QgsPoint
 
-   
+from .features import CartesianPoint2DT, CartesianLine2DT
+from .qgs_tools import project_qgs_point
+
+
 def line2d_change_crs(source_line, source_crs, destination_crs):
     
     destination_line = CartesianLine2DT()

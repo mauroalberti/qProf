@@ -8,7 +8,7 @@ import numpy as np
 from ..gsf.geometry import Point, GAxis
 
 from .features import CartesianSegment3DT, CartesianParamLine
-from gis_utils.profile import PlaneAttitude
+from .profile import PlaneAttitude
 from .errors import ConnectionException
 
 

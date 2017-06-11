@@ -5,8 +5,8 @@ import copy
 import numpy as np
 import os
 import unicodedata
-import xml.dom.minidom
 import webbrowser
+import xml.dom.minidom
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
 from osgeo import ogr, osr
 from qgis.core import QgsPoint, QgsRaster, QgsMapLayerRegistry, QGis, QgsGeometry, QgsVectorLayer
@@ -15,25 +15,32 @@ from qgis.gui import QgsRubberBand, QgsColorButtonV2
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from geosurf.errors import GPXIOException, VectorInputException, VectorIOException
-from geosurf.geo_io import QGisRasterParameters
-from geosurf.geodetic import TrackPointGPX
-from geosurf.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from geosurf.profile import Profile_Elements, TopoLine3D, TopoProfiles, DEMParams
-from geosurf.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
+
+from gsf.geometry import GPlane
+from gsf.array_utils import to_float
+
+
+
+from gis_utils.features import CartesianPoint2DT, CartesianMultiLine2DT, CartesianLine2DT, \
+    Point3Dt, CartesianSegment3DT, CartesianMultiLine3DT, Line3Dt, \
+    merge_lines, CartesianParamLine, \
+    xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
+from gis_utils.geodetic import TrackPointGPX
+from gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
+from gis_utils.projections import line2d_change_crs
+from gis_utils.profile import Profile_Elements, TopoProfiles, DEMParams
+from gis_utils.qgs_tools import QGisRasterParameters
+from gis_utils.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
     raster_qgis_params, loaded_monoband_raster_layers, get_on_the_fly_projection, \
     line_geoms_with_id, qgs_point_2d, project_qgs_point, vect_attrs, \
     line_geoms_attrs, field_values, MapDigitizeTool, qcolor2rgbmpl
-from geosurf.qt_utils import lastUsedDir, setLastUsedDir
-from geosurf.qt_utils import new_file_path, old_file_path
-from geosurf.spatial import CartesianPoint2DT, CartesianMultiLine2DT, CartesianLine2DT
-from geosurf.spatial import CartesianPoint3DT, CartesianSegment3DT, CartesianMultiLine3DT, CartesianLine3DT
-from geosurf.spatial import merge_lines, GeolPlane, GeolAxis, CartesianPlane, CartesianParamLine
-from geosurf.spatial import xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
-from geosurf.string_utils import clean_string
-from geosurf.utils import to_float
-from mpl.mpl_widget import MplWidget, plot_line, plot_filled_line
-from projections import line2d_change_crs
+from gis_utils.errors import GPXIOException, VectorInputException, VectorIOException
+
+from mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+
+from qt_utils.utils_qt import lastUsedDir, setLastUsedDir, new_file_path, old_file_path
+from string_utils.utils_string import clean_string
+
 
 _plugin_name_ = "qProf"
 
@@ -1166,7 +1173,7 @@ class qprof_QWidget(QWidget):
 
         for distances_from_profile_start, intersection_point3d, intersection_id, _ in profile_intersection_pts:
             result_data.append(
-                [intersection_id, distances_from_profile_start, intersection_point3d.p_x, intersection_point3d.p_y,
+                [intersection_id, distances_from_profile_start, intersection_point3d.p_x, intersection_point3d.y,
                  intersection_point3d.p_z])
 
         return result_data
@@ -1234,7 +1241,7 @@ class qprof_QWidget(QWidget):
 
     def output_profile_line(self, output_format, output_filepath, pts2dt, proj_sr):
 
-        points = [[n, pt2dt.p_x, pt2dt.p_y] for n, pt2dt in enumerate(pts2dt)]
+        points = [[n, pt2dt.p_x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
         if output_format == "csv":
             self.write_generic_csv(output_filepath,
                                    ['id', 'x', 'y'],
@@ -1404,8 +1411,8 @@ class qprof_QWidget(QWidget):
                 rec_a = line3d.pts[ndx]
                 rec_b = line3d.pts[ndx + 1]
 
-                x0, y0, z0 = rec_a.p_x, rec_a.p_y, rec_a.p_z
-                x1, y1, z1 = rec_b.p_x, rec_b.p_y, rec_b.p_z
+                x0, y0, z0 = rec_a.p_x, rec_a.y, rec_a.p_z
+                x1, y1, z1 = rec_b.p_x, rec_b.y, rec_b.p_z
                 s = s_list[ndx + 1]
 
                 ln_feature = ogr.Feature(lnshp_featureDefn)
@@ -1452,7 +1459,7 @@ class qprof_QWidget(QWidget):
 
     def get_z(self, dem_layer, point):
 
-        identification = dem_layer.dataProvider().identify(QgsPoint(point.p_x, point.p_y), QgsRaster.IdentifyFormatValue)
+        identification = dem_layer.dataProvider().identify(QgsPoint(point.x, point.y), QgsRaster.IdentifyFormatValue)
         if not identification.isValid():
             return np.nan
         else:
@@ -1488,8 +1495,8 @@ class qprof_QWidget(QWidget):
         z3 = self.get_z(dem, p3)
         z4 = self.get_z(dem, p4)
 
-        delta_x = point.p_x - p1.p_x
-        delta_y = point.p_y - p1.p_y
+        delta_x = point.p_x - p1.x
+        delta_y = point.p_y - p1.y
 
         z_x_a = z1 + (z2 - z1) * delta_x / dem_params.cellsizeEW
         z_x_b = z3 + (z4 - z3) * delta_x / dem_params.cellsizeEW
@@ -1505,22 +1512,23 @@ class qprof_QWidget(QWidget):
         else:
             return np.nan
 
-    def profile3d_create_from_dem(self, resampled_trace2d, on_the_fly_projection, project_crs, dem, dem_params):
+    def profile_from_dem(self, resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
 
-        if on_the_fly_projection and dem.crs() != project_crs:
+        if bOnTheFlyProjection and dem.crs() != project_crs:
             trace2d_in_dem_crs = line2d_change_crs(resampled_trace2d, project_crs, dem.crs())
         else:
             trace2d_in_dem_crs = resampled_trace2d
 
-        profile_line3d = CartesianLine3DT()
+        ln3dtProfile = Line3Dt()
         for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
-            interpolated_z = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-            pt_3d = CartesianPoint3DT(trace_pt2d_project_crs.p_x,
-                                      trace_pt2d_project_crs.p_y,
-                                      interpolated_z)
-            profile_line3d.add_pt(pt_3d)
+            fInterpolatedZVal = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
+            print fInterpolatedZVal
+            pt3dtPoint = Point3Dt(trace_pt2d_project_crs.p_x,
+                                  trace_pt2d_project_crs.p_y,
+                                  fInterpolatedZVal)
+            ln3dtProfile.add_pt(pt3dtPoint)
 
-        return profile_line3d
+        return ln3dtProfile
 
     def topoprofiles_calculate_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
 
@@ -1535,16 +1543,18 @@ class qprof_QWidget(QWidget):
         resampled_line_2d = line2dt.densify(sample_distance)  # line resampled by sample distance
 
         # calculate 3D profiles from DEMs
+
         dem_topolines3d = []
         for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-            dem_topoline3d = self.profile3d_create_from_dem(resampled_line_2d,
-                                                            on_the_fly_projection,
-                                                            project_crs,
-                                                            dem,
-                                                            dem_params)
+            dem_topoline3d = self.profile_from_dem(resampled_line_2d,
+                                                   on_the_fly_projection,
+                                                   project_crs,
+                                                   dem,
+                                                   dem_params)
             dem_topolines3d.append(dem_topoline3d)
 
         # setup topoprofiles properties
+
         topo_profiles = TopoProfiles()
 
         topo_profiles.xs = np.asarray(resampled_line_2d.x_list)
@@ -1893,7 +1903,7 @@ class qprof_QWidget(QWidget):
             f.write(sep.join(header_list) + '\n')
             for classification, line3d, s_list in parsed_results:
                 for pt, s in zip(line3d.pts, s_list):
-                    out_values = [classification, s, pt.p_x, pt.p_y, pt.p_z]
+                    out_values = [classification, s, pt.x, pt.y, pt.p_z]
                     out_val_strings = [str(val) for val in out_values]
                     f.write(sep.join(out_val_strings) + '\n')
 
@@ -2436,9 +2446,9 @@ class qprof_QWidget(QWidget):
 
         pts_in_prj_crs = []
         for pt in pts_in_orig_crs:
-            qgs_pt = qgs_point_2d(pt.p_x, pt.p_y)
+            qgs_pt = qgs_point_2d(pt.x, pt.y)
             qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
-            pts_in_prj_crs.append(CartesianPoint3DT(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
+            pts_in_prj_crs.append(Point3Dt(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
         return pts_in_prj_crs
 
     def calculate_projected_3d_pts(self, struct_pts, structural_pts_crs, demObj):
@@ -2466,18 +2476,18 @@ class qprof_QWidget(QWidget):
 
         assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
 
-        return [CartesianPoint3DT(pt.p_x, pt.p_y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
+        return [Point3Dt(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
 
     def calculate_section_data(self):
 
         sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
 
-        section_init_pt = CartesianPoint3DT(sect_pt_1.p_x, sect_pt_1.p_y, 0.0)
-        section_final_pt = CartesianPoint3DT(sect_pt_2.p_x, sect_pt_2.p_y, 0.0)
+        section_init_pt = Point3Dt(sect_pt_1.x, sect_pt_1.y, 0.0)
+        section_final_pt = Point3Dt(sect_pt_2.x, sect_pt_2.y, 0.0)
 
-        section_final_pt_up = CartesianPoint3DT(section_final_pt.p_x, section_final_pt.p_y,
-                                                1000.0)  # arbitrary point on the same vertical as sect_pt_2
-        section_cartes_plane = CartesianPlane.from_points(section_init_pt, section_final_pt, section_final_pt_up)
+        section_final_pt_up = Point3Dt(section_final_pt.x, section_final_pt.y,
+                                       1000.0)  # arbitrary point on the same vertical as sect_pt_2
+        section_cartes_plane = Plane.from_points(section_init_pt, section_final_pt, section_final_pt_up)
         section_vector = CartesianSegment3DT(section_init_pt, section_final_pt).as_vector3d()
 
         return {'init_pt': section_init_pt, 'cartes_plane': section_cartes_plane, 'vector': section_vector}
@@ -2546,14 +2556,14 @@ class qprof_QWidget(QWidget):
         structural_pts_attrs = pt_geoms_attrs(structural_layer, structural_field_list)
 
         # list of structural points with original crs
-        struct_pts_in_orig_crs = [CartesianPoint3DT(float(rec[0]), float(rec[1])) for rec in structural_pts_attrs]
+        struct_pts_in_orig_crs = [Point3Dt(float(rec[0]), float(rec[1])) for rec in structural_pts_attrs]
 
         # IDs of structural points
         struct_pts_ids = [rec[2] for rec in structural_pts_attrs]
 
         # - geological planes (3D), as geological planes
         try:
-            structural_planes = [GeolPlane(float(rec[3]), float(rec[4]), isRHRStrike) for rec in structural_pts_attrs]
+            structural_planes = [GPlane(float(rec[3]), float(rec[4]), isRHRStrike) for rec in structural_pts_attrs]
         except:
             self.warn("Check defined fields for possible errors")
             return
@@ -2660,7 +2670,7 @@ class qprof_QWidget(QWidget):
                   for line_2d in multiline_2d.lines for pt_2d in line_2d.pts]
 
         # extract x-y pairs for creation of 3D points
-        xy_list = [(pt_2d.p_x, pt_2d.p_y) for multiline_2d in densified_proj_crs_MultiLine2D_list for line_2d in
+        xy_list = [(pt_2d.x, pt_2d.y) for multiline_2d in densified_proj_crs_MultiLine2D_list for line_2d in
                    multiline_2d.lines for pt_2d in line_2d.pts]
 
         # replicate MultiLine list structure with 3D points with project CRS
@@ -2672,8 +2682,8 @@ class qprof_QWidget(QWidget):
                 line_3d_pts_list = []
                 for _ in line_2d.pts:
                     ndx += 1
-                    line_3d_pts_list.append(CartesianPoint3DT(xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]))
-                multiline_3d_list.append(CartesianLine3DT(line_3d_pts_list))
+                    line_3d_pts_list.append(Point3Dt(xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]))
+                multiline_3d_list.append(Line3Dt(line_3d_pts_list))
             multiline_3d_proj_crs_list.append(CartesianMultiLine3DT(multiline_3d_list))
 
         # create projection vector        
@@ -2704,7 +2714,7 @@ class qprof_QWidget(QWidget):
                 for _ in line_3d.pts:
                     ndx += 1
                     line_3d_pts_list.append(intersection_point_list[ndx])
-                multiline_3d_list.append(CartesianLine3DT(line_3d_pts_list))
+                multiline_3d_list.append(Line3Dt(line_3d_pts_list))
             multiline_3d_proj_crs_section_list.append(CartesianMultiLine3DT(multiline_3d_list))
 
         section_start_point, section_vector = self.section_data['init_pt'], self.section_data['vector']
@@ -2742,11 +2752,11 @@ class qprof_QWidget(QWidget):
 
             for plane_attitude_rec in dataset:
                 pt_id = plane_attitude_rec.id
-                or_pt_x = plane_attitude_rec.src_pt_3d.p_x
-                or_pt_y = plane_attitude_rec.src_pt_3d.p_y
+                or_pt_x = plane_attitude_rec.src_pt_3d.x
+                or_pt_y = plane_attitude_rec.src_pt_3d.y
                 or_pt_z = plane_attitude_rec.src_pt_3d.p_z
-                pr_pt_x = plane_attitude_rec.pt_3d.p_x
-                pr_pt_y = plane_attitude_rec.pt_3d.p_y
+                pr_pt_x = plane_attitude_rec.pt_3d.x
+                pr_pt_y = plane_attitude_rec.pt_3d.y
                 pr_pt_z = plane_attitude_rec.pt_3d.p_z
                 s = plane_attitude_rec.sign_hor_dist
                 or_dipdir = plane_attitude_rec.src_geol_plane.dipdir
@@ -2768,7 +2778,7 @@ class qprof_QWidget(QWidget):
             for curve, rec_id in zip(curve_set, id_set):
                 for line in curve.lines:
                     for pt in line.pts:
-                        data_list.append([rec_id, pt.p_x, pt.p_y])
+                        data_list.append([rec_id, pt.x, pt.y])
         return data_list
 
     def write_geological_attitudes_ptshp(self, fileName, parsed_crosssect_results, sr):
@@ -3132,7 +3142,7 @@ class qprof_QWidget(QWidget):
             profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
 
         profile_qgsgeometry = QgsGeometry.fromPolyline(
-            [QgsPoint(pt2d.p_x, pt2d.p_y) for pt2d in profile_line2d_polycrs_densif.pts])
+            [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
         intersection_polyline_polygon_crs_list = self.profile_polygon_intersection(profile_qgsgeometry, polygon_layer,
                                                                                    inters_polygon_classifaction_field_ndx)
@@ -3162,7 +3172,7 @@ class qprof_QWidget(QWidget):
         for polygon_classification, line2d in intersection_line2d_prj_crs_list:
             polygon_classification_set.add(polygon_classification)
 
-            intersection_line3d = CartesianLine3DT(
+            intersection_line3d = Line3Dt(
                 self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
 
             s0_list = intersection_line3d.incremental_length_2d()
@@ -3308,7 +3318,7 @@ class qprof_QWidget(QWidget):
 
         # project to Dem CRS
         if on_the_fly_projection and demParams.crs != project_crs:
-            qgs_point2d_list = [qgs_point_2d(point2D.p_x, point2D.p_y) for point2D in intersection_point_list]
+            qgs_point2d_list = [qgs_point_2d(point2D.x, point2D.y) for point2D in intersection_point_list]
             dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                    qgs_point2d_list]
             dem_crs_intersection_point_list = [CartesianPoint2DT(qgispt.x(), qgispt.y()) for qgispt in
@@ -3319,7 +3329,7 @@ class qprof_QWidget(QWidget):
         # interpolate z values from Dem
         z_list = [self.interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
 
-        return [CartesianPoint3DT(pt2d.p_x, pt2d.p_y, z) for pt2d, z in zip(intersection_point_list, z_list)]
+        return [Point3Dt(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
 
     def calculate_profile_lines_intersection(self, multilines2d_list, id_list, profile_line2d):
 
@@ -4759,24 +4769,25 @@ class LineDataExportDialog(QDialog):
 
 
 class StatisticsDialog(QDialog):
+
     def __init__(self, topo_profiles, parent=None):
         super(StatisticsDialog, self).__init__(parent)
 
         profiles_stats = zip(topo_profiles.names,
                              zip(topo_profiles.statistics_elev,
-                             topo_profiles.statistics_dirslopes,
-                             topo_profiles.statistics_slopes))
+                                 topo_profiles.statistics_dirslopes,
+                                 topo_profiles.statistics_slopes))
 
         layout = QVBoxLayout()
 
         self.text_widget = QTextEdit()
         self.text_widget.setReadOnly(True)
 
-        stat_report =  "General statistics\n"
-        stat_report += "Profile length: %f\n" % topo_profiles.profile_length
-        stat_report += "Topographic elevations\n"
-        stat_report += " - min: %f\n" % topo_profiles.natural_elev_range[0]
-        stat_report += " - max: %f\n\n" % topo_profiles.natural_elev_range[1]
+        stat_report = "General statistics\n"
+        stat_report += "\nProfile length: %f\n" % topo_profiles.profile_length
+        stat_report += "\nTopographic elevations\n"
+        stat_report += " - min: {}\n".format(topo_profiles.natural_elev_range[0])
+        stat_report += " - max: {}\n\n".format(topo_profiles.natural_elev_range[1])
         stat_report += self.report_stats(profiles_stats)
 
         self.text_widget.setPlainText(stat_report)

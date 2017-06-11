@@ -1,11 +1,13 @@
 
-from math import sqrt, degrees
+from math import sqrt, degrees, acos, asin, atan, atan2, radians
 import numpy as np
 
 from .qgs_tools import qgs_point_2d, project_qgs_point
-from ..gsf.geometry import Vect, GPlane, Point
+from ..gsf.geometry import Vect, GPlane, Point, GAxis
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10
+MINIMUM_SEPARATION_THRESHOLD = 1e-10
+MINIMUM_VECTOR_MAGNITUDE = 1e-10
 
 
 class CartesianPoint2DT(object):
@@ -480,6 +482,96 @@ class CartesianMultiLine2DT(object):
         return CartesianMultiLine2DT(cleaned_lines)
 
 
+class Point3Dt(object):
+    def __init__(self, x=np.nan, y=np.nan, z=np.nan, t=None):
+
+        self._x = x
+        self._y = y
+        self._z = z
+        self._t = t
+
+    @property
+    def p_x(self):
+
+        return self._x
+
+    @property
+    def p_y(self):
+
+        return self._y
+
+    @property
+    def p_z(self):
+
+        return self._z
+
+    @property
+    def p_t(self):
+
+        return self._t
+
+    def clone(self):
+
+        return Point3Dt(self.p_x, self.p_y, self.p_z, self.p_t)
+
+    def spat_distance(self, another):
+        """
+        Calculate Euclidean spatial distance between two points.
+        @param  another:  the CartesianPoint3DT instance for which the spatial distance should be calculated
+        @type  another:  CartesianPoint3DT.
+
+        @return:  spatial distance between the two points - float.
+        """
+
+        return sqrt((self.p_x - another.p_x) ** 2 + (self.p_y - another.p_y) ** 2 + (self.p_z - another.p_z) ** 2)
+
+    def distance_2d(self, another):
+
+        return sqrt((self.p_x - another.p_x) ** 2 + (self.p_y - another.p_y) ** 2)
+
+    def spat_coincident_with(self, another, tolerance=MINIMUM_SEPARATION_THRESHOLD):
+
+        if self.spat_distance(another) > tolerance:
+            return False
+        else:
+            return True
+
+    def translate(self, sx=0.0, sy=0.0, sz=0.0):
+        """
+        Create a new point shifted by given amount from the self instance.
+        @param  sx:  the shift to be applied along the x axis.
+        @type  sx:  float.
+        @param  sy:  the shift to be applied along the y axis.
+        @type  sy:  float.
+        @param  sz:  the shift to be applied along the z axis.
+        @type  sz:  float.
+
+        @return:  a new CartesianPoint3DT instance shifted by the given amounts with respect to the original one.
+        """
+
+        return Point3Dt(self.p_x + sx, self.p_y + sy, self.p_z + sz, self.p_t)
+
+    def translate_with_vector(self, displacement_vector):
+
+        return Point3Dt(self.p_x + displacement_vector.x, self.p_y + displacement_vector.y,
+                        self.p_z + displacement_vector.z, self.p_t)
+
+    def as_vector3d(self):
+
+        return CartesianVector3D(self.p_x, self.p_y, self.p_z)
+
+    def delta_time(self, another):
+
+        return another.p_t - self.p_t
+
+    def speed(self, another):
+
+        try:
+            return self.spat_distance(another) / self.delta_time(another)
+        except:
+            return np.nan
+
+
 class CartesianSegment3DT(object):
     
     def __init__(self, start_point, end_point):
@@ -538,7 +630,7 @@ class CartesianSegment3DT(object):
 
         generator_vector = self.as_vector3d().as_versor3d().scale(densify_distance)
 
-        interpolated_line = CartesianLine3DT([self.start_pt])
+        interpolated_line = Line3Dt([self.start_pt])
         n = 0
         while True:
             n += 1
@@ -570,7 +662,131 @@ class CartesianSegment3DT(object):
             return False
 
 
-class CartesianLine3DT(object):
+
+class CartesianVector3D(object):
+    def __init__(self, x=np.nan, y=np.nan, z=np.nan):
+
+        self._x = x
+        self._y = y
+        self._z = z
+
+    @property
+    def x(self):
+
+        return self._x
+
+    @property
+    def y(self):
+
+        return self._y
+
+    @property
+    def z(self):
+
+        return self._z
+
+    def clone(self):
+
+        return CartesianVector3D(self.x, self.y, self.z)
+
+    @property
+    def length(self):
+
+        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
+
+    @property
+    def length_horiz(self):
+
+        return sqrt(self.x * self.x + self.y * self.y)
+
+    def scale(self, scale_factor):
+
+        return CartesianVector3D(self.x * scale_factor,
+                                 self.y * scale_factor,
+                                 self.z * scale_factor)
+
+    def as_versor3d(self):
+
+        return self.scale(1.0 / self.length)
+
+    def as_downvector3d(self):
+
+        if self.z > 0.0:
+            return self.scale(-1.0)
+        else:
+            return self.clone()
+
+    def add(self, another):
+
+        return CartesianVector3D(self.x + another.x,
+                                 self.y + another.y,
+                                 self.z + another.z)
+
+    def slope_radians(self):
+
+        return atan(self.z / self.length_horiz)
+
+    def as_geolaxis(self):
+
+        if self.length < MINIMUM_VECTOR_MAGNITUDE:
+            return None
+
+        unit_vect = self.as_versor3d()
+
+        plunge = - degrees(asin(unit_vect.z))  # upward negative, downward positive
+
+        trend = 90.0 - degrees(atan2(unit_vect.y, unit_vect.x))
+        if trend < 0.0:
+            trend += 360.0
+        elif trend > 360.0:
+            trend -= 360.0
+
+        assert 0.0 <= trend < 360.0
+        assert -90.0 <= plunge <= 90.0
+
+        return GAxis(trend, plunge)
+
+    def scalar_product(self, another):
+
+        return self.x * another.x + self.y * another.y + self.z * another.z
+
+    def vectors_cos_angle(self, another):
+
+        try:
+            return self.scalar_product(another) / (self.length * another.length)
+        except ZeroDivisionError:
+            return np.nan
+
+    def angle_degr(self, another):
+        """
+        angle between two vectors,
+        in 0 - pi range
+        """
+
+        return degrees(acos(self.vectors_cos_angle(another)))
+
+    def vector_product(self, another):
+
+        x = self.y * another.z - self.z * another.y
+        y = self.z * another.x - self.x * another.z
+        z = self.x * another.y - self.y * another.x
+
+        return CartesianVector3D(x, y, z)
+
+    def by_matrix(self, matrix3x3):
+
+        vx = matrix3x3[0, 0] * self.x + matrix3x3[0, 1] * self.y + matrix3x3[0, 2] * self.z
+        vy = matrix3x3[1, 0] * self.x + matrix3x3[1, 1] * self.y + matrix3x3[1, 2] * self.z
+        vz = matrix3x3[2, 0] * self.x + matrix3x3[2, 1] * self.y + matrix3x3[2, 2] * self.z
+
+        return CartesianVector3D(vx, vy, vz)
+
+    def as_point3dt(self):
+
+        return Point3Dt(self.x, self.y, self.z, None)
+
+
+class Line3Dt(object):
     # CartesianLine3DT is a list of Point objects
 
     def __init__(self, pts_3dt=None):
@@ -591,7 +807,7 @@ class CartesianLine3DT(object):
 
     def clone(self):
 
-        return CartesianLine3DT(self.pts)
+        return Line3Dt(self.pts)
 
     def add_pt(self, pt):
 
@@ -603,7 +819,7 @@ class CartesianLine3DT(object):
 
     def remove_coincident_successive_points(self):
 
-        new_line = CartesianLine3DT(self.pts[: 1])
+        new_line = Line3Dt(self.pts[: 1])
         for ndx in range(1, self.num_pts):
             if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
                 new_line = new_line.add_point(self.pts[ndx])
@@ -616,7 +832,7 @@ class CartesianLine3DT(object):
         and orientation mismatches between the two original lines
         """
 
-        return CartesianLine3DT(self.pts + another.pts)
+        return Line3Dt(self.pts + another.pts)
 
     @property
     def length_3d(self):
@@ -701,7 +917,7 @@ class CartesianLine3DT(object):
         slopes_list = []
         for ndx in range(self.num_pts - 1):
             vector = CartesianSegment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
-            slopes_list.append(degrees(vector.slope_radians()))
+            slopes_list.append(vector.slope)
         slopes_list.append(np.nan)  # slope value for last point is unknown
 
         return slopes_list
@@ -711,7 +927,7 @@ class CartesianLine3DT(object):
         slopes_list = []
         for ndx in range(self.num_pts - 1):
             vector = CartesianSegment3DT(self.pts[ndx], self.pts[ndx + 1]).as_vector3d()
-            slopes_list.append(abs(degrees(vector.slope_radians())))
+            slopes_list.append(abs(vector.slope))
         slopes_list.append(np.nan)  # slope value for last point is undefined
 
         return slopes_list
@@ -763,7 +979,7 @@ class CartesianMultiLine3DT(object):
 
     def to_line3dt(self):
 
-        return CartesianLine3DT([point for line in self.lines for point in line.pts])
+        return Line3Dt([point for line in self.lines for point in line.pts])
 
 
 class CartesianParamLine(object):

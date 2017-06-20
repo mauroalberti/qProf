@@ -7,13 +7,15 @@ from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from ..gsf.geometry import Point
 from .errors import VectorIOException
+from ..gsf.geometry import Point
+
 
 
 def get_on_the_fly_projection(canvas):
 
     on_the_fly_projection = True if canvas.hasCrsTransformEnabled() else False
+
     if on_the_fly_projection:
         project_crs = canvas.mapRenderer().destinationCrs()
     else:
@@ -23,8 +25,9 @@ def get_on_the_fly_projection(canvas):
 
 
 def vector_type(layer):
+
     if not layer.type() == QgsMapLayer.VectorLayer:
-        raise VectorIOException, "Layer is not vector"
+        raise VectorIOException("Layer is not vector")
 
     if layer.geometryType() == QGis.Point:
         return "point"
@@ -33,39 +36,46 @@ def vector_type(layer):
     elif layer.geometryType() == QGis.Polygon:
         return "polygon"
     else:
-        raise VectorIOException, "Unknown vector type"
+        raise VectorIOException("Unknown vector type")
 
 
 def loaded_layers():
+
     return QgsMapLayerRegistry.instance().mapLayers().values()
 
 
 def loaded_vector_layers():
+
     return filter(lambda layer: layer.type() == QgsMapLayer.VectorLayer,
                   loaded_layers())
 
 
 def loaded_polygon_layers():
+
     return filter(lambda layer: layer.geometryType() == QGis.Polygon,
                   loaded_vector_layers())
 
 
 def loaded_line_layers():
+
     return filter(lambda layer: layer.geometryType() == QGis.Line,
                   loaded_vector_layers())
 
 
 def loaded_point_layers():
+
     return filter(lambda layer: layer.geometryType() == QGis.Point,
                   loaded_vector_layers())
 
 
 def loaded_raster_layers():
+
     return filter(lambda layer: layer.type() == QgsMapLayer.RasterLayer,
                   loaded_layers())
 
 
 def loaded_monoband_raster_layers():
+
     return filter(lambda layer: layer.bandCount() == 1,
                   loaded_raster_layers())
 
@@ -104,6 +114,7 @@ def pt_geoms_attrs(pt_layer, field_list=None):
 
 
 def line_geoms_attrs(line_layer, field_list=None):
+
     if field_list is None:
         field_list = []
 
@@ -133,6 +144,7 @@ def line_geoms_attrs(line_layer, field_list=None):
 
 
 def line_geoms_with_id(line_layer, curr_field_ndx):
+
     lines = []
     progress_ids = []
     dummy_progressive = 0
@@ -161,15 +173,18 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
 
 
 def polyline_to_xytuple_list(qgsline):
+
     assert len(qgsline) > 0
     return [(qgspoint.x(), qgspoint.y()) for qgspoint in qgsline]
 
 
 def multipolyline_to_xytuple_list2(qgspolyline):
+
     return [polyline_to_xytuple_list(qgsline) for qgsline in qgspolyline]
 
 
 def field_values(layer, curr_field_ndx):
+
     values = []
 
     if layer.selectedFeatureCount() > 0:
@@ -184,6 +199,7 @@ def field_values(layer, curr_field_ndx):
 
 
 def vect_attrs(layer, field_list):
+
     if layer.selectedFeatureCount() > 0:
         features = layer.selectedFeatures()
     else:
@@ -202,6 +218,7 @@ def vect_attrs(layer, field_list):
 
 
 def raster_qgis_params(raster_layer):
+
     name = raster_layer.name()
 
     rows = raster_layer.height()
@@ -232,14 +249,17 @@ def raster_qgis_params(raster_layer):
 
 
 def qgs_point_2d(x, y):
+
     return QgsPoint(x, y)
 
 
 def project_qgs_point(qgsPt, srcCrs, destCrs):
+
     return QgsCoordinateTransform(srcCrs, destCrs).transform(qgsPt)
 
 
 def project_xy_list(src_crs_xy_list, srcCrs, destCrs):
+
     pt_list_dest_crs = []
     for x, y in src_crs_xy_list.pts:
         srcPt = QgsPoint(x, y)
@@ -250,6 +270,7 @@ def project_xy_list(src_crs_xy_list, srcCrs, destCrs):
 
 
 def qcolor2rgbmpl(qcolor):
+
     red = qcolor.red() / 255.0
     green = qcolor.green() / 255.0
     blue = qcolor.blue() / 255.0
@@ -287,17 +308,21 @@ Modified from: profiletool, script: tools/ptmaptool.py
 
 
 class PointMapToolEmitPoint(QgsMapToolEmitPoint):
+
     def __init__(self, canvas, button):
+
         super(PointMapToolEmitPoint, self).__init__(canvas)
         self.canvas = canvas
         self.cursor = QCursor(Qt.CrossCursor)
         self.button = button
 
     def setCursor(self, cursor):
+
         self.cursor = QCursor(cursor)
 
 
 class MapDigitizeTool(QgsMapTool):
+
     def __init__(self, canvas):
 
         QgsMapTool.__init__(self, canvas)
@@ -342,7 +367,7 @@ class MapDigitizeTool(QgsMapTool):
 
 
 class QGisRasterParameters(object):
-    # class constructor
+
     def __init__(self, name, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue, crs):
 
         self.name = name
@@ -358,6 +383,13 @@ class QGisRasterParameters(object):
         self.crs = crs
 
     def point_in_dem_area(self, point):
+        """
+        Check that a point is within or on the boundary of the grid area.
+        Assume grid has no rotation.
+        
+        :param point: qProf.gsf.geometry.Point
+        :return: bool
+        """
 
         if self.xMin <= point.p_x <= self.xMax and \
                                 self.yMin <= point.p_y <= self.yMax:
@@ -366,14 +398,29 @@ class QGisRasterParameters(object):
             return False
 
     def point_in_interpolation_area(self, point):
+        """
+        Check that a point is within or on the boundary of the area defined by
+        the extreme cell center values.
+        Assume grid has no rotation.
+        
+        :param point: qProf.gsf.geometry.Point
+        :return: bool
+        """
 
         if self.xMin + self.cellsizeEW / 2.0 <= point.p_x <= self.xMax - self.cellsizeEW / 2.0 and \
-                                        self.yMin + self.cellsizeNS / 2.0 <= point.p_y <= self.yMax - self.cellsizeNS / 2.0:
+           self.yMin + self.cellsizeNS / 2.0 <= point.p_y <= self.yMax - self.cellsizeNS / 2.0:
             return True
         else:
             return False
 
     def geogr2raster(self, point):
+        """
+        Convert from geographic to raster-based coordinates.
+        Assume grid has no rotation.
+
+        :param point: qProf.gsf.geometry.Point
+        :return: dict
+        """
 
         x = (point.p_x - (self.xMin + self.cellsizeEW / 2.0)) / self.cellsizeEW
         y = (point.p_y - (self.yMin + self.cellsizeNS / 2.0)) / self.cellsizeNS
@@ -381,10 +428,17 @@ class QGisRasterParameters(object):
         return dict(x=x, y=y)
 
     def raster2geogr(self, array_dict):
+        """
+        Convert from raster-based to geographic coordinates.
+        Assume grid has no rotation.
+
+        :param array_dict: dict
+        :return: qProf.gsf.geometry.Point instance
+        """
 
         point = Point()
-        point._x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
-        point._y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
+        point.x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
+        point.y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
 
         return point
 

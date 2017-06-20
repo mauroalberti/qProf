@@ -45,6 +45,7 @@ class GPXIOException(Exception):
 
 
 class VectorIOException(Exception):
+
     pass
 
 

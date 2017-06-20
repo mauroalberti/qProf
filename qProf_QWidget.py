@@ -16,30 +16,26 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 
-from gsf.geometry import GPlane
-from gsf.array_utils import to_float
+from .gsf.geometry import GPlane
+from .gsf.array_utils import to_float
 
-
-
-from gis_utils.features import CartesianPoint2DT, CartesianMultiLine2DT, CartesianLine2DT, \
-    Point3Dt, CartesianSegment3DT, CartesianMultiLine3DT, Line3Dt, \
+from .gis_utils.features import CartesianMultiLine2DT, CartesianLine2DT, \
+    CartesianSegment3DT, CartesianMultiLine3DT, Line3Dt, \
     merge_lines, CartesianParamLine, \
     xytuple_list_to_Line2D, xytuple_list2_to_MultiLine2D
-from gis_utils.geodetic import TrackPointGPX
-from gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from gis_utils.projections import line2d_change_crs
-from gis_utils.profile import Profile_Elements, TopoProfiles, DEMParams
-from gis_utils.qgs_tools import QGisRasterParameters
-from gis_utils.qgs_tools import loaded_line_layers, loaded_point_layers, loaded_polygon_layers, pt_geoms_attrs, \
-    raster_qgis_params, loaded_monoband_raster_layers, get_on_the_fly_projection, \
-    line_geoms_with_id, qgs_point_2d, project_qgs_point, vect_attrs, \
-    line_geoms_attrs, field_values, MapDigitizeTool, qcolor2rgbmpl
-from gis_utils.errors import GPXIOException, VectorInputException, VectorIOException
 
-from mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+from .gis_utils.geodetic import TrackPointGPX
+from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
+from .gis_utils.projections import line2d_change_crs
+from .gis_utils.profile import Profile_Elements, TopoProfiles, DEMParams
 
-from qt_utils.utils_qt import lastUsedDir, setLastUsedDir, new_file_path, old_file_path
-from string_utils.utils_string import clean_string
+from .gis_utils.qgs_tools import *
+from .gis_utils.errors import GPXIOException, VectorInputException, VectorIOException
+
+from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+
+from .qt_utils.utils_qt import lastUsedDir, setLastUsedDir, new_file_path, old_file_path
+from .string_utils.utils_string import clean_string
 
 
 _plugin_name_ = "qProf"
@@ -656,15 +652,15 @@ class qprof_QWidget(QWidget):
                     selected_dems = dialog.selected_dems
                     selected_dem_parameters = dialog.selected_dem_parameters
                     topoline_colors = dialog.selected_dem_colors
-                except:
-                    self.warn("Input DEMs definition not correct")
+                except Exception as e:
+                    self.warn("Input DEMs definition not correct: {}".format(e.message))
                     return
+
                 try:
                     sample_distance = float(dialog.profile_densify_distance_lineedit.text())
-                    if sample_distance < 0.0:
-                        raise
-                except:
-                    self.warn("Sample distance value not correct")
+                    assert sample_distance > 0.0
+                except Exception as e:
+                    self.warn("Sample distance value not correct: {}".format(e.message))
                     return
 
                 if dialog.DigitizeLine_checkbox.isChecked():
@@ -692,13 +688,12 @@ class qprof_QWidget(QWidget):
                     if source_gpx_path == '':
                         self.warn("Source GPX file is not set")
                         return
-                except:
-                    self.warn("Source GPX file not correctly set")
+                except Exception as e:
+                    self.warn("Source GPX file not correctly set: {}".format(e.message))
                     return
                 topoline_colors = [qcolor2rgbmpl(dialog.inputGPX_color_button.color())]
 
             else:
-
                 self.warn("Debug: uncorrect type source for topo sources def")
                 return
 
@@ -706,21 +701,21 @@ class qprof_QWidget(QWidget):
             invert_profile = self.prof_toposources_reverse_direction_checkbox.isChecked()
             if topo_source_type == self.demline_source:  # sources are DEM(s) and line
                 try:
-                    topo_profiles = self.topoprofiles_calculate_from_dems(source_profile_line2dt,
-                                                                          sample_distance,
-                                                                          selected_dems,
-                                                                          selected_dem_parameters,
-                                                                          invert_profile)
-                except VectorIOException, msg:
-                    self.warn(msg)
-                    return
+                    topo_profiles = self.topoprofiles_from_dems(source_profile_line2dt,
+                                                                sample_distance,
+                                                                selected_dems,
+                                                                selected_dem_parameters,
+                                                                invert_profile)
+                except Exception as e:
+                     self.warn(e.message)
+                     return
             elif topo_source_type == self.gpxfile_source:  # source is GPX file
                 try:
-                    topo_profiles = self.topoprofiles_calculate_from_gpxfile(source_gpx_path,
-                                                                             topoline_colors,
-                                                                             invert_profile)
-                except:
-                    self.warn("Error with profile calculation from GPX file")
+                    topo_profiles = self.topoprofiles_from_gpxfile(source_gpx_path,
+                                                                   topoline_colors,
+                                                                   invert_profile)
+                except Exception as e:
+                    self.warn("Error with profile calculation from GPX file: {}".format(e.message))
                     return
             else:  # source error
                 self.error("Algorithm error: profile calculation not defined")
@@ -835,7 +830,7 @@ class qprof_QWidget(QWidget):
 
         if len(self.profile_canvas_points) > 1:
             self.digitized_profile_line2dt = CartesianLine2DT(
-                [CartesianPoint2DT(x, y) for x, y in self.profile_canvas_points])
+                [Point(x, y) for x, y in self.profile_canvas_points])
         else:
             self.digitized_profile_line2dt = None
 
@@ -1471,6 +1466,13 @@ class qprof_QWidget(QWidget):
 
     def interpolate_bilinear(self, dem, dem_params, point):
 
+        """        
+        :param dem: 
+        :param dem_params: qProf.gis_utils.qgs_tools.QGisRasterParameters
+        :param point: qProf.gis_utils.features.Point
+        :return: 
+        """
+
         array_coords_dict = dem_params.geogr2raster(point)
         floor_x_raster = floor(array_coords_dict["x"])
         ceil_x_raster = ceil(array_coords_dict["x"])
@@ -1504,6 +1506,10 @@ class qprof_QWidget(QWidget):
         return z_x_a + (z_x_b - z_x_a) * delta_y / dem_params.cellsizeNS
 
     def interpolate_z(self, dem, dem_params, point):
+        """
+            dem_params: type qProf.gis_utils.qgs_tools.QGisRasterParameters
+            point: type qProf.gis_utils.features.Point
+        """
 
         if dem_params.point_in_interpolation_area(point):
             return self.interpolate_bilinear(dem, dem_params, point)
@@ -1523,14 +1529,14 @@ class qprof_QWidget(QWidget):
         for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
             fInterpolatedZVal = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
             print fInterpolatedZVal
-            pt3dtPoint = Point3Dt(trace_pt2d_project_crs.p_x,
+            pt3dtPoint = Point(trace_pt2d_project_crs.p_x,
                                   trace_pt2d_project_crs.p_y,
                                   fInterpolatedZVal)
             ln3dtProfile.add_pt(pt3dtPoint)
 
         return ln3dtProfile
 
-    def topoprofiles_calculate_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
+    def topoprofiles_from_dems(self, source_profile_line2dt, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
 
         # get project CRS information
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
@@ -1569,7 +1575,7 @@ class qprof_QWidget(QWidget):
 
         return topo_profiles
 
-    def topoprofiles_calculate_from_gpxfile(self, source_gpx_path, gpx_colors, invert_profile):
+    def topoprofiles_from_gpxfile(self, source_gpx_path, gpx_colors, invert_profile):
 
         doc = xml.dom.minidom.parse(source_gpx_path)
 
@@ -2448,7 +2454,7 @@ class qprof_QWidget(QWidget):
         for pt in pts_in_orig_crs:
             qgs_pt = qgs_point_2d(pt.x, pt.y)
             qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
-            pts_in_prj_crs.append(Point3Dt(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
+            pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
         return pts_in_prj_crs
 
     def calculate_projected_3d_pts(self, struct_pts, structural_pts_crs, demObj):
@@ -2476,16 +2482,16 @@ class qprof_QWidget(QWidget):
 
         assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
 
-        return [Point3Dt(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
+        return [Point(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
 
     def calculate_section_data(self):
 
         sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
 
-        section_init_pt = Point3Dt(sect_pt_1.x, sect_pt_1.y, 0.0)
-        section_final_pt = Point3Dt(sect_pt_2.x, sect_pt_2.y, 0.0)
+        section_init_pt = Point(sect_pt_1.x, sect_pt_1.y, 0.0)
+        section_final_pt = Point(sect_pt_2.x, sect_pt_2.y, 0.0)
 
-        section_final_pt_up = Point3Dt(section_final_pt.x, section_final_pt.y,
+        section_final_pt_up = Point(section_final_pt.x, section_final_pt.y,
                                        1000.0)  # arbitrary point on the same vertical as sect_pt_2
         section_cartes_plane = Plane.from_points(section_init_pt, section_final_pt, section_final_pt_up)
         section_vector = CartesianSegment3DT(section_init_pt, section_final_pt).as_vector3d()
@@ -2556,7 +2562,7 @@ class qprof_QWidget(QWidget):
         structural_pts_attrs = pt_geoms_attrs(structural_layer, structural_field_list)
 
         # list of structural points with original crs
-        struct_pts_in_orig_crs = [Point3Dt(float(rec[0]), float(rec[1])) for rec in structural_pts_attrs]
+        struct_pts_in_orig_crs = [Point(float(rec[0]), float(rec[1])) for rec in structural_pts_attrs]
 
         # IDs of structural points
         struct_pts_ids = [rec[2] for rec in structural_pts_attrs]
@@ -2682,7 +2688,7 @@ class qprof_QWidget(QWidget):
                 line_3d_pts_list = []
                 for _ in line_2d.pts:
                     ndx += 1
-                    line_3d_pts_list.append(Point3Dt(xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]))
+                    line_3d_pts_list.append(Point(xy_list[ndx][0], xy_list[ndx][1], z_list[ndx]))
                 multiline_3d_list.append(Line3Dt(line_3d_pts_list))
             multiline_3d_proj_crs_list.append(CartesianMultiLine3DT(multiline_3d_list))
 
@@ -2726,7 +2732,7 @@ class qprof_QWidget(QWidget):
                 for pt_3d in line_3d.pts:
                     s = calculate_distance_with_sign(pt_3d, section_start_point, section_vector)
                     z = pt_3d.p_z
-                    line_2d_pts_list.append(CartesianPoint2DT(s, z))
+                    line_2d_pts_list.append(Point(s, z))
                 multiline_2d_list.append(CartesianLine2DT(line_2d_pts_list))
             curves_2d_list.append(CartesianMultiLine2DT(multiline_2d_list))
 
@@ -3162,7 +3168,7 @@ class qprof_QWidget(QWidget):
                 intersection_prj_crs_line2d = intersection_polygon_crs_line2d
             intersection_line2d_prj_crs_list.append([rec_classification, intersection_prj_crs_line2d])
 
-        # create CartesianPoint3DT lists from intersection with source DEM
+        # create CartesianPoint lists from intersection with source DEM
 
         polygon_classification_set = set()
         sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
@@ -3293,7 +3299,7 @@ class qprof_QWidget(QWidget):
         line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
                                                                        project_crs)
 
-        # calculated CartesianPoint2DT intersection list
+        # calculated Point intersection list
         intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
                                                                                id_list,
                                                                                self.profile_elements.source_profile_line2dt)
@@ -3302,7 +3308,7 @@ class qprof_QWidget(QWidget):
         distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.profile_elements.source_profile_line2dt,
                                                                                               intersection_point_id_list)
 
-        # create CartesianPoint3DT from intersection with source DEM
+        # create CartesianPoint from intersection with source DEM
         intersection_point_list = [pt2d for pt2d, _ in intersection_point_id_list]
         intersection_id_list = [id for _, id in intersection_point_id_list]
         intersection_point3d_list = self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
@@ -3321,7 +3327,7 @@ class qprof_QWidget(QWidget):
             qgs_point2d_list = [qgs_point_2d(point2D.x, point2D.y) for point2D in intersection_point_list]
             dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                    qgs_point2d_list]
-            dem_crs_intersection_point_list = [CartesianPoint2DT(qgispt.x(), qgispt.y()) for qgispt in
+            dem_crs_intersection_point_list = [Point(qgispt.x(), qgispt.y()) for qgispt in
                                                dem_crs_intersection_qgispoint_list]
         else:
             dem_crs_intersection_point_list = intersection_point_list
@@ -3329,7 +3335,7 @@ class qprof_QWidget(QWidget):
         # interpolate z values from Dem
         z_list = [self.interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
 
-        return [Point3Dt(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
+        return [Point(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
 
     def calculate_profile_lines_intersection(self, multilines2d_list, id_list, profile_line2d):
 
@@ -3649,6 +3655,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         self.profile_densify_distance_lineedit.setText(str(min_dem_proposed_resolution))
 
     def get_dem_parameters(self, dem):
+
         return QGisRasterParameters(*raster_qgis_params(dem))
 
     def get_selected_dems_params(self, dialog):
@@ -3723,8 +3730,8 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
             qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
 
-            pt2_start_dest_crs = CartesianPoint2DT(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
-            pt2d_end_dest_crs = CartesianPoint2DT(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
+            pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
+            pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
 
             return pt2_start_dest_crs.spat_distance(pt2d_end_dest_crs)
 

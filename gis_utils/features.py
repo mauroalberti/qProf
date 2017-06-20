@@ -2,7 +2,8 @@
 from math import sqrt, degrees, acos, asin, atan, atan2, radians
 import numpy as np
 
-from .qgs_tools import qgs_point_2d, project_qgs_point
+#from .qgs_tools import qgs_point_2d, project_qgs_point
+
 from ..gsf.geometry import Vect, GPlane, Point, GAxis
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10
@@ -10,7 +11,8 @@ MINIMUM_SEPARATION_THRESHOLD = 1e-10
 MINIMUM_VECTOR_MAGNITUDE = 1e-10
 
 
-class CartesianPoint2DT(object):
+"""
+class Point(object):
     
     def __init__(self, x=np.nan, y=np.nan, t=None):
 
@@ -23,18 +25,33 @@ class CartesianPoint2DT(object):
 
         return self._x
 
+    @p_x.setter
+    def p_x(self, val):
+
+        self._x = float(val)
+
     @property
     def p_y(self):
 
         return self._y
 
+    @p_y.setter
+    def p_y(self, val):
+
+        self._y = float(val)
+
     @property
     def p_t(self):
         return self._t
 
+    @p_t.setter
+    def p_t(self, val):
+
+        self._t = float(val)
+
     def clone(self):
 
-        return CartesianPoint2DT(self.p_x, self.p_y, self.p_t)
+        return Point(self.p_x, self.p_y, self.p_t)
 
     def spat_distance(self, another):
 
@@ -42,7 +59,7 @@ class CartesianPoint2DT(object):
 
     def translate_with_vector(self, displacement_vector):
 
-        return CartesianPoint2DT(self.p_x + displacement_vector.x, self.p_y + displacement_vector.y, self.p_t)
+        return Point(self.p_x + displacement_vector.x, self.p_y + displacement_vector.y, self.p_t)
 
     def spat_coincident_with(self, another, tolerance=MIN_2D_SEPARATION_THRESHOLD):
 
@@ -56,8 +73,8 @@ class CartesianPoint2DT(object):
         qgis_pt = qgs_point_2d(self.p_x, self.p_y)
         destCrs_qgis_pt = project_qgs_point(qgis_pt, srcCrs, destCrs)
 
-        return CartesianPoint2DT(destCrs_qgis_pt.x(), destCrs_qgis_pt.y(), self.p_t)
-
+        return Point(destCrs_qgis_pt.x(), destCrs_qgis_pt.y(), self.p_t)
+"""
 
 class CartesianVector2D(object):
     
@@ -160,7 +177,7 @@ class CartesianSegment2DT(object):
             x0 = (p1 - p0) / (m0 - m1)
             y0 = m0 * x0 + p0
 
-        return CartesianPoint2DT(x0, y0)
+        return Point(x0, y0)
 
     @property
     def segment_x_range(self):
@@ -224,7 +241,7 @@ class CartesianSegment2DT(object):
         delta_x = self.delta_x * scale_factor
         delta_y = self.delta_y * scale_factor
 
-        return CartesianSegment2DT(self.start_pt, CartesianPoint2DT(self.start_pt.p_x + delta_x, self.start_pt.p_y + delta_y))
+        return CartesianSegment2DT(self.start_pt, Point(self.start_pt.p_x + delta_x, self.start_pt.p_y + delta_y))
 
     def segment_3d(self):
 
@@ -332,7 +349,7 @@ class CartesianLine2DT(object):
 
         new_line = CartesianLine2DT([self.pts[0]])
         for ndx in range(1, self.num_points):
-            if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
+            if not self.pts[ndx].coincident(new_line.pts[-1]):
                 new_line = new_line.add_pt(self.pts[ndx])
 
         return new_line
@@ -385,7 +402,7 @@ class CartesianLine2DT(object):
 
 
 class CartesianMultiLine2DT(object):
-    # CartesianMultiLine2DT is a list of CartesianLine2DT objects
+    # CartesianMultiLine2DT is a list of Point objects
 
     def __init__(self, lines_list=None):
 
@@ -420,8 +437,8 @@ class CartesianMultiLine2DT(object):
     def is_continuous(self):
 
         for line_ndx in range(len(self._lines) - 1):
-            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[0]) or \
-                    not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[-1]):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
+                    not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
                 return False
         return True
 
@@ -448,7 +465,7 @@ class CartesianMultiLine2DT(object):
     def is_unidirectional(self):
 
         for line_ndx in range(len(self.lines) - 1):
-            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[0]):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]):
                 return False
 
         return True
@@ -481,7 +498,7 @@ class CartesianMultiLine2DT(object):
 
         return CartesianMultiLine2DT(cleaned_lines)
 
-
+"""
 class Point3Dt(object):
     def __init__(self, x=np.nan, y=np.nan, z=np.nan, t=None):
 
@@ -515,13 +532,13 @@ class Point3Dt(object):
         return Point3Dt(self.p_x, self.p_y, self.p_z, self.p_t)
 
     def spat_distance(self, another):
-        """
+        
         Calculate Euclidean spatial distance between two points.
         @param  another:  the CartesianPoint3DT instance for which the spatial distance should be calculated
         @type  another:  CartesianPoint3DT.
 
         @return:  spatial distance between the two points - float.
-        """
+
 
         return sqrt((self.p_x - another.p_x) ** 2 + (self.p_y - another.p_y) ** 2 + (self.p_z - another.p_z) ** 2)
 
@@ -537,7 +554,7 @@ class Point3Dt(object):
             return True
 
     def translate(self, sx=0.0, sy=0.0, sz=0.0):
-        """
+
         Create a new point shifted by given amount from the self instance.
         @param  sx:  the shift to be applied along the x axis.
         @type  sx:  float.
@@ -547,7 +564,7 @@ class Point3Dt(object):
         @type  sz:  float.
 
         @return:  a new CartesianPoint3DT instance shifted by the given amounts with respect to the original one.
-        """
+
 
         return Point3Dt(self.p_x + sx, self.p_y + sy, self.p_z + sz, self.p_t)
 
@@ -570,7 +587,7 @@ class Point3Dt(object):
             return self.spat_distance(another) / self.delta_time(another)
         except:
             return np.nan
-
+"""
 
 class CartesianSegment3DT(object):
     
@@ -821,7 +838,7 @@ class Line3Dt(object):
 
         new_line = Line3Dt(self.pts[: 1])
         for ndx in range(1, self.num_pts):
-            if not self.pts[ndx].spat_coincident_with(new_line.pts[-1]):
+            if not self.pts[ndx].coincident(new_line.pts[-1]):
                 new_line = new_line.add_point(self.pts[ndx])
         return new_line
 
@@ -963,8 +980,8 @@ class CartesianMultiLine3DT(object):
     def is_continuous(self):
 
         for line_ndx in range(len(self._lines) - 1):
-            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[0]) or \
-                    not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[-1]):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
+                    not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
                 return False
 
         return True
@@ -972,7 +989,7 @@ class CartesianMultiLine3DT(object):
     def is_unidirectional(self):
 
         for line_ndx in range(len(self.lines) - 1):
-            if not self.lines[line_ndx].pts[-1].spat_coincident_with(self.lines[line_ndx + 1].pts[0]):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]):
                 return False
 
         return True
@@ -1042,7 +1059,7 @@ def remove_equal_consecutive_xypairs(xy_list):
 
 def xytuple_list_to_Line2D(xy_list):
 
-    return CartesianLine2DT([CartesianPoint2DT(x, y) for (x, y) in xy_list])
+    return CartesianLine2DT([Point(x, y) for (x, y) in xy_list])
 
 
 def xytuple_list2_to_MultiLine2D(xytuple_list2):
@@ -1107,5 +1124,5 @@ def merge_lines(lines, progress_ids):
 
         line_list.append(path_line)  # now a list of Lines
 
-    # now the list of Lines is transformed into a single CartesianLine2DT
+    # now the list of Lines is transformed into a single Point
     return CartesianMultiLine2DT(line_list).as_line2dt().remove_coincident_successive_points()

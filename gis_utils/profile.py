@@ -139,7 +139,7 @@ class TopoLine3D(object):
         return [pt_3d.p_z for pt_3d in self.profile_3d.pts]
 
     def directional_slopes(self):
-        return self.profile_3d.slopes_list()
+        return self.profile_3d.slopes()
 
     def length_2d(self):
         return self.profile_3d.length_2d()

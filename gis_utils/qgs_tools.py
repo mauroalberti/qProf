@@ -11,7 +11,6 @@ from .errors import VectorIOException
 from ..gsf.geometry import Point
 
 
-
 def get_on_the_fly_projection(canvas):
 
     on_the_fly_projection = True if canvas.hasCrsTransformEnabled() else False
@@ -256,6 +255,12 @@ def qgs_point_2d(x, y):
 def project_qgs_point(qgsPt, srcCrs, destCrs):
 
     return QgsCoordinateTransform(srcCrs, destCrs).transform(qgsPt)
+
+def project_point(pt, srcCrs, destCrs):
+
+    qgs_pt = qgs_point_2d(pt.x, pt.y)
+
+    return project_qgs_point(qgs_pt, srcCrs, destCrs)
 
 
 def project_xy_list(src_crs_xy_list, srcCrs, destCrs):

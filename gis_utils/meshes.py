@@ -9,7 +9,7 @@ from ..gsf.array_utils import formula_to_grid
 from ..gsf.transformations import deformation_matrices
 from ..gsf.array_utils import almost_zero
 
-from .features import CartesianSegment3DT
+from .features import Segment
 from .gdal_utils import shapefile_create, ogr_write_point_result
 from .errors import AnaliticSurfaceIOException, AnaliticSurfaceCalcException
 
@@ -29,8 +29,8 @@ class TriangBeam(object):
         """
 
         self._apex = apex_pt3d
-        self._versor_1 = vector_1.as_versor3d()
-        self._versor_2 = vector_2.as_versor3d()
+        self._versor_1 = vector_1.versor()
+        self._versor_2 = vector_2.versor()
 
     def fangle_degr(self):
         """
@@ -45,7 +45,7 @@ class TriangBeam(object):
         angles
         """
 
-        vector_pt = CartesianSegment3DT(self._apex, pt_3d).as_vector3d()
+        vector_pt = Segment(self._apex, pt_3d).vector()
 
         angle_side_1 = self._versor_1.angle_degr(vector_pt)
         angle_side_2 = self._versor_2.angle_degr(vector_pt)
@@ -76,7 +76,7 @@ class CartesianTriangle(object):
 
         def versor3d(pt_1, pt_2):
 
-            return CartesianSegment3DT(pt_1, pt_2).as_vector3d().as_versor3d()
+            return Segment(pt_1, pt_2).vector().versor()
 
         def is_pt_in_fascio(pt_1, pt_2, pt_3):
 

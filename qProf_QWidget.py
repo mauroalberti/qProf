@@ -1540,7 +1540,6 @@ class qprof_QWidget(QWidget):
 
         # calculate 3D profiles from DEMs
 
-        n = 0
         dem_topolines3d = []
         for dem, dem_params in zip(selected_dems, selected_dem_parameters):
             dem_topoline3d = self.profile_from_dem(resampled_line,
@@ -1557,7 +1556,7 @@ class qprof_QWidget(QWidget):
         topo_profiles.xs = np.asarray(resampled_line.x_list)
         topo_profiles.ys = np.asarray(resampled_line.y_list)
         topo_profiles.names = map(lambda dem: dem.name(), selected_dems)
-        topo_profiles.s = np.asarray(resampled_line.incremental_length_2d)
+        topo_profiles.s = np.asarray(resampled_line.incremental_length_2d())
         topo_profiles.s3d = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
         topo_profiles.elevs = map(lambda cl3dt: cl3dt.z_array(), dem_topolines3d)
         topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
@@ -1600,7 +1599,7 @@ class qprof_QWidget(QWidget):
 
         # check for the presence of track points
         if len(track_points) == 0:
-            raise GPXIOException, "No track point found in this file"
+            raise GPXIOException("No track point found in this file")
 
         # calculate delta elevations between consecutive points
         delta_elev_values = [np.nan]
@@ -3783,7 +3782,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         # get profile path from input line layer
         success, result = self.get_line_trace(line_layer, line_fld_ndx)
         if not success:
-            raise VectorIOException, result
+            raise VectorIOException(result)
 
         profile_orig_lines, mergeorder_ids = result
 

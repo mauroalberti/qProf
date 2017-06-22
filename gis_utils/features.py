@@ -1,6 +1,4 @@
 
-# from math import sqrt, degrees, acos, asin, atan, atan2, radians
-
 import numpy as np
 
 from .qgs_tools import project_point
@@ -186,27 +184,15 @@ class Segment(object):
         :return: Line
         """
 
-        print "entered densify_2d_segment"
-
-        print "densify_distance: {}, {}".format(densify_distance, type(densify_distance))
         assert densify_distance > 0.0
 
-        print "segment start point: {}".format(self.start_pt)
-        print "segment end point: {}".format(self.end_pt)
-
-
         length2d = self.length_2d
-        print "length 2d is {}".format(length2d)
+
         assert length2d > 0.0
 
         vect = self.vector()
-        print "vector length 2d is {}".format(vect.len_2d)
-
         vers_2d = vect.versor_2d
-        print "versor length 2d is {}".format(vers_2d.len_2d)
-
         generator_vector = vers_2d.scale(densify_distance)
-        print "generator vector length 2d is {}".format(generator_vector.len_2d)
 
         assert generator_vector.len_2d > 0.0
 
@@ -214,10 +200,8 @@ class Segment(object):
         n = 0
         while True:
             n += 1
-            print n,
             new_pt = self.start_pt.vect_offset(generator_vector.scale(n))
             distance = self.start_pt.dist_2d(new_pt)
-            print distance, length2d
             if distance >= length2d:
                 break
             interpolated_line.add_pt(new_pt)
@@ -364,15 +348,9 @@ class Line(object):
         :return: list of Segment objects
         """
 
-        print "entered as_segments"
-
         pts_pairs = zip(self.pts[:-1], self.pts[1:])
 
         segments = [Segment(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
-
-        print "num of segments is {}".format(len(segments))
-
-        print "exiting as_segments"
 
         return segments
 
@@ -386,35 +364,19 @@ class Line(object):
         :return: Line instance
         """
 
-        print "Inside densify_2d_line"
-
         assert sample_distance > 0.0
-
-        print "@ 0"
 
         segments = self.as_segments()
 
-        print "num. segments: {}".format(len(segments))
-
         densified_line_list = [segment.densify_2d_segment(sample_distance) for segment in segments]
-
-        print "@ 1"
 
         assert len(densified_line_list) > 0
 
-        print "@ 2"
-
         densifyied_multiline = MultiLine(densified_line_list)
-
-        print "@ 3"
 
         densifyied_line = densifyied_multiline.to_line()
 
-        print "@ 4"
-
         densifyied_line_wo_coinc_pts = densifyied_line.remove_coincident_points()
-
-        print "@ 5"
 
         return densifyied_line_wo_coinc_pts
 

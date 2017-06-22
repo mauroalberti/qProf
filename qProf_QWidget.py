@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
 import copy
-# import numpy as np
 import os
 import unicodedata
 import webbrowser
@@ -10,11 +8,6 @@ import xml.dom.minidom
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
 from osgeo import ogr, osr
 from qgis.core import QgsRaster, QgsGeometry, QgsVectorLayer
-
-"""
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-"""
 
 from .gsf.geometry import GPlane
 from .gsf.array_utils import to_float
@@ -1462,33 +1455,33 @@ class qprof_QWidget(QWidget):
             except:
                 return np.nan
 
-    def interpolate_bilinear(self, dem, dem_params, point):
-
+    def interpolate_bilinear(self, dem, qrpDemParams, point):
         """        
-        :param dem: 
-        :param dem_params: qProf.gis_utils.qgs_tools.QGisRasterParameters
+        :param dem: qgis._core.QgsRasterLayer
+        :param qrpDemParams: qProf.gis_utils.qgs_tools.QGisRasterParameters
         :param point: qProf.gis_utils.features.Point
         :return: 
         """
 
-        array_coords_dict = dem_params.geogr2raster(point)
-        floor_x_raster = floor(array_coords_dict["x"])
-        ceil_x_raster = ceil(array_coords_dict["x"])
-        floor_y_raster = floor(array_coords_dict["y"])
-        ceil_y_raster = ceil(array_coords_dict["y"])
+        dArrayCoords = qrpDemParams.geogr2raster(point)
+
+        floor_x_raster = floor(dArrayCoords["x"])
+        ceil_x_raster = ceil(dArrayCoords["x"])
+        floor_y_raster = floor(dArrayCoords["y"])
+        ceil_y_raster = ceil(dArrayCoords["y"])
 
         # bottom-left center
-        p1 = dem_params.raster2geogr(dict(x=floor_x_raster,
-                                          y=floor_y_raster))
+        p1 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
+                                            y=floor_y_raster))
         # bottom-right center       
-        p2 = dem_params.raster2geogr(dict(x=ceil_x_raster,
-                                          y=floor_y_raster))
+        p2 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
+                                            y=floor_y_raster))
         # top-left center
-        p3 = dem_params.raster2geogr(dict(x=floor_x_raster,
-                                          y=ceil_y_raster))
+        p3 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
+                                            y=ceil_y_raster))
         # top-right center       
-        p4 = dem_params.raster2geogr(dict(x=ceil_x_raster,
-                                          y=ceil_y_raster))
+        p4 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
+                                            y=ceil_y_raster))
 
         z1 = self.get_z(dem, p1)
         z2 = self.get_z(dem, p2)
@@ -1498,10 +1491,10 @@ class qprof_QWidget(QWidget):
         delta_x = point.x - p1.x
         delta_y = point.y - p1.y
 
-        z_x_a = z1 + (z2 - z1) * delta_x / dem_params.cellsizeEW
-        z_x_b = z3 + (z4 - z3) * delta_x / dem_params.cellsizeEW
+        z_x_a = z1 + (z2 - z1) * delta_x / qrpDemParams.cellsizeEW
+        z_x_b = z3 + (z4 - z3) * delta_x / qrpDemParams.cellsizeEW
 
-        return z_x_a + (z_x_b - z_x_a) * delta_y / dem_params.cellsizeNS
+        return z_x_a + (z_x_b - z_x_a) * delta_y / qrpDemParams.cellsizeNS
 
     def interpolate_z(self, dem, dem_params, point):
         """
@@ -1518,10 +1511,6 @@ class qprof_QWidget(QWidget):
 
     def profile_from_dem(self, resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
 
-        print "inside profile_from_dem"
-
-        print "resampled_trace2d", type(resampled_trace2d)
-
         if bOnTheFlyProjection and dem.crs() != project_crs:
             trace2d_in_dem_crs = resampled_trace2d.crs_project(project_crs, dem.crs())
         else:
@@ -1530,7 +1519,6 @@ class qprof_QWidget(QWidget):
         ln3dtProfile = Line()
         for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
             fInterpolatedZVal = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-            print "interpolated z: {}".format(fInterpolatedZVal)
             pt3dtPoint = Point(trace_pt2d_project_crs.x,
                                   trace_pt2d_project_crs.y,
                                   fInterpolatedZVal)
@@ -1540,8 +1528,6 @@ class qprof_QWidget(QWidget):
 
     def topoprofiles_from_dems(self, source_profile_line, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
 
-        print "Inside topoprofiles_from_dems"
-
         # get project CRS information
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
 
@@ -1550,26 +1536,19 @@ class qprof_QWidget(QWidget):
         else:
             line = source_profile_line
 
-        print "line", type(line)
-
         resampled_line = line.densify_2d_line(sample_distance)  # line resampled by sample distance
-
-        print "topoprofiles_from_dems - 1a"
 
         # calculate 3D profiles from DEMs
 
         n = 0
         dem_topolines3d = []
         for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-            print n, "cycling"; n += 1
             dem_topoline3d = self.profile_from_dem(resampled_line,
                                                    on_the_fly_projection,
                                                    project_crs,
                                                    dem,
                                                    dem_params)
             dem_topolines3d.append(dem_topoline3d)
-
-        print "inside topoprofiles_from_dems - 2"
 
         # setup topoprofiles properties
 
@@ -1584,8 +1563,6 @@ class qprof_QWidget(QWidget):
         topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
         topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                         zip(selected_dems, selected_dem_parameters)]
-
-        print "returning from topoprofiles_from_dems"
 
         return topo_profiles
 
@@ -3724,7 +3701,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             return
         try:
             npts = line2d.num_pts
-            print "Defined line source has {} points".format(npts)
             if npts < 2:
                 self.warn("Defined line source with less than two points")
                 return

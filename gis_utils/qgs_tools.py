@@ -444,9 +444,11 @@ class QGisRasterParameters(object):
         :return: qProf.gsf.geometry.Point instance
         """
 
-        point = Point()
-        point.x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
-        point.y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
+        assert 'x' in array_dict
+        assert 'y' in array_dict
 
-        return point
+        x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
+        y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
+
+        return Point(x, y)
 

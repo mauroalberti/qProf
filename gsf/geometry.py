@@ -136,6 +136,7 @@ class Point(object):
     def __abs__(self):
         """
         Point distance from frame origin.
+        todo: make sure it works as intended with nan values
 
         Example:
           >>> abs(Point(3, 4, 0))
@@ -149,7 +150,8 @@ class Point(object):
     def dist_3d(self, another):
         """
         Calculate Euclidean spatial distance between two points.
-
+        todo: make sure it works as intended with nan values
+        
         Examples:
           >>> Point(1., 1., 1.).dist_3d(Point(4., 5., 1,))
           5.0
@@ -162,7 +164,8 @@ class Point(object):
     def dist_2d(self, another):
         """
         Calculate horizontal (2D) distance between two points.
-
+        todo: make sure it works as intended with nan values
+        
         Examples:
           >>> Point(1.,1.,1.).dist_2d(Point(4.,5.,7.))
           5.0
@@ -173,7 +176,8 @@ class Point(object):
     def coincident(self, another, tolerance=MIN_SEPARATION_THRESHOLD):
         """
         Check spatial coincidence of two points
-
+        todo: make sure it works as intended with Points with nan values
+        
         Example:
           >>> Point(1., 0., -1.).coincident(Point(1., 1.5, -1.))
           False
@@ -181,7 +185,9 @@ class Point(object):
           True
         """
 
-        if self.dist_3d(another) > tolerance:
+        if self.dist_2d(another) > tolerance:
+            return False
+        elif self.dist_3d(another) > tolerance:
             return False
         else:
             return True
@@ -394,27 +400,30 @@ class Vect(object):
     def __abs__(self):
         """
         Vector magnitude.
-
-        Example:
-          >>> abs(Vect(3, 4, 0))
-          5.0
-          >>> abs(Vect(0, 12, 5))
-          13.0
         """
 
         return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
 
     @property
-    def hlen(self):
+    def len_2d(self):
         """
         Vector length projected on the horizontal (xy) plane.
 
         Example:
-          >>> Vect(3, 4, 7).hlen
+          >>> Vect(3, 4, 7).len_2d
           5.0
         """
 
         return sqrt(self.x * self.x + self.y * self.y)
+
+    @property
+    def len_3d(self):
+        """
+        Vector length projected on the xyz space.
+
+        """
+
+        return sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
 
     def scale(self, scale_factor):
         """
@@ -428,18 +437,36 @@ class Vect(object):
         return Vect.from_array(self.v * scale_factor)
 
     @property
-    def versor(self):
+    def versor_full(self):
         """
         Calculate versor.
 
         Example:
-          >>> Vect(5, 0, 0).versor
+          >>> Vect(5, 0, 0).versor_full
           Vect(1.0000, 0.0000, 0.0000)
-          >>> Vect(0, 0, -1).versor
+          >>> Vect(0, 0, -1).versor_full
           Vect(0.0000, 0.0000, -1.0000)
         """
 
         return self.scale(1.0 / abs(self))
+
+    @property
+    def versor_3d(self):
+        """
+        Calculate versor in xyz space.
+
+        """
+
+        return self.scale(1.0 / self.len_3d)
+
+    @property
+    def versor_2d(self):
+        """
+        Calculate versor in xy space.
+
+        """
+
+        return self.scale(1.0 / self.len_2d)
 
     def invert(self):
         """
@@ -542,7 +569,7 @@ class Vect(object):
           90.0
         """
 
-        hlen = self.hlen
+        hlen = self.len_2d
         if hlen == 0.0:
             if self.z > 0.:
                 return -90.
@@ -551,7 +578,7 @@ class Vect(object):
             else:
                 raise Exception("Zero-valued vector")
         else:
-            slope = - degrees(atan(self.z / self.hlen))
+            slope = - degrees(atan(self.z / self.len_2d))
             if abs(slope) > MIN_SCALAR_VALUE:
                 return slope
             else:
@@ -587,7 +614,7 @@ class Vect(object):
 
         plunge = self.slope  # upward pointing -> negative value, downward -> positive
 
-        unit_vect = self.versor
+        unit_vect = self.versor_full
         if unit_vect.y == 0. and unit_vect.x == 0:
             trend = 0.
         else:
@@ -919,7 +946,7 @@ class GVect(object):
           180.0000000
         """
 
-        return self.versor.angle(another.versor)
+        return self.versor.angle(another.versor_full)
 
     @property
     def normal_gplane(self):
@@ -956,7 +983,7 @@ class GVect(object):
           GPlane(225.00, +90.00)
         """
 
-        normal = self.versor.vp(another.versor)
+        normal = self.versor.vp(another.versor_full)
         return normal.gvect.normal_gplane
 
     def as_axis(self):
@@ -994,7 +1021,7 @@ class GVect(object):
         if not MIN_ANGLE_DEGR_DISORIENTATION <= self.angle(another) <= 180. - MIN_ANGLE_DEGR_DISORIENTATION:
             raise SubparallelLineationException("Sources must not be sub- or anti-parallel")
 
-        return self.versor.vp(another.versor).gvect
+        return self.versor.vp(another.versor_full).gvect
 
 
 class GAxis(GVect):
@@ -1034,7 +1061,7 @@ class GAxis(GVect):
           0.0000000
         """
 
-        angle_vers = self.versor.angle(another.versor)
+        angle_vers = self.versor.angle(another.versor_full)
         return min(angle_vers, 180. - angle_vers)
 
     @property
@@ -1290,7 +1317,7 @@ class Plane(object):
           Vect(0.0000, 1.0000, 0.0000)
         """
 
-        return Vect(self.a, self.b, self.c).versor
+        return Vect(self.a, self.b, self.c).versor_full
 
     def gplane_point(self):
         """
@@ -1320,7 +1347,7 @@ class Plane(object):
         Vect(0.0000, -1.0000, 0.0000)
         """
 
-        return self.nversor.vp(another.nversor).versor
+        return self.nversor.vp(another.nversor).versor_full
 
     def inters_point(self, another):
         """

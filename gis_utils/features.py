@@ -1,10 +1,11 @@
 
-from math import sqrt, degrees, acos, asin, atan, atan2, radians
+# from math import sqrt, degrees, acos, asin, atan, atan2, radians
+
 import numpy as np
 
 from .qgs_tools import project_point
 
-from ..gsf.geometry import Vect, GPlane, Point, GAxis
+from ..gsf.geometry import Vect, Point
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10
 MINIMUM_SEPARATION_THRESHOLD = 1e-10
@@ -15,8 +16,8 @@ class Segment(object):
     
     def __init__(self, start_pt, end_pt):
 
-        self._start_pt = start_pt  # .clone()
-        self._end_pt = end_pt  # .clone()
+        self._start_pt = start_pt
+        self._end_pt = end_pt
 
     @property
     def start_pt(self):
@@ -143,7 +144,7 @@ class Segment(object):
 
     def fast_2d_contains_pt(self, pt2d):
         """
-        to work properly, requires that the pt lies on the line defined by the segment
+        to work properly, this function requires that the pt lies on the line defined by the segment
         """
 
         range_x = self.x_range
@@ -156,6 +157,13 @@ class Segment(object):
             return False
 
     def scale(self, scale_factor):
+        """
+        Scale a segment by the given scale_factor.
+        Start point does not change.
+        
+        :param scale_factor: float
+        :return: Segment instance
+        """
 
         delta_x = self.delta_x * scale_factor
         delta_y = self.delta_y * scale_factor
@@ -168,22 +176,49 @@ class Segment(object):
         return Segment(self.start_pt,
                        end_pt)
 
-    def densify_2d(self, densify_distance):
+    def densify_2d_segment(self, densify_distance):
+        """
+        Densify a segment by adding additional points
+        separated a distance equal to densify_distance.
+        The result is no longer a Segment instance, instead it is a Line instance.
+        
+        :param densify_distance: float
+        :return: Line
+        """
 
+        print "entered densify_2d_segment"
+
+        print "densify_distance: {}, {}".format(densify_distance, type(densify_distance))
         assert densify_distance > 0.0
 
-        length2d = self.length_2d
+        print "segment start point: {}".format(self.start_pt)
+        print "segment end point: {}".format(self.end_pt)
 
+
+        length2d = self.length_2d
+        print "length 2d is {}".format(length2d)
         assert length2d > 0.0
 
-        generator_vector = self.vector().versor.scale(densify_distance)
+        vect = self.vector()
+        print "vector length 2d is {}".format(vect.len_2d)
+
+        vers_2d = vect.versor_2d
+        print "versor length 2d is {}".format(vers_2d.len_2d)
+
+        generator_vector = vers_2d.scale(densify_distance)
+        print "generator vector length 2d is {}".format(generator_vector.len_2d)
+
+        assert generator_vector.len_2d > 0.0
 
         interpolated_line = Line([self.start_pt])
         n = 0
         while True:
             n += 1
+            print n,
             new_pt = self.start_pt.vect_offset(generator_vector.scale(n))
-            if self.start_pt.dist_2d(new_pt) >= length2d:
+            distance = self.start_pt.dist_2d(new_pt)
+            print distance, length2d
+            if distance >= length2d:
                 break
             interpolated_line.add_pt(new_pt)
         interpolated_line.add_pt(self.end_pt)
@@ -193,14 +228,14 @@ class Segment(object):
 
 class Line(object):
     """
-    CartesianLine3DT is a list of Point objects
+    A list of Point objects.
     """
 
     def __init__(self, pts=None):
 
         if pts is None:
             pts = []
-        self._pts = pts  # [pt_3dt.clone() for pt_3dt in pts_3dt]
+        self._pts = pts
 
     @property
     def pts(self):
@@ -217,10 +252,24 @@ class Line(object):
         return Line(self.pts)
 
     def add_pt(self, pt):
+        """
+        In-place transformation of the original Line instance
+        by adding a new point at the end.
+        
+        :param pt: Point
+        :return: self
+        """
 
         self.pts.append(pt)
 
     def add_pts(self, pt_list):
+        """
+        In-place transformation of the original Line instance
+        by adding a new set of points at the end.
+        
+        :param pt_list: list
+        :return: self
+        """
 
         self._pts += pt_list
 
@@ -246,41 +295,36 @@ class Line(object):
     @property
     def x_min(self):
 
-        return min([x for x in self.x_list if not np.isnan(x)])
+        return np.nanmin(self.x_list)
 
     @property
     def x_max(self):
 
-        return max([x for x in self.x_list if not np.isnan(x)])
+        return np.nanmax(self.x_list)
 
     @property
     def y_min(self):
 
-        return min([y for y in self.y_list if not np.isnan(y)])
+        return np.nanmin(self.y_list)
 
     @property
     def y_max(self):
 
-        return max([y for y in self.y_list if not np.isnan(y)])
+        return np.nanmax(self.y_list)
 
     @property
     def z_min(self):
 
-        return min([z for z in self.z_list if not np.isnan(z)])
+        return np.nanmin(self.z_list)
 
     @property
     def z_max(self):
 
-        return max([z for z in self.z_list if not np.isnan(z)])
-
+        return np.nanmax(self.z_list)
 
     def z_array(self):
 
         return np.array(self.z_list)
-
-    def z_array_not_nan(self):
-
-        return np.array(filter(lambda pt: not np.isnan(pt.p_z), self.pts))
 
     @property
     def z_mean(self):
@@ -297,15 +341,82 @@ class Line(object):
 
         return np.nanstd(self.z_array())
 
-    def remove_coincident_successive_points(self):
+    def remove_coincident_points(self):
+        """
+        Remove coincident successive points
+        
+        :return: Line instance
+        """
 
-        assert self.num_pts > 0
+        assert self.num_pts >= 2
 
-        new_line = Line(self.pts[0])
+        new_line = Line(self.pts[:1])
         for ndx in range(1, self.num_pts):
             if not self.pts[ndx].coincident(new_line.pts[-1]):
                 new_line.add_pt(self.pts[ndx])
+
         return new_line
+
+    def as_segments(self):
+        """
+        Convert to a list of segments.
+        
+        :return: list of Segment objects
+        """
+
+        print "entered as_segments"
+
+        pts_pairs = zip(self.pts[:-1], self.pts[1:])
+
+        segments = [Segment(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
+
+        print "num of segments is {}".format(len(segments))
+
+        print "exiting as_segments"
+
+        return segments
+
+    def densify_2d_line(self, sample_distance):
+        """
+        Densify a line into a new line instance,
+        using the provided sample distance.
+        Returned Line instance has coincident successive points removed.
+        
+        :param sample_distance: float
+        :return: Line instance
+        """
+
+        print "Inside densify_2d_line"
+
+        assert sample_distance > 0.0
+
+        print "@ 0"
+
+        segments = self.as_segments()
+
+        print "num. segments: {}".format(len(segments))
+
+        densified_line_list = [segment.densify_2d_segment(sample_distance) for segment in segments]
+
+        print "@ 1"
+
+        assert len(densified_line_list) > 0
+
+        print "@ 2"
+
+        densifyied_multiline = MultiLine(densified_line_list)
+
+        print "@ 3"
+
+        densifyied_line = densifyied_multiline.to_line()
+
+        print "@ 4"
+
+        densifyied_line_wo_coinc_pts = densifyied_line.remove_coincident_points()
+
+        print "@ 5"
+
+        return densifyied_line_wo_coinc_pts
 
     def join(self, another):
         """
@@ -345,14 +456,14 @@ class Line(object):
 
     def incremental_length_2d(self):
 
-        incremental_length_list = []
+        lIncrementalLengths = []
         length = 0.0
-        incremental_length_list.append(length)
+        lIncrementalLengths.append(length)
         for ndx in range(self.num_pts - 1):
             length += self.pts[ndx].dist_2d(self.pts[ndx + 1])
-            incremental_length_list.append(length)
+            lIncrementalLengths.append(length)
 
-        return incremental_length_list
+        return lIncrementalLengths
 
     def reverse_direction(self):
 
@@ -363,13 +474,13 @@ class Line(object):
 
     def slopes(self):
 
-        slopes_list = []
+        lSlopes = []
         for ndx in range(self.num_pts - 1):
             vector = Segment(self.pts[ndx], self.pts[ndx + 1]).vector()
-            slopes_list.append(vector.slope)
-        slopes_list.append(np.nan)  # slope value for last point is unknown
+            lSlopes.append(vector.slope)
+        lSlopes.append(np.nan)  # slope value for last point is unknown
 
-        return slopes_list
+        return lSlopes
 
     def absolute_slopes(self):
 
@@ -386,7 +497,9 @@ class Line(object):
 
 
 class MultiLine(object):
-    # CartesianMultiLine3DT is a list of CartesianLine3DT objects
+    """
+    MultiLine is a list of Line objects
+    """
 
     def __init__(self, lines_list=None):
 
@@ -424,28 +537,38 @@ class MultiLine(object):
     @property
     def x_min(self):
 
-        return min([line.x_min for line in self.lines])
+        return np.nanmin([line.x_min for line in self.lines])
 
     @property
     def x_max(self):
 
-        return max([line.x_max for line in self.lines])
+        return np.nanmax([line.x_max for line in self.lines])
 
     @property
     def y_min(self):
 
-        return min([line.y_min for line in self.lines])
+        return np.nanmin([line.y_min for line in self.lines])
 
     @property
     def y_max(self):
 
-        return max([line.y_max for line in self.lines])
+        return np.nanmax([line.y_max for line in self.lines])
+
+    @property
+    def z_min(self):
+
+        return np.nanmin([line.z_min for line in self.lines])
+
+    @property
+    def z_max(self):
+
+        return np.nanmax([line.z_max for line in self.lines])
 
     def is_continuous(self):
 
         for line_ndx in range(len(self._lines) - 1):
             if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
-                    not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
+               not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
                 return False
 
         return True
@@ -462,7 +585,6 @@ class MultiLine(object):
 
         return Line([point for line in self.lines for point in line.pts])
 
-
     def crs_project(self, srcCrs, destCrs):
 
         lines = []
@@ -471,19 +593,19 @@ class MultiLine(object):
 
         return MultiLine(lines)
 
-    def densify(self, sample_distance):
+    def densify_2d_multiline(self, sample_distance):
 
-        lDensifiedMultilinea = []
+        lDensifiedLines = []
         for line in self.lines:
-            lDensifiedMultilinea.append(line.densify_2d(sample_distance))
+            lDensifiedLines.append(line.densify_2d_line(sample_distance))
 
-        return MultiLine(lDensifiedMultilinea)
+        return MultiLine(lDensifiedLines)
 
     def remove_coincident_points(self):
 
         cleaned_lines = []
-        for lines in self.lines:
-            cleaned_lines.append(lines.remove_coincident_successive_points())
+        for line in self.lines:
+            cleaned_lines.append(line.remove_coincident_points())
 
         return MultiLine(cleaned_lines)
 
@@ -512,7 +634,7 @@ class ParamLine3D(object):
         """
 
         # line parameters
-        x1, y1, z1 = self._srcPt.x, self._srcPt.y, self._srcPt.p_z
+        x1, y1, z1 = self._srcPt.x, self._srcPt.y, self._srcPt.z
         l, m, n = self._l, self._m, self._n
 
         # Cartesian plane parameters
@@ -584,8 +706,9 @@ def merge_lines(lines, progress_ids):
             path_line = xytuple_list_to_Line(line_geometry)
         else:
             continue
-
         line_list.append(path_line)  # now a list of Lines
 
-    # now the list of Lines is transformed into a single Point
-    return MultiLine(line_list).to_line().remove_coincident_successive_points()
+    # now the list of Lines is transformed into a single Line
+    line = MultiLine(line_list).to_line().remove_coincident_points()
+
+    return line

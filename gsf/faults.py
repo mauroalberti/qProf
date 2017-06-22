@@ -288,8 +288,8 @@ class FaultSlick(object):
           PTBAxes(P: GAxis(000.00, -90.00), T: GAxis(090.00, +00.00), True)
         """
 
-        s_versor = self.sl.lin.versor
-        f_versor = self.fp.normal.versor
+        s_versor = self.sl.lin.versor_full
+        f_versor = self.fp.normal.versor_full
         T_axis = (f_versor + s_versor).gaxis
         P_axis = (f_versor - s_versor).gaxis
         known = self.known_sense

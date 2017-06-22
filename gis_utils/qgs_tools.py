@@ -256,11 +256,14 @@ def project_qgs_point(qgsPt, srcCrs, destCrs):
 
     return QgsCoordinateTransform(srcCrs, destCrs).transform(qgsPt)
 
+
 def project_point(pt, srcCrs, destCrs):
 
     qgs_pt = qgs_point_2d(pt.x, pt.y)
+    projected_qgs_point = project_qgs_point(qgs_pt, srcCrs, destCrs)
+    proj_x, proj_y = projected_qgs_point.x(), projected_qgs_point.y()
 
-    return project_qgs_point(qgs_pt, srcCrs, destCrs)
+    return Point(proj_x, proj_y)
 
 
 def project_xy_list(src_crs_xy_list, srcCrs, destCrs):
@@ -396,8 +399,8 @@ class QGisRasterParameters(object):
         :return: bool
         """
 
-        if self.xMin <= point.p_x <= self.xMax and \
-                                self.yMin <= point.p_y <= self.yMax:
+        if self.xMin <= point.x <= self.xMax and \
+                                self.yMin <= point.y <= self.yMax:
             return True
         else:
             return False
@@ -412,8 +415,8 @@ class QGisRasterParameters(object):
         :return: bool
         """
 
-        if self.xMin + self.cellsizeEW / 2.0 <= point.p_x <= self.xMax - self.cellsizeEW / 2.0 and \
-           self.yMin + self.cellsizeNS / 2.0 <= point.p_y <= self.yMax - self.cellsizeNS / 2.0:
+        if self.xMin + self.cellsizeEW / 2.0 <= point.x <= self.xMax - self.cellsizeEW / 2.0 and \
+           self.yMin + self.cellsizeNS / 2.0 <= point.y <= self.yMax - self.cellsizeNS / 2.0:
             return True
         else:
             return False
@@ -427,8 +430,8 @@ class QGisRasterParameters(object):
         :return: dict
         """
 
-        x = (point.p_x - (self.xMin + self.cellsizeEW / 2.0)) / self.cellsizeEW
-        y = (point.p_y - (self.yMin + self.cellsizeNS / 2.0)) / self.cellsizeNS
+        x = (point.x - (self.xMin + self.cellsizeEW / 2.0)) / self.cellsizeEW
+        y = (point.y - (self.yMin + self.cellsizeNS / 2.0)) / self.cellsizeNS
 
         return dict(x=x, y=y)
 

@@ -3,6 +3,7 @@ from __future__ import division
 from math import sqrt, radians, sin, cos
 
 from ..gsf.geometry import Point
+from .time_utils import standard_gpstime_to_seconds
 
 
 WGS84 = {'semi-major axis': 6378137.0,
@@ -33,14 +34,15 @@ def geodetic2ecef(lat, lon, height):
 class TrackPointGPX(object):
 
     def __init__(self, lat, lon, elev, time):
+
         self.lat = float(lat)
         self.lon = float(lon)
-        self.time = time
         self.elev = float(elev)
+        self.time = time
 
     def as_pt3dt(self):
 
         x, y, _ = geodetic2ecef(self.lat, self.lon, self.elev)
-        t = self.time
+        t = standard_gpstime_to_seconds(self.time)
 
         return Point(x, y, self.elev, t)

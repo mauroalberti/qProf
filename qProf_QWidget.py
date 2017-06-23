@@ -1617,7 +1617,7 @@ class qprof_QWidget(QWidget):
         # calculate 3D distances between consecutive points
         dist_3D_values = [np.nan]
         for ndx in range(1, len(trk_ECEFpoints)):
-            dist_3D_values.append(trk_ECEFpoints[ndx].spat_distance(trk_ECEFpoints[ndx - 1]))
+            dist_3D_values.append(trk_ECEFpoints[ndx].dist_3d(trk_ECEFpoints[ndx - 1]))
 
         # calculate slope along track
         dir_slopes = []
@@ -3177,7 +3177,7 @@ class qprof_QWidget(QWidget):
                 self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
 
             s0_list = intersection_line3d.incremental_length_2d()
-            s_start = sect_pt_1.spat_distance(intersection_line3d.pts[0])
+            s_start = sect_pt_1.dist_3d(intersection_line3d.pts[0])
             s_list = [s + s_start for s in s0_list]
 
             formation_list.append(polygon_classification)
@@ -3371,7 +3371,7 @@ class qprof_QWidget(QWidget):
         # creating a list of float values
         distance_from_profile_start_list = []
         for intersection_res in intersection_list:
-            distance_from_profile_start_list.append(profile_segment2d.start_pt.spat_distance(intersection_res[0]))
+            distance_from_profile_start_list.append(profile_segment2d.start_pt.dist_2d(intersection_res[0]))
 
         return distance_from_profile_start_list
 
@@ -3728,7 +3728,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
             pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
 
-            return pt2_start_dest_crs.spat_distance(pt2d_end_dest_crs)
+            return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
 
         cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
         xMin, yMin = dem_params.xMin, dem_params.yMin

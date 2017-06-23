@@ -24,7 +24,7 @@ from .gis_utils.errors import GPXIOException, VectorInputException, VectorIOExce
 
 from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
 
-from .qt_utils.utils_qt import lastUsedDir, setLastUsedDir, new_file_path, old_file_path
+from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
 from .string_utils.utils_string import clean_string
 
 
@@ -50,6 +50,9 @@ class qprof_QWidget(QWidget):
         self.canvas = canvas
 
         self.current_directory = os.path.dirname(__file__)
+
+        self.settings = QSettings("alberese", "qProf")
+        self.settings_gpxdir_key = "gpx/last_used_dir"
 
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
@@ -731,7 +734,9 @@ class qprof_QWidget(QWidget):
             dialog = TopoSourceFromDEMAndLineDialog(self.canvas)
             topo_source_type = self.demline_source
         elif self.prof_toposources_fromgpxfile_checkbox.isChecked():
-            dialog = TopoSourceFromGPXFileDialog()
+            dialog = TopoSourceFromGPXFileDialog(self.settings,
+                                                 self.settings_gpxdir_key)
+
             topo_source_type = self.gpxfile_source
         else:
             self.warn("Debug error: incorrect source definition")
@@ -3815,8 +3820,12 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
 class TopoSourceFromGPXFileDialog(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, settings, settings_gpxdir_key, parent=None):
+
         super(TopoSourceFromGPXFileDialog, self).__init__(parent)
+
+        self.settings = settings
+        self.settings_gpxdir_key = settings_gpxdir_key
 
         profileGPX_Qwidget = QWidget()
         profileGPX_layout = QVBoxLayout()
@@ -3870,15 +3879,19 @@ class TopoSourceFromGPXFileDialog(QDialog):
 
     def select_input_gpxFile(self):
 
+        gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
+                                                "")
         fileName = QFileDialog.getOpenFileName(self,
                                                self.tr("Open GPX file"),
-                                               lastUsedDir(),
+                                               gpx_last_used_dir,
                                                "GPX (*.gpx *.GPX)")
         if not fileName:
             return
-
-        setLastUsedDir(fileName)
-        self.input_gpx_lineEdit.setText(fileName)
+        else:
+            update_directory_key(self.settings,
+                                 self.settings_gpxdir_key,
+                                 fileName)
+            self.input_gpx_lineEdit.setText(fileName)
 
 
 class SourceDEMsDialog(QDialog):

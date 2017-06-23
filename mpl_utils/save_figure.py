@@ -3,7 +3,7 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from ..qt_utils.utils_qt import new_file_path, old_file_path
+from ..qt_utils.filesystem import new_file_path, old_file_path
 
 
 class FigureExportDetailedDlg(QDialog):

@@ -6,30 +6,14 @@ from PyQt4.QtGui import QFileDialog
 
 
 
-def lastUsedDir(plugin_lastDir_QSettStr):
-    """
-    modified from module RASTERCALC by Barry Rowlingson
-
-    Args:
-        plugin_lastDir_QSettStr: string, e.g. "/qProf/lastDir"
-
-    Returns:
-        last plugin directory
-    """
-
-    settings = QSettings()
-    return settings.value(plugin_lastDir_QSettStr, "", type=str)
-
-
-
-def setLastUsedDir(plugin_lastDir_QSettStr, lastDir):
+def update_directory_key(settings, settings_dir_key, fileName):
     """
     modified from module RASTERCALC by Barry Rowlingson
     """
 
-    path = QFileInfo(lastDir).absolutePath()
-    settings = QSettings()
-    settings.setValue(plugin_lastDir_QSettStr, str(path))
+    path = QFileInfo(fileName).absolutePath()
+    settings.setValue(settings_dir_key,
+                      str(path))
 
 
 def new_file_path(parent, show_msg, path, filter_text):

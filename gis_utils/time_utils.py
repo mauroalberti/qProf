@@ -20,7 +20,8 @@ def standard_gpstime_to_seconds(time_str):
         hhmmss = hhmmss[:-1]
 
     year, month, day = map(int, date.split("-"))
-    hour, minutes, seconds = map(int, hhmmss.split(":"))
+    hour, minutes, seconds = hhmmss.split(":")
+    hour, minutes, seconds = int(hour), int(minutes), float(seconds)
 
     # modified from:
     # https://stackoverflow.com/questions/7852855/how-to-convert-a-python-datetime-object-to-seconds

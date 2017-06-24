@@ -736,7 +736,6 @@ class qprof_QWidget(QWidget):
         elif self.prof_toposources_fromgpxfile_checkbox.isChecked():
             dialog = TopoSourceFromGPXFileDialog(self.settings,
                                                  self.settings_gpxdir_key)
-
             topo_source_type = self.gpxfile_source
         else:
             self.warn("Debug error: incorrect source definition")
@@ -1611,7 +1610,7 @@ class qprof_QWidget(QWidget):
         for ndx in range(1, len(track_points)):
             delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
 
-        # covert values into ECEF values (x, y, z in ECEF global coordinate system)
+        # convert original values into ECEF values (x, y, z in ECEF global coordinate system)
         trk_ECEFpoints = map(lambda trck: trck.as_pt3dt(), track_points)
 
         # calculate 3D distances between consecutive points
@@ -1623,9 +1622,10 @@ class qprof_QWidget(QWidget):
         dir_slopes = []
         for delta_elev, dist_3D in zip(delta_elev_values, dist_3D_values):
             try:
-                dir_slopes.append(degrees(asin(delta_elev / dist_3D)))
+                slope = degrees(asin(delta_elev / dist_3D))
             except:
-                dir_slopes.append(np.nan)
+                slope = 0.0
+            dir_slopes.append(slope)
 
         # calculate horizontal distance along track
         horiz_dist_values = []

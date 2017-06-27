@@ -4,10 +4,8 @@ import copy
 import os
 import unicodedata
 import webbrowser
-import xml.dom.minidom
-from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
-from osgeo import ogr, osr
-from qgis.core import QgsRaster, QgsGeometry, QgsVectorLayer
+
+from qgis.core import QgsGeometry, QgsVectorLayer
 
 from .gsf.geometry import GPlane
 from .gsf.array_utils import to_float
@@ -15,16 +13,18 @@ from .gsf.array_utils import to_float
 from .gis_utils.features import Segment, MultiLine, Line, \
     merge_lines, ParamLine3D, xytuple_list_to_Line, xytuple_l2_to_MultiLine
 
-from .gis_utils.geodetic import TrackPointGPX
 from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from .gis_utils.profile import Profile_Elements, TopoProfiles, DEMParams
+from .gis_utils.profile import Profile_Elements, topoprofiles_from_dems, topoprofiles_from_gpxfile
 
 from .gis_utils.qgs_tools import *
-from .gis_utils.errors import GPXIOException, VectorInputException, VectorIOException
+from .gis_utils.statistics import get_statistics
+from .gis_utils.errors import VectorInputException, VectorIOException
 
 from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
 
 from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
+from .qt_utils.tools import update_ComboBox
+
 from .string_utils.utils_string import clean_string
 
 
@@ -53,6 +53,8 @@ class qprof_QWidget(QWidget):
 
         self.settings = QSettings("alberese", "qProf")
         self.settings_gpxdir_key = "gpx/last_used_dir"
+
+        self.choose_message = "choose"
 
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
@@ -694,19 +696,20 @@ class qprof_QWidget(QWidget):
             invert_profile = self.prof_toposources_reverse_direction_checkbox.isChecked()
             if topo_source_type == self.demline_source:  # sources are DEM(s) and line
                 try:
-                    topo_profiles = self.topoprofiles_from_dems(source_profile_line2dt,
-                                                                sample_distance,
-                                                                selected_dems,
-                                                                selected_dem_parameters,
-                                                                invert_profile)
+                    topo_profiles = topoprofiles_from_dems(self.canvas,
+                                                            source_profile_line2dt,
+                                                            sample_distance,
+                                                            selected_dems,
+                                                            selected_dem_parameters,
+                                                            invert_profile)
                 except Exception as e:
                      self.warn(e.message)
                      return
             elif topo_source_type == self.gpxfile_source:  # source is GPX file
                 try:
-                    topo_profiles = self.topoprofiles_from_gpxfile(source_gpx_path,
-                                                                   topoline_colors,
-                                                                   invert_profile)
+                    topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
+                                                           topoline_colors,
+                                                           invert_profile)
                 except Exception as e:
                     self.warn("Error with profile calculation from GPX file: {}".format(e.message))
                     return
@@ -795,10 +798,6 @@ class qprof_QWidget(QWidget):
         QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
         QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
 
-    def xy_from_canvas(self, position):
-
-        mapPos = self.canvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])
-        return mapPos.x(), mapPos.y()
 
     def refresh_rubberband(self, xy_list):
 
@@ -811,12 +810,12 @@ class qprof_QWidget(QWidget):
         if len(self.profile_canvas_points) == 0:
             return
 
-        x, y = self.xy_from_canvas(position)
+        x, y = xy_from_canvas(self.canvas, position)
         self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
 
     def profile_add_point(self, position):
 
-        x, y = self.xy_from_canvas(position)
+        x, y = xy_from_canvas(self.canvas, position)
         self.profile_canvas_points.append([x, y])
 
     def canvas_end_profile_line(self):
@@ -893,7 +892,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = self.get_prjcrs_as_proj4str()
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
         self.output_topography(output_source, output_format, output_filepath, project_crs_osr)
 
@@ -960,7 +959,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = self.get_prjcrs_as_proj4str()
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
         self.output_geological_attitudes(output_format, output_filepath, project_crs_osr)
 
@@ -1071,7 +1070,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = self.get_prjcrs_as_proj4str()
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
         self.output_profile_lines_intersections(output_format, output_filepath, project_crs_osr)
 
@@ -1168,17 +1167,7 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
-    def get_prjcrs_as_proj4str(self):
 
-        # get project CRS information
-        hasOTFP, project_crs = get_on_the_fly_projection(self.canvas)
-        if hasOTFP:
-            proj4_str = str(project_crs.toProj4())
-            project_crs_osr = osr.SpatialReference()
-            project_crs_osr.ImportFromProj4(proj4_str)
-            return project_crs_osr
-        else:
-            return None
 
     def save_rubberband(self):
 
@@ -1214,7 +1203,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = self.get_prjcrs_as_proj4str()
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
         self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts, project_crs_osr)
 
@@ -1328,7 +1317,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = self.get_prjcrs_as_proj4str()
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
         self.output_profile_polygons_intersections(output_format, output_filepath, project_crs_osr)
 
@@ -1421,264 +1410,27 @@ class qprof_QWidget(QWidget):
     def struct_point_refresh_lyr_combobox(self):
 
         self.pointLayers = loaded_point_layers()
-        self.prj_struct_point_comboBox.clear()
-        message = "choose"
-        self.prj_struct_point_comboBox.addItem(message)
-        self.prj_struct_point_comboBox.addItems([layer.name() for layer in self.pointLayers])
 
-    def update_ComboBox(self, combobox, layer_list):
-
-        combobox.clear()
-        if len(layer_list) == 0:
-            return
-        combobox.addItem("choose")
-        combobox.addItems([layer.name() for layer in layer_list])
+        update_ComboBox(self.prj_struct_point_comboBox,
+                        self.choose_message,
+                        [layer.name() for layer in self.pointLayers])
 
     def struct_polygon_refresh_lyr_combobox(self):
 
         self.current_polygon_layers = loaded_polygon_layers()
-        # self.update_ComboBox(self.prj_input_polygon_comboBox, self.current_polygon_layers)
-        self.update_ComboBox(self.inters_input_polygon_comboBox, self.current_polygon_layers)
+        update_ComboBox(self.inters_input_polygon_comboBox,
+                        self.choose_message,
+                        [layer.name() for layer in self.current_polygon_layers])
 
     def struct_line_refresh_lyr_combobox(self):
 
         self.current_line_layers = loaded_line_layers()
-        self.update_ComboBox(self.prj_input_line_comboBox, self.current_line_layers)
-        self.update_ComboBox(self.inters_input_line_comboBox, self.current_line_layers)
-
-
-    def get_z(self, dem_layer, point):
-
-        identification = dem_layer.dataProvider().identify(QgsPoint(point.x, point.y), QgsRaster.IdentifyFormatValue)
-        if not identification.isValid():
-            return np.nan
-        else:
-            try:
-                result_map = identification.results()
-                return float(result_map[1])
-            except:
-                return np.nan
-
-    def interpolate_bilinear(self, dem, qrpDemParams, point):
-        """        
-        :param dem: qgis._core.QgsRasterLayer
-        :param qrpDemParams: qProf.gis_utils.qgs_tools.QGisRasterParameters
-        :param point: qProf.gis_utils.features.Point
-        :return: 
-        """
-
-        dArrayCoords = qrpDemParams.geogr2raster(point)
-
-        floor_x_raster = floor(dArrayCoords["x"])
-        ceil_x_raster = ceil(dArrayCoords["x"])
-        floor_y_raster = floor(dArrayCoords["y"])
-        ceil_y_raster = ceil(dArrayCoords["y"])
-
-        # bottom-left center
-        p1 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
-                                            y=floor_y_raster))
-        # bottom-right center       
-        p2 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
-                                            y=floor_y_raster))
-        # top-left center
-        p3 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
-                                            y=ceil_y_raster))
-        # top-right center       
-        p4 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
-                                            y=ceil_y_raster))
-
-        z1 = self.get_z(dem, p1)
-        z2 = self.get_z(dem, p2)
-        z3 = self.get_z(dem, p3)
-        z4 = self.get_z(dem, p4)
-
-        delta_x = point.x - p1.x
-        delta_y = point.y - p1.y
-
-        z_x_a = z1 + (z2 - z1) * delta_x / qrpDemParams.cellsizeEW
-        z_x_b = z3 + (z4 - z3) * delta_x / qrpDemParams.cellsizeEW
-
-        return z_x_a + (z_x_b - z_x_a) * delta_y / qrpDemParams.cellsizeNS
-
-    def interpolate_z(self, dem, dem_params, point):
-        """
-            dem_params: type qProf.gis_utils.qgs_tools.QGisRasterParameters
-            point: type qProf.gis_utils.features.Point
-        """
-
-        if dem_params.point_in_interpolation_area(point):
-            return self.interpolate_bilinear(dem, dem_params, point)
-        elif dem_params.point_in_dem_area(point):
-            return self.get_z(dem, point)
-        else:
-            return np.nan
-
-    def profile_from_dem(self, resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
-
-        if bOnTheFlyProjection and dem.crs() != project_crs:
-            trace2d_in_dem_crs = resampled_trace2d.crs_project(project_crs, dem.crs())
-        else:
-            trace2d_in_dem_crs = resampled_trace2d
-
-        ln3dtProfile = Line()
-        for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
-            fInterpolatedZVal = self.interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-            pt3dtPoint = Point(trace_pt2d_project_crs.x,
-                                  trace_pt2d_project_crs.y,
-                                  fInterpolatedZVal)
-            ln3dtProfile.add_pt(pt3dtPoint)
-
-        return ln3dtProfile
-
-    def topoprofiles_from_dems(self, source_profile_line, sample_distance, selected_dems, selected_dem_parameters, invert_profile):
-
-        # get project CRS information
-        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
-
-        if invert_profile:
-            line = source_profile_line.reverse_direction()
-        else:
-            line = source_profile_line
-
-        resampled_line = line.densify_2d_line(sample_distance)  # line resampled by sample distance
-
-        # calculate 3D profiles from DEMs
-
-        dem_topolines3d = []
-        for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-            dem_topoline3d = self.profile_from_dem(resampled_line,
-                                                   on_the_fly_projection,
-                                                   project_crs,
-                                                   dem,
-                                                   dem_params)
-            dem_topolines3d.append(dem_topoline3d)
-
-        # setup topoprofiles properties
-
-        topo_profiles = TopoProfiles()
-
-        topo_profiles.xs = np.asarray(resampled_line.x_list)
-        topo_profiles.ys = np.asarray(resampled_line.y_list)
-        topo_profiles.names = map(lambda dem: dem.name(), selected_dems)
-        topo_profiles.s = np.asarray(resampled_line.incremental_length_2d())
-        topo_profiles.s3d = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
-        topo_profiles.elevs = map(lambda cl3dt: cl3dt.z_array(), dem_topolines3d)
-        topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
-        topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
-                        zip(selected_dems, selected_dem_parameters)]
-
-        return topo_profiles
-
-    def topoprofiles_from_gpxfile(self, source_gpx_path, gpx_colors, invert_profile):
-
-        doc = xml.dom.minidom.parse(source_gpx_path)
-
-        # define track name
-        try:
-            trkname = doc.getElementsByTagName('trk')[0].getElementsByTagName('name')[0].firstChild.data
-        except:
-            trkname = ''
-
-        # get raw track point values (lat, lon, elev, time)
-        track_raw_data = []
-        for trk_node in doc.getElementsByTagName('trk'):
-            for trksegment in trk_node.getElementsByTagName('trkseg'):
-                for tkr_pt in trksegment.getElementsByTagName('trkpt'):
-                    track_raw_data.append((tkr_pt.getAttribute("lat"),
-                                           tkr_pt.getAttribute("lon"),
-                                           tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
-                                           tkr_pt.getElementsByTagName("time")[0].childNodes[0].data))
-
-        # reverse profile orientation if requested
-        if invert_profile:
-            track_data = track_raw_data[::-1]
-        else:
-            track_data = track_raw_data
-
-        # create list of TrackPointGPX elements
-        track_points = []
-        for val in track_data:
-            gpx_trackpoint = TrackPointGPX(*val)
-            track_points.append(gpx_trackpoint)
-
-        # check for the presence of track points
-        if len(track_points) == 0:
-            raise GPXIOException("No track point found in this file")
-
-        # calculate delta elevations between consecutive points
-        delta_elev_values = [np.nan]
-        for ndx in range(1, len(track_points)):
-            delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
-
-        # convert original values into ECEF values (x, y, z in ECEF global coordinate system)
-        trk_ECEFpoints = map(lambda trck: trck.as_pt3dt(), track_points)
-
-        # calculate 3D distances between consecutive points
-        dist_3D_values = [np.nan]
-        for ndx in range(1, len(trk_ECEFpoints)):
-            dist_3D_values.append(trk_ECEFpoints[ndx].dist_3d(trk_ECEFpoints[ndx - 1]))
-
-        # calculate slope along track
-        dir_slopes = []
-        for delta_elev, dist_3D in zip(delta_elev_values, dist_3D_values):
-            try:
-                slope = degrees(asin(delta_elev / dist_3D))
-            except:
-                slope = 0.0
-            dir_slopes.append(slope)
-
-        # calculate horizontal distance along track
-        horiz_dist_values = []
-        for slope, dist_3D in zip(dir_slopes, dist_3D_values):
-            try:
-                horiz_dist_values.append(dist_3D * cos(radians(slope)))
-            except:
-                horiz_dist_values.append(np.nan)
-
-        # defines the cumulative 2D distance values
-        cum_distances_2D = [0.0]
-        for ndx in range(1, len(horiz_dist_values)):
-            cum_distances_2D.append(cum_distances_2D[-1] + horiz_dist_values[ndx])
-
-        # defines the cumulative 3D distance values
-        cum_distances_3D = [0.0]
-        for ndx in range(1, len(dist_3D_values)):
-            cum_distances_3D.append(cum_distances_3D[-1] + dist_3D_values[ndx])
-
-        lat_values = [track.lat for track in track_points]
-        lon_values = [track.lon for track in track_points]
-        time_values = [track.time for track in track_points]
-        elevations = [track.elev for track in track_points]
-
-        topo_profiles = TopoProfiles()
-
-        topo_profiles.lons = np.asarray(lon_values)
-        topo_profiles.lats = np.asarray(lat_values)
-        topo_profiles.times = time_values
-        topo_profiles.names = [trkname] # [] required for compatibility with DEM case
-        topo_profiles.s = np.asarray(cum_distances_2D)
-        topo_profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
-        topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
-        topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
-        topo_profiles.colors = gpx_colors
-
-        return topo_profiles
-
-    def get_statistics(self, topo_array):
-
-        min = np.nanmin(topo_array)
-        max = np.nanmax(topo_array)
-        mean = np.nanmean(topo_array)
-        var = np.nanvar(topo_array)
-        std = np.nanstd(topo_array)
-
-        stats = dict(min=min,
-                     max=max,
-                     mean=mean,
-                     var=var,
-                     std=std)
-
-        return stats
+        update_ComboBox(self.prj_input_line_comboBox,
+                        self.choose_message,
+                        [layer.name() for layer in self.current_line_layers])
+        update_ComboBox(self.inters_input_line_comboBox,
+                        self.choose_message,
+                        [layer.name() for layer in self.current_line_layers])
 
 
     def calculate_profile_statistics(self):
@@ -1687,9 +1439,9 @@ class qprof_QWidget(QWidget):
             return
 
         topo_profiles = self.profile_elements.topo_profiles
-        self.profile_elements.topo_profiles.statistics_elev = map(lambda p: self.get_statistics(p), topo_profiles.elevs)
-        self.profile_elements.topo_profiles.statistics_dirslopes = map(lambda p: self.get_statistics(p), topo_profiles.dir_slopes)
-        self.profile_elements.topo_profiles.statistics_slopes = map(lambda p: self.get_statistics(p), np.absolute(topo_profiles.dir_slopes))
+        self.profile_elements.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), topo_profiles.elevs)
+        self.profile_elements.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p), topo_profiles.dir_slopes)
+        self.profile_elements.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p), np.absolute(topo_profiles.dir_slopes))
 
         self.profile_elements.topo_profiles.profile_length = topo_profiles.s[-1] - topo_profiles.s[0]
         statistics_elev = self.profile_elements.topo_profiles.statistics_elev
@@ -2438,7 +2190,7 @@ class qprof_QWidget(QWidget):
 
         z_list = []
         for point_2d in struct_pts_2d:
-            interp_z = self.interpolate_z(demObj.layer, demObj.params, point_2d)
+            interp_z = interpolate_z(demObj.layer, demObj.params, point_2d)
             z_list.append(interp_z)
 
         return z_list
@@ -2667,7 +2419,7 @@ class qprof_QWidget(QWidget):
             densified_dem_crs_MultiLine2D_list = densified_proj_crs_MultiLine2D_list
 
         # interpolate z values from Dem
-        z_list = [self.interpolate_z(demLayer, demParams, pt_2d) for multiline_2d in densified_dem_crs_MultiLine2D_list
+        z_list = [interpolate_z(demLayer, demParams, pt_2d) for multiline_2d in densified_dem_crs_MultiLine2D_list
                   for line_2d in multiline_2d.lines for pt_2d in line_2d.pts]
 
         # extract x-y pairs for creation of 3D points
@@ -3328,7 +3080,7 @@ class qprof_QWidget(QWidget):
             dem_crs_intersection_point_list = intersection_point_list
 
         # interpolate z values from Dem
-        z_list = [self.interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
+        z_list = [interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
 
         return [Point(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
 

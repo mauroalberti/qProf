@@ -1,7 +1,12 @@
 from __future__ import division
 
+from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
+
 import numpy as np
-from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis, QgsCoordinateTransform, QgsPoint
+
+from osgeo import ogr, osr
+
+from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis, QgsCoordinateTransform, QgsPoint, QgsRaster
 from qgis.gui import *
 
 from PyQt4.QtCore import *
@@ -452,3 +457,91 @@ class QGisRasterParameters(object):
 
         return Point(x, y)
 
+
+def get_z(dem_layer, point):
+
+    identification = dem_layer.dataProvider().identify(QgsPoint(point.x, point.y), QgsRaster.IdentifyFormatValue)
+    if not identification.isValid():
+        return np.nan
+    else:
+        try:
+            result_map = identification.results()
+            return float(result_map[1])
+        except:
+            return np.nan
+
+
+def interpolate_bilinear(dem, qrpDemParams, point):
+    """        
+    :param dem: qgis._core.QgsRasterLayer
+    :param qrpDemParams: qProf.gis_utils.qgs_tools.QGisRasterParameters
+    :param point: qProf.gis_utils.features.Point
+    :return: float
+    """
+
+    dArrayCoords = qrpDemParams.geogr2raster(point)
+
+    floor_x_raster = floor(dArrayCoords["x"])
+    ceil_x_raster = ceil(dArrayCoords["x"])
+    floor_y_raster = floor(dArrayCoords["y"])
+    ceil_y_raster = ceil(dArrayCoords["y"])
+
+    # bottom-left center
+    p1 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
+                                        y=floor_y_raster))
+    # bottom-right center
+    p2 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
+                                        y=floor_y_raster))
+    # top-left center
+    p3 = qrpDemParams.raster2geogr(dict(x=floor_x_raster,
+                                        y=ceil_y_raster))
+    # top-right center
+    p4 = qrpDemParams.raster2geogr(dict(x=ceil_x_raster,
+                                        y=ceil_y_raster))
+
+    z1 = get_z(dem, p1)
+    z2 = get_z(dem, p2)
+    z3 = get_z(dem, p3)
+    z4 = get_z(dem, p4)
+
+    delta_x = point.x - p1.x
+    delta_y = point.y - p1.y
+
+    z_x_a = z1 + (z2 - z1) * delta_x / qrpDemParams.cellsizeEW
+    z_x_b = z3 + (z4 - z3) * delta_x / qrpDemParams.cellsizeEW
+
+    return z_x_a + (z_x_b - z_x_a) * delta_y / qrpDemParams.cellsizeNS
+
+
+def interpolate_z(dem, dem_params, point):
+    """
+        dem_params: type qProf.gis_utils.qgs_tools.QGisRasterParameters
+        point: type qProf.gis_utils.features.Point
+    """
+
+    if dem_params.point_in_interpolation_area(point):
+        return interpolate_bilinear(dem, dem_params, point)
+    elif dem_params.point_in_dem_area(point):
+        return get_z(dem, point)
+    else:
+        return np.nan
+
+
+def xy_from_canvas(canvas, position):
+
+    mapPos = canvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])
+
+    return mapPos.x(), mapPos.y()
+
+
+def get_prjcrs_as_proj4str(canvas):
+
+    # get project CRS information
+    hasOTFP, project_crs = get_on_the_fly_projection(canvas)
+    if hasOTFP:
+        proj4_str = str(project_crs.toProj4())
+        project_crs_osr = osr.SpatialReference()
+        project_crs_osr.ImportFromProj4(proj4_str)
+        return project_crs_osr
+    else:
+        return None

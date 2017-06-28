@@ -6,7 +6,7 @@ import resources
 from qProf_QWidget import qprof_QWidget
 
 
-class qProf_gui(object):
+class qProf_main(object):
 
     def __init__(self, interface):
 

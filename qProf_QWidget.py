@@ -15,7 +15,8 @@ from .gis_utils.features import Segment, MultiLine, Line, \
 from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
 from .gis_utils.profile import Profile_Elements, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
     intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
-    calculate_pts_in_projection, profile_polygon_intersection
+    calculate_pts_in_projection, profile_polygon_intersection, define_plot_structural_segment, \
+    calculate_projected_3d_pts
 from .gis_utils.qgs_tools import *
 from .gis_utils.statistics import get_statistics
 from .gis_utils.errors import VectorInputException, VectorIOException
@@ -27,16 +28,13 @@ from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
 
+from qProf_plotting import plot_profile_elements
+
 
 class qprof_QWidget(QWidget):
 
     colors = ['orange', 'green', 'red', 'grey', 'brown', 'yellow', 'magenta', 'black', 'blue', 'white', 'cyan',
               'chartreuse']
-
-    colors_addit = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen",
-                    "palevioletred",
-                    "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
-                    "chartreuse"]
 
     map_digitations = 0
 
@@ -99,15 +97,8 @@ class qprof_QWidget(QWidget):
 
     def setup_topoprofile_tab(self):
 
-        #self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
-
         profile_widget = QWidget()
         profile_layout = QVBoxLayout()
-
-        # input data setup
-
-        input_tabwidget = QTabWidget()
-
 
         ## Input data
 
@@ -1612,7 +1603,10 @@ class qprof_QWidget(QWidget):
         self.profile_elements.topo_profiles.profile_defined = True
 
         # plot profiles
-        self.plot_profile_elements()
+
+        profile_window = plot_profile_elements(self)
+
+        self.profile_windows.append(profile_window)
 
     def export_parse_DEM_results(self, profiles_elements):
 
@@ -2312,69 +2306,7 @@ class qprof_QWidget(QWidget):
 
         return [combobox.currentText() for combobox in combobox_list]
 
-    def define_plot_structural_segment(self, structural_attitude, profile_length, vertical_exaggeration, segment_scale_factor=70.0):
 
-        ve = float(vertical_exaggeration)
-        intersection_point = structural_attitude.pt_3d
-        z0 = intersection_point.z
-
-        h_dist = structural_attitude.sign_hor_dist
-        slope_rad = structural_attitude.slope_rad
-        intersection_downward_sense = structural_attitude.dwnwrd_sense
-        length = profile_length / segment_scale_factor
-
-        s_slope = sin(float(slope_rad))
-        c_slope = cos(float(slope_rad))
-
-        if c_slope == 0.0:
-            height_corr = length / ve
-            structural_segment_s = [h_dist, h_dist]
-            structural_segment_z = [z0 + height_corr, z0 - height_corr]
-        else:
-            t_slope = s_slope / c_slope
-            width = length * c_slope
-
-            length_exag = width * sqrt(1 + ve*ve * t_slope*t_slope)
-
-            corr_width = width * length / length_exag
-            corr_height = corr_width * t_slope
-
-            structural_segment_s = [h_dist - corr_width, h_dist + corr_width]
-            structural_segment_z = [z0 + corr_height, z0 - corr_height]
-
-            if intersection_downward_sense == "left":
-                structural_segment_z = [z0 - corr_height, z0 + corr_height]
-
-        return structural_segment_s, structural_segment_z
-
-
-
-    def calculate_projected_3d_pts(self, struct_pts, structural_pts_crs, demObj):
-
-        demCrs = demObj.params.crs
-
-        # check if on-the-fly-projection is set on
-        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
-
-        # set points in the project crs                    
-        if on_the_fly_projection and structural_pts_crs != project_crs:
-            struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
-        else:
-            struct_pts_in_prj_crs = copy.deepcopy(struct_pts)
-
-            # project the source points from point layer crs to DEM crs
-        # if the two crs are different       
-        if structural_pts_crs != demCrs:
-            struct_pts_in_dem_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
-        else:
-            struct_pts_in_dem_crs = copy.deepcopy(struct_pts)
-
-            # - 3D structural points, with x, y, and z extracted from the current DEM
-        struct_pts_z = get_zs_from_dem(struct_pts_in_dem_crs, demObj)
-
-        assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
-
-        return [Point(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
 
     def calculate_section_data(self):
 
@@ -2474,9 +2406,10 @@ class qprof_QWidget(QWidget):
                  "Check defined fields for possible errors")
             return
 
-        struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
-                                                        structural_layer_crs,
-                                                        self.profile_elements.topo_profiles.dem_params[0])
+        struct_pts_3d = calculate_projected_3d_pts(self.canvas,
+                                                    struct_pts_in_orig_crs,
+                                                    structural_layer_crs,
+                                                    self.profile_elements.topo_profiles.dem_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2499,8 +2432,13 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
+
         ### plot structural points in section ###
-        self.plot_profile_elements()
+
+        profile_window = plot_profile_elements(self)
+
+        self.profile_windows.append(profile_window)
+
 
     def reset_struct_point_projection(self):
 
@@ -2645,7 +2583,10 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_curves(curves_2d_list, id_list)
 
         # plot new cross section
-        self.plot_profile_elements()
+
+        profile_window = plot_profile_elements(self)
+
+        self.profile_windows.append(profile_window)
 
     def reset_structural_lines_projection(self):
 
@@ -2766,152 +2707,6 @@ class qprof_QWidget(QWidget):
 
         shp_datasource.Destroy()
 
-    def plot_profile_elements(self, slope_padding=0.2):
-
-        vertical_exaggeration = self.profile_elements.plot_params['vertical_exaggeration']
-        plot_s_min, plot_s_max = 0, self.profile_elements.topo_profiles.profile_length
-
-        plot_height_choice = self.profile_elements.plot_params['plot_height_choice']
-        plot_slope_choice = self.profile_elements.plot_params['plot_slope_choice']
-
-        if plot_height_choice:
-            # defines plot min and max values
-            plot_z_min = self.profile_elements.plot_params['plot_min_elevation_user']
-            plot_z_max = self.profile_elements.plot_params['plot_max_elevation_user']
-
-        # if slopes to be calculated and plotted
-        if plot_slope_choice:
-            # defines slope value lists and the min and max values
-            if self.profile_elements.plot_params['plot_slope_absolute']:
-                slopes = self.profile_elements.topo_profiles.absolute_slopes
-            else:
-                slopes = self.profile_elements.topo_profiles.dir_slopes
-
-            profiles_slope_min = np.nanmin(np.array(map(np.nanmin, slopes)))
-            profiles_slope_max = np.nanmax(np.array(map(np.nanmax, slopes)))
-
-            delta_slope = profiles_slope_max - profiles_slope_min
-            plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope * slope_padding, profiles_slope_max + delta_slope * slope_padding
-
-        # map
-        profile_window = MplWidget()
-
-        if plot_height_choice and plot_slope_choice:
-            mpl_code_list = [211, 212]
-        else:
-            mpl_code_list = [111]
-        subplot_code = mpl_code_list[0]
-
-        if plot_height_choice:
-            self.axes_elevation = self.plot_topo_profile_lines(subplot_code,
-                                                               profile_window,
-                                                               self.profile_elements.topo_profiles,
-                                                               'elevation',
-                                                               (plot_s_min, plot_s_max),
-                                                               (plot_z_min, plot_z_max),
-                                                               self.profile_elements.topoline_colors,
-                                                               self.profile_elements.plot_params['filled_height'])
-
-            self.axes_elevation.set_aspect(vertical_exaggeration)
-
-        if plot_slope_choice:
-
-            if len(mpl_code_list) == 2:
-                subplot_code = mpl_code_list[1]
-
-            self.axes_slopes = self.plot_topo_profile_lines(subplot_code,
-                                                            profile_window,
-                                                            self.profile_elements.topo_profiles,
-                                                            'slope',
-                                                            (plot_s_min, plot_s_max),
-                                                            (plot_slope_min, plot_slope_max),
-                                                            self.profile_elements.topoline_colors,
-                                                            self.profile_elements.plot_params['filled_slope'])
-
-        if len(self.profile_elements.intersection_lines) > 0:
-
-            for line_intersection_value in self.profile_elements.intersection_lines:
-                self.plot_profile_polygon_intersection_line(self.axes_elevation, line_intersection_value)
-
-        if len(self.profile_elements.plane_attitudes) > 0:
-
-            for plane_attitude_set, color in zip(self.profile_elements.plane_attitudes, self.plane_attitudes_colors):
-                self.plot_structural_attitude(self.axes_elevation,
-                                              plot_s_max,
-                                              vertical_exaggeration,
-                                              plane_attitude_set,
-                                              color)
-
-        if len(self.profile_elements.curves) > 0:
-
-            for curve_set, labels in zip(self.profile_elements.curves, self.profile_elements.curves_ids):
-                self.plot_projected_line_set(self.axes_elevation, curve_set, labels)
-
-        if len(self.profile_elements.intersection_pts) > 0:
-            self.plot_profile_lines_intersection_points(self.axes_elevation, self.profile_elements.intersection_pts)
-
-        profile_window.canvas.draw()
-
-        self.profile_windows.append(profile_window)
-
-    def plot_topo_profile_lines(self, subplot_code, profile_window, topo_profiles, topo_type, plot_x_range,
-                                plot_y_range, topoline_colors, filled_choice):
-
-        axes = self.create_axes(subplot_code,
-                                profile_window,
-                                plot_x_range,
-                                plot_y_range)
-
-        if self.profile_elements.plot_params['invert_xaxis']:
-            axes.invert_xaxis()
-
-        # label = unicode(name)
-
-        if topo_type == 'elevation':
-            ys = topo_profiles.elevs
-            plot_y_min = plot_y_range[0]
-        else:
-            if self.profile_elements.plot_params['plot_slope_absolute']:
-                ys = topo_profiles.absolute_slopes
-            else:
-                ys = topo_profiles.dir_slopes
-            plot_y_min = 0.0
-
-        s = topo_profiles.s
-
-        for y, topoline_color in zip(ys, topoline_colors):
-            if filled_choice:
-                plot_filled_line(axes,
-                                 s,
-                                 y,
-                                 plot_y_min,
-                                 topoline_color)
-
-            plot_line(axes,
-                      s,
-                      y,
-                      topoline_color)
-
-        return axes
-
-    def create_axes(self, subplot_code, profile_window, plot_x_range, plot_y_range):
-
-        x_min, x_max = plot_x_range
-        y_min, y_max = plot_y_range
-        axes = profile_window.canvas.fig.add_subplot(subplot_code)
-        axes.set_xlim(x_min, x_max)
-        axes.set_ylim(y_min, y_max)
-
-        axes.grid(True)
-
-        return axes
-
-    def plot_profile_lines_intersection_points(self, axes, profile_lines_intersection_points):
-
-        for s, pt3d, intersection_id, color in profile_lines_intersection_points:
-            axes.plot(s, pt3d.z, 'o', color=color)
-            if str(intersection_id).upper() != "NULL" or str(intersection_id) != '':
-                axes.annotate(str(intersection_id), (s + 25, pt3d.z + 25))
 
     def line_intersection_reset(self):
 
@@ -2922,68 +2717,6 @@ class qprof_QWidget(QWidget):
 
         if self.profile_elements is not None:
             self.profile_elements.intersection_lines = []
-
-    def plot_structural_attitude(self, axes, section_length, vertical_exaggeration, structural_attitude_list, color):
-
-        # TODO:  manage case for possible nan z values
-        projected_z = [structural_attitude.pt_3d.z for structural_attitude in structural_attitude_list if
-                       0.0 <= structural_attitude.sign_hor_dist <= section_length]
-
-        # TODO:  manage case for possible nan z values
-        projected_s = [structural_attitude.sign_hor_dist for structural_attitude in structural_attitude_list if
-                       0.0 <= structural_attitude.sign_hor_dist <= section_length]
-
-        projected_ids = [structural_attitude.id for structural_attitude in structural_attitude_list if
-                         0.0 <= structural_attitude.sign_hor_dist <= section_length]
-
-        axes.plot(projected_s, projected_z, 'o', color=color)
-
-        # plot segments representing structural data       
-        for structural_attitude in structural_attitude_list:
-            if 0.0 <= structural_attitude.sign_hor_dist <= section_length:
-                structural_segment_s, structural_segment_z = self.define_plot_structural_segment(structural_attitude,
-                                                                                                 section_length,
-                                                                                                 vertical_exaggeration)
-
-                axes.plot(structural_segment_s, structural_segment_z, '-', color=color)
-
-        if self.plot_prj_add_trendplunge_label.isChecked() or self.plot_prj_add_pt_id_label.isChecked():
-
-            src_dip_dirs = [structural_attitude.src_geol_plane.dipdir for structural_attitude in
-                            structural_attitude_list if 0.0 <= structural_attitude.sign_hor_dist <= section_length]
-            src_dip_angs = [structural_attitude.src_geol_plane.dipangle for structural_attitude in
-                            structural_attitude_list if 0.0 <= structural_attitude.sign_hor_dist <= section_length]
-
-            for rec_id, src_dip_dir, src_dip_ang, s, z in zip(projected_ids, src_dip_dirs, src_dip_angs, projected_s,
-                                                              projected_z):
-
-                if self.plot_prj_add_trendplunge_label.isChecked() and self.plot_prj_add_pt_id_label.isChecked():
-                    label = "%s-%03d/%02d" % (rec_id, src_dip_dir, src_dip_ang)
-                elif self.plot_prj_add_pt_id_label.isChecked():
-                    label = "%s" % rec_id
-                elif self.plot_prj_add_trendplunge_label.isChecked():
-                    label = "%03d/%02d" % (src_dip_dir, src_dip_ang)
-
-                axes.annotate(label, (s + 15, z + 15))
-
-    def plot_projected_line_set(self, axes, curve_set, labels):
-
-        colors = qprof_QWidget.colors_addit * (int(len(curve_set) / len(qprof_QWidget.colors_addit)) + 1)
-        for multiline_2d, label, color in zip(curve_set, labels, colors):
-            for line_2d in multiline_2d.lines:
-                plot_line(axes, line_2d.x_list, line_2d.y_list, color, name=label)
-
-    def plot_profile_polygon_intersection_line(self, axes, intersection_line_value):
-
-        classification, line3d, s_list = intersection_line_value
-        z_list = [pt3d.z for pt3d in line3d.pts]
-
-        if self.polygon_classification_colors is None:
-            color = "red"
-        else:
-            color = self.polygon_classification_colors[unicode(classification)]
-
-        plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
     def check_intersection_polygon_inputs(self):
 
@@ -3118,7 +2851,9 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
-        self.plot_profile_elements()
+        profile_window = plot_profile_elements(self)
+
+        self.profile_windows.append(profile_window)
 
     def classification_colors(self, dialog):
 
@@ -3185,9 +2920,9 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_intersections_pts(
             zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list, intersection_colors))
 
-        self.plot_profile_elements()
+        profile_window = plot_profile_elements(self)
 
-
+        self.profile_windows.append(profile_window)
 
 
     def do_export_image(self):
@@ -3893,6 +3628,7 @@ class LoadPointListDialog(QDialog):
 
 
 class PolygonIntersectionRepresentationDialog(QDialog):
+
     colors = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen", "palevioletred",
               "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
               "chartreuse"]
@@ -3954,6 +3690,7 @@ class PolygonIntersectionRepresentationDialog(QDialog):
             color_QgsColorButtonV2 = QgsColorButtonV2()
             color_QgsColorButtonV2.setColor(QColor(color))
             self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButtonV2)
+
 
 def get_profile_plot_params(dialog):
 

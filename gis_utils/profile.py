@@ -1,6 +1,7 @@
 
 from __future__ import division
 
+import copy
 import xml.dom.minidom
 
 from .features import Line, xytuple_l2_to_MultiLine
@@ -495,3 +496,67 @@ def extract_multiline2d_list(structural_line_layer, on_the_fly_projection, proje
         line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
 
     return line_proj_crs_MultiLine2D_list
+
+
+def define_plot_structural_segment(structural_attitude, profile_length, vertical_exaggeration, segment_scale_factor=70.0):
+
+    ve = float(vertical_exaggeration)
+    intersection_point = structural_attitude.pt_3d
+    z0 = intersection_point.z
+
+    h_dist = structural_attitude.sign_hor_dist
+    slope_rad = structural_attitude.slope_rad
+    intersection_downward_sense = structural_attitude.dwnwrd_sense
+    length = profile_length / segment_scale_factor
+
+    s_slope = sin(float(slope_rad))
+    c_slope = cos(float(slope_rad))
+
+    if c_slope == 0.0:
+        height_corr = length / ve
+        structural_segment_s = [h_dist, h_dist]
+        structural_segment_z = [z0 + height_corr, z0 - height_corr]
+    else:
+        t_slope = s_slope / c_slope
+        width = length * c_slope
+
+        length_exag = width * sqrt(1 + ve*ve * t_slope*t_slope)
+
+        corr_width = width * length / length_exag
+        corr_height = corr_width * t_slope
+
+        structural_segment_s = [h_dist - corr_width, h_dist + corr_width]
+        structural_segment_z = [z0 + corr_height, z0 - corr_height]
+
+        if intersection_downward_sense == "left":
+            structural_segment_z = [z0 - corr_height, z0 + corr_height]
+
+    return structural_segment_s, structural_segment_z
+
+
+def calculate_projected_3d_pts(canvas, struct_pts, structural_pts_crs, demObj):
+
+    demCrs = demObj.params.crs
+
+    # check if on-the-fly-projection is set on
+    on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
+
+    # set points in the project crs
+    if on_the_fly_projection and structural_pts_crs != project_crs:
+        struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
+    else:
+        struct_pts_in_prj_crs = copy.deepcopy(struct_pts)
+
+        # project the source points from point layer crs to DEM crs
+    # if the two crs are different
+    if structural_pts_crs != demCrs:
+        struct_pts_in_dem_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
+    else:
+        struct_pts_in_dem_crs = copy.deepcopy(struct_pts)
+
+        # - 3D structural points, with x, y, and z extracted from the current DEM
+    struct_pts_z = get_zs_from_dem(struct_pts_in_dem_crs, demObj)
+
+    assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
+
+    return [Point(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]

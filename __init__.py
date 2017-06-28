@@ -21,12 +21,12 @@
 """
 
 
-from qProf_gui import qProf_gui
+from qProf_main import qProf_main
 
 
 def classFactory(iface):    
     # create qgSurf_gui class   
-    return qProf_gui(iface)
+    return qProf_main(iface)
 
 
 

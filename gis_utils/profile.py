@@ -3,9 +3,9 @@ from __future__ import division
 
 import xml.dom.minidom
 
-from .qgs_tools import *
+from .features import Line, xytuple_l2_to_MultiLine
 
-from .features import Line
+from .qgs_tools import *
 
 from .geodetic import TrackPointGPX
 
@@ -357,3 +357,141 @@ def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
 
     return topo_profiles
 
+
+def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list):
+
+    # project to Dem CRS
+    if on_the_fly_projection and demParams.crs != project_crs:
+        qgs_point2d_list = [qgs_point_2d(point2D.x, point2D.y) for point2D in intersection_point_list]
+        dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
+                                               qgs_point2d_list]
+        dem_crs_intersection_point_list = [Point(qgispt.x(), qgispt.y()) for qgispt in
+                                           dem_crs_intersection_qgispoint_list]
+    else:
+        dem_crs_intersection_point_list = intersection_point_list
+
+    # interpolate z values from Dem
+    z_list = [interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
+
+    return [Point(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
+
+
+def calculate_profile_lines_intersection(multilines2d_list, id_list, profile_line2d):
+
+    profile_segment2d_list = profile_line2d.as_segments()
+
+    profile_segment2d = profile_segment2d_list[0]
+
+    intersection_list = []
+    for ndx, multiline2d in enumerate(multilines2d_list):
+        if id_list is None:
+            multiline_id = ''
+        else:
+            multiline_id = id_list[ndx]
+        for line2d in multiline2d.lines:
+            for line_segment2d in line2d.as_segments():
+                try:
+                    intersection_point2d = profile_segment2d.intersection_2d_pt(line_segment2d)
+                except ZeroDivisionError:
+                    continue
+                if intersection_point2d is None:
+                    continue
+                if line_segment2d.contains_2d_pt(intersection_point2d) and \
+                   profile_segment2d.contains_2d_pt(intersection_point2d):
+                    intersection_list.append([intersection_point2d, multiline_id])
+
+    return intersection_list
+
+
+def intersection_distances_by_profile_start_list(profile_line, intersection_list):
+
+    # convert the profile line
+    # from a CartesianLine2DT to a CartesianSegment2DT
+    profile_segment2d_list = profile_line.as_segments()
+    # debug
+    assert len(profile_segment2d_list) == 1
+    profile_segment2d = profile_segment2d_list[0]
+
+    # determine distances for each point in intersection list
+    # creating a list of float values
+    distance_from_profile_start_list = []
+    for intersection_res in intersection_list:
+        distance_from_profile_start_list.append(profile_segment2d.start_pt.dist_2d(intersection_res[0]))
+
+    return distance_from_profile_start_list
+
+
+def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
+
+    pts_in_prj_crs = []
+    for pt in pts_in_orig_crs:
+        qgs_pt = qgs_point_2d(pt.x, pt.y)
+        qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
+        pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
+    return pts_in_prj_crs
+
+
+def profile_polygon_intersection(profile_qgsgeometry, polygon_layer, inters_polygon_classifaction_field_ndx):
+
+    intersection_polyline_polygon_crs_list = []
+
+    if polygon_layer.selectedFeatureCount() > 0:
+        features = polygon_layer.selectedFeatures()
+    else:
+        features = polygon_layer.getFeatures()
+
+    for polygon_feature in features:
+        # retrieve every (selected) feature with its geometry and attributes
+
+        # fetch geometry
+        poly_geom = polygon_feature.geometry()
+
+        intersection_qgsgeometry = poly_geom.intersection(profile_qgsgeometry)
+
+        try:
+            if intersection_qgsgeometry.isEmpty():
+                continue
+        except:
+            try:
+                if intersection_qgsgeometry.isGeosEmpty():
+                    continue
+            except:
+                return False, "Missing function for checking empty geometries.\nPlease upgrade QGIS"
+
+        if inters_polygon_classifaction_field_ndx >= 0:
+            attrs = polygon_feature.attributes()
+            polygon_classification = attrs[inters_polygon_classifaction_field_ndx]
+        else:
+            polygon_classification = None
+
+        if intersection_qgsgeometry.isMultipart():
+            lines = intersection_qgsgeometry.asMultiPolyline()
+        else:
+            lines = [intersection_qgsgeometry.asPolyline()]
+
+        for line in lines:
+            intersection_polyline_polygon_crs_list.append([polygon_classification, line])
+
+    return True, intersection_polyline_polygon_crs_list
+
+
+def extract_multiline2d_list(structural_line_layer, on_the_fly_projection, project_crs):
+
+    line_orig_crs_geoms_attrs = line_geoms_attrs(structural_line_layer)
+
+    line_orig_geom_list3 = [geom_data[0] for geom_data in line_orig_crs_geoms_attrs]
+    line_orig_crs_MultiLine2D_list = [xytuple_l2_to_MultiLine(xy_list2) for xy_list2 in line_orig_geom_list3]
+    line_orig_crs_clean_MultiLine2D_list = [multiline_2d.remove_coincident_points() for multiline_2d in
+                                            line_orig_crs_MultiLine2D_list]
+
+    # get CRS information
+    structural_line_layer_crs = structural_line_layer.crs()
+
+    # project input line layer to project CRS
+    if on_the_fly_projection:
+        line_proj_crs_MultiLine2D_list = [multiline2d.crs_project(structural_line_layer_crs, project_crs) for
+                                          multiline2d in line_orig_crs_clean_MultiLine2D_list]
+    else:
+        line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
+
+    return line_proj_crs_MultiLine2D_list

@@ -527,6 +527,16 @@ def interpolate_z(dem, dem_params, point):
         return np.nan
 
 
+def get_zs_from_dem(struct_pts_2d, demObj):
+
+    z_list = []
+    for point_2d in struct_pts_2d:
+        interp_z = interpolate_z(demObj.layer, demObj.params, point_2d)
+        z_list.append(interp_z)
+
+    return z_list
+
+
 def xy_from_canvas(canvas, position):
 
     mapPos = canvas.getCoordinateTransform().toMapCoordinates(position["x"], position["y"])

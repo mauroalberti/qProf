@@ -7,15 +7,15 @@ import webbrowser
 
 from qgis.core import QgsGeometry, QgsVectorLayer
 
-from .gsf.geometry import GPlane
+from .gsf.geometry import Plane, GPlane
 from .gsf.array_utils import to_float
 
 from .gis_utils.features import Segment, MultiLine, Line, \
-    merge_lines, ParamLine3D, xytuple_list_to_Line, xytuple_l2_to_MultiLine
-
+    merge_lines, ParamLine3D, xytuple_list_to_Line
 from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from .gis_utils.profile import Profile_Elements, topoprofiles_from_dems, topoprofiles_from_gpxfile
-
+from .gis_utils.profile import Profile_Elements, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
+    intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
+    calculate_pts_in_projection, profile_polygon_intersection
 from .gis_utils.qgs_tools import *
 from .gis_utils.statistics import get_statistics
 from .gis_utils.errors import VectorInputException, VectorIOException
@@ -23,12 +23,9 @@ from .gis_utils.errors import VectorInputException, VectorIOException
 from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
 
 from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
-from .qt_utils.tools import update_ComboBox
+from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
-
-
-_plugin_name_ = "qProf"
 
 
 class qprof_QWidget(QWidget):
@@ -43,15 +40,16 @@ class qprof_QWidget(QWidget):
 
     map_digitations = 0
 
-
-    def __init__(self, canvas):
+    def __init__(self, plugin_name, canvas):
 
         super(qprof_QWidget, self).__init__()
+
+        self.plugin_name = plugin_name
         self.canvas = canvas
 
         self.current_directory = os.path.dirname(__file__)
 
-        self.settings = QSettings("alberese", "qProf")
+        self.settings = QSettings("alberese", self.plugin_name)
         self.settings_gpxdir_key = "gpx/last_used_dir"
 
         self.choose_message = "choose"
@@ -68,18 +66,6 @@ class qprof_QWidget(QWidget):
         self.curve_colors = []
 
         self.setup_gui()
-
-    def info(self, msg):
-
-        QMessageBox.information(self, _plugin_name_, msg)
-
-    def warn(self, msg):
-
-        QMessageBox.warning(self, _plugin_name_, msg)
-
-    def error(self, msg):
-
-        QMessageBox.error(self, _plugin_name_, msg)
 
     def setup_gui(self):
 
@@ -109,7 +95,7 @@ class qprof_QWidget(QWidget):
         self.dialog_layout.addWidget(self.main_widget)
         self.setLayout(self.dialog_layout)
         self.adjustSize()
-        self.setWindowTitle('qProf')
+        self.setWindowTitle(self.plugin_name)
 
     def setup_topoprofile_tab(self):
 
@@ -335,7 +321,6 @@ class qprof_QWidget(QWidget):
                                           self.proj_point_indivax_plunge_fld_comboBox]
 
         ##
-
 
         xs_point_proj_QWidget.setLayout(xs_point_proj_Layout)
         project_toolbox.addItem(xs_point_proj_QWidget, "Geological attitudes")
@@ -648,20 +633,26 @@ class qprof_QWidget(QWidget):
                     selected_dem_parameters = dialog.selected_dem_parameters
                     topoline_colors = dialog.selected_dem_colors
                 except Exception as e:
-                    self.warn("Input DEMs definition not correct: {}".format(e.message))
+                    warn(self,
+                         self.plugin_name,
+                         "Input DEMs definition not correct: {}".format(e.message))
                     return
 
                 try:
                     sample_distance = float(dialog.profile_densify_distance_lineedit.text())
                     assert sample_distance > 0.0
                 except Exception as e:
-                    self.warn("Sample distance value not correct: {}".format(e.message))
+                    warn(self,
+                         self.plugin_name,
+                         "Sample distance value not correct: {}".format(e.message))
                     return
 
                 if dialog.DigitizeLine_checkbox.isChecked():
                     if self.digitized_profile_line2dt is None or \
                        self.digitized_profile_line2dt.num_pts < 2:
-                        self.warn("No digitized line available")
+                        warn(self,
+                             self.plugin_name,
+                             "No digitized line available")
                         return
                     else:
                         source_profile_line2dt = self.digitized_profile_line2dt
@@ -670,10 +661,14 @@ class qprof_QWidget(QWidget):
                     try:
                         source_profile_line2dt = dialog.dem_source_profile_line2dt
                     except:
-                        self.warn("DEM-line profile source not correctly created [1]")
+                        warn(self,
+                             self.plugin_name,
+                             "DEM-line profile source not correctly created [1]")
                         return
                     if source_profile_line2dt is None:
-                        self.warn("DEM-line profile source not correctly created [2]")
+                        warn(self,
+                             self.plugin_name,
+                             "DEM-line profile source not correctly created [2]")
                         return
 
             elif topo_source_type == self.gpxfile_source:
@@ -681,15 +676,21 @@ class qprof_QWidget(QWidget):
                 try:
                     source_gpx_path = unicode(dialog.input_gpx_lineEdit.text())
                     if source_gpx_path == '':
-                        self.warn("Source GPX file is not set")
+                        warn(self,
+                             self.plugin_name,
+                             "Source GPX file is not set")
                         return
                 except Exception as e:
-                    self.warn("Source GPX file not correctly set: {}".format(e.message))
+                    warn(self,
+                         self.plugin_name,
+                         "Source GPX file not correctly set: {}".format(e.message))
                     return
                 topoline_colors = [qcolor2rgbmpl(dialog.inputGPX_color_button.color())]
 
             else:
-                self.warn("Debug: uncorrect type source for topo sources def")
+                warn(self,
+                     self.plugin_name,
+                     "Debug: uncorrect type source for topo sources def")
                 return
 
             # calculates profiles
@@ -703,7 +704,9 @@ class qprof_QWidget(QWidget):
                                                             selected_dem_parameters,
                                                             invert_profile)
                 except Exception as e:
-                     self.warn(e.message)
+                     warn(self,
+                         self.plugin_name,
+                         e.message)
                      return
             elif topo_source_type == self.gpxfile_source:  # source is GPX file
                 try:
@@ -711,14 +714,20 @@ class qprof_QWidget(QWidget):
                                                            topoline_colors,
                                                            invert_profile)
                 except Exception as e:
-                    self.warn("Error with profile calculation from GPX file: {}".format(e.message))
+                    warn(self,
+                         self.plugin_name,
+                         "Error with profile calculation from GPX file: {}".format(e.message))
                     return
             else:  # source error
-                self.error("Algorithm error: profile calculation not defined")
+                error(self,
+                      self.plugin_name,
+                     "Algorithm error: profile calculation not defined")
                 return
 
             if topo_profiles is None:
-                self.warn("Debug: profile not created")
+                warn(self,
+                     self.plugin_name,
+                     "Debug: profile not created")
                 return
 
             profile_elements = Profile_Elements()
@@ -727,9 +736,6 @@ class qprof_QWidget(QWidget):
             profile_elements.source_profile_line2dt = source_profile_line2dt
             profile_elements.sample_distance = sample_distance
             profile_elements.set_topo_profiles(topo_profiles)
-
-            #self.selected_dems = selected_dems
-            #self.selected_dem_parameters = selected_dem_parameters
 
             return profile_elements
 
@@ -741,18 +747,26 @@ class qprof_QWidget(QWidget):
                                                  self.settings_gpxdir_key)
             topo_source_type = self.gpxfile_source
         else:
-            self.warn("Debug error: incorrect source definition")
+            warn(self,
+                 self.plugin_name,
+                 "Debug error: incorrect source definition")
             return
 
         if dialog.exec_():
             self.profile_elements = create_topo_profiles()
             if self.profile_elements is None:
-                self.warn("Debug error: self.profile_elements is None")
+                warn(self,
+                     self.plugin_name,
+                     "Debug error: self.profile_elements is None")
                 return
             else:
-                self.info("Topographic sources defined")
+                info(self,
+                     self.plugin_name,
+                     "Topographic sources defined")
         else:
-            self.warn("No topographic source defined")
+            warn(self,
+                 self.plugin_name,
+                 "No topographic source defined")
             return
 
 
@@ -774,7 +788,9 @@ class qprof_QWidget(QWidget):
         self.profile_canvas_points = []
 
         if qprof_QWidget.map_digitations == 1:
-            self.info("Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+            info(self,
+                 self.plugin_name,
+                 "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
 
         self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
         self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
@@ -784,7 +800,6 @@ class qprof_QWidget(QWidget):
         self.rubberband = QgsRubberBand(self.canvas)
         self.rubberband.setWidth(2)
         self.rubberband.setColor(QColor(Qt.red))
-
 
     def connect_digitize_maptool(self):
 
@@ -864,7 +879,9 @@ class qprof_QWidget(QWidget):
         try:
             self.profile_elements.topo_profiles.s
         except:
-            self.warn("Profile not yet calculated")
+            warn(self,
+                 self.plugin_name,
+                 "Profile not yet calculated")
             return
 
         selected_dems_params = self.profile_elements.topo_profiles.dem_params
@@ -874,21 +891,29 @@ class qprof_QWidget(QWidget):
 
             output_source = get_source_type()
             if not output_source:
-                self.warn("Error in output source")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output source")
                 return
 
             output_format = get_format_type()
             if output_format == "":
-                self.warn("Error in output format")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
                 return
 
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                self.warn("Error in output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            self.warn("No export defined")
+            warn(self,
+                 self.plugin_name,
+                 "No export defined")
             return
 
         # get project CRS information
@@ -917,7 +942,9 @@ class qprof_QWidget(QWidget):
         elif output_source[0] == "gpx_file":
             self.export_topography_gpx_data(output_format, output_filepath, project_crs_osr)
         else:
-            self.error("Debug: output choice not correctly defined")
+            error(self,
+                  self.plugin_name,
+                  "Debug: output choice not correctly defined")
             return
 
     def do_export_project_geol_attitudes(self):
@@ -934,11 +961,15 @@ class qprof_QWidget(QWidget):
         try:
             num_plane_attitudes_sets = len(self.profile_elements.plane_attitudes)
         except:
-            self.warn("No available geological attitudes")
+            warn(self,
+                 self.plugin_name,
+                 "No available geological attitudes")
             return
         else:
             if num_plane_attitudes_sets == 0:
-                self.warn("No available geological attitudes")
+                warn(self,
+                     self.plugin_name,
+                     "No available geological attitudes")
                 return
 
         dialog = PointDataExportDialog()
@@ -947,15 +978,21 @@ class qprof_QWidget(QWidget):
 
             output_format = get_format_type()
             if output_format == "":
-                self.warn("Error in output format")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                self.warn("Error in output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            self.warn("No export defined")
+            warn(self,
+                 self.plugin_name,
+                 "No export defined")
             return
 
         # get project CRS information
@@ -999,21 +1036,29 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - point":
             self.write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
         else:
-            self.error("Debug: error in export format")
+            error(self,
+                  self.plugin_name,
+                  "Debug: error in export format")
             return
 
-        self.info("Projected attitudes saved")
+        info(self,
+             self.plugin_name,
+             "Projected attitudes saved")
 
     def do_export_project_geol_lines(self):
 
         try:
             num_proj_lines_sets = len(self.profile_elements.curves)
         except:
-            self.warn("No available geological traces")
+            warn(self,
+                 self.plugin_name,
+                 "No available geological traces")
             return
         else:
             if num_proj_lines_sets == 0:
-                self.warn("No available geological traces to save")
+                warn(self,
+                     self.plugin_name,
+                     "No available geological traces to save")
                 return
 
         fileName = QFileDialog.getSaveFileName(self,
@@ -1022,7 +1067,9 @@ class qprof_QWidget(QWidget):
                                                self.tr("csv (*.csv)"))
 
         if fileName is None or fileName == '':
-            self.warn("No output file has been defined")
+            warn(self,
+                 self.plugin_name,
+                 "No output file has been defined")
             return
 
         parsed_curves_for_export = self.export_parse_geologicalcurves()
@@ -1030,7 +1077,9 @@ class qprof_QWidget(QWidget):
 
         self.write_generic_csv(fileName, header_list, parsed_curves_for_export)
 
-        self.info("Projected lines saved")
+        info(self,
+             self.plugin_name,
+             "Projected lines saved")
 
     def do_export_line_intersections(self):
 
@@ -1046,11 +1095,15 @@ class qprof_QWidget(QWidget):
         try:
             num_intersection_pts = len(self.profile_elements.intersection_pts)
         except:
-            self.warn("No available profile-line intersections")
+            warn(self,
+                 self.plugin_name,
+                 "No available profile-line intersections")
             return
         else:
             if num_intersection_pts == 0:
-                self.warn("No available profile-line intersections")
+                warn(self,
+                     self.plugin_name,
+                     "No available profile-line intersections")
                 return
 
         dialog = PointDataExportDialog()
@@ -1058,15 +1111,21 @@ class qprof_QWidget(QWidget):
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
-                self.warn("Error in output format")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                self.warn("Error in output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            self.warn("No export defined")
+            warn(self,
+                     self.plugin_name,
+                     "No export defined")
             return
 
         # get project CRS information
@@ -1102,7 +1161,9 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - point":
             self.write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
         else:
-            self.error("Debug: error in export format")
+            error(self,
+                  self.plugin_name,
+                  "Debug: error in export format")
             return
 
     def write_intersection_line_ptshp(self, fileName, header_list, intersline_results, sr):
@@ -1110,7 +1171,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                     self.plugin_name,
+                     "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1119,12 +1182,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                     self.plugin_name,
+                     "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint25D)
         if ptshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                     self.plugin_name,
+                     "Output layer creation failed")
             return
 
         # creates required fields
@@ -1181,25 +1248,35 @@ class qprof_QWidget(QWidget):
                 return ""
 
         if self.digitized_profile_line2dt is None:
-            self.warn("No available line to save [1]")
+            warn(self,
+                     self.plugin_name,
+                     "No available line to save [1]")
             return
         elif self.digitized_profile_line2dt.num_pts < 2:
-            self.warn("No available line to save [2]")
+            warn(self,
+                     self.plugin_name,
+                     "No available line to save [2]")
             return
 
         dialog = LineDataExportDialog()
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
-                self.warn("Error in output format")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                self.warn("Error in output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            self.warn("No export defined")
+            warn(self,
+                     self.plugin_name,
+                     "No export defined")
             return
 
         # get project CRS information
@@ -1231,17 +1308,23 @@ class qprof_QWidget(QWidget):
                                      points,
                                      proj_sr)
         else:
-            self.error("Debug: error in export format")
+            error(self,
+                  self.plugin_name,
+                  "Debug: error in export format")
             return
 
-        self.info("Line saved")
+        info(self,
+             self.plugin_name,
+             "Line saved")
 
     def write_profile_lnshp(self, fileName, header_list, points, sr):
 
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                     self.plugin_name,
+                     "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1250,12 +1333,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                     self.plugin_name,
+                     "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString)
         if lnshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                     self.plugin_name,
+                     "Output layer creation failed")
             return
 
         # creates required fields
@@ -1294,26 +1381,36 @@ class qprof_QWidget(QWidget):
         try:
             num_intersection_lines = len(self.profile_elements.intersection_lines)
         except:
-            self.warn("No available profile-polygon intersections")
+            warn(self,
+                     self.plugin_name,
+                     "No available profile-polygon intersections")
             return
         else:
             if num_intersection_lines == 0:
-                self.warn("No available profile-polygon intersections")
+                warn(self,
+                     self.plugin_name,
+                     "No available profile-polygon intersections")
                 return
 
         dialog = LineDataExportDialog()
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
-                self.warn("Error in output format")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                self.warn("Error in output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            self.warn("No export defined")
+            warn(self,
+                     self.plugin_name,
+                     "No export defined")
             return
 
         # get project CRS information
@@ -1347,7 +1444,7 @@ class qprof_QWidget(QWidget):
         elif output_format == "shapefile - line":
             self.write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines, sr)
         else:
-            self.error("Debug: error in export format")
+            error("Debug: error in export format")
             return
 
     def write_intersection_polygon_lnshp(self, fileName, header_list, intersline_results, sr):
@@ -1355,7 +1452,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                     self.plugin_name,
+                     "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1364,12 +1463,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                     self.plugin_name,
+                     "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                     self.plugin_name,
+                     "Output layer creation failed")
             return
 
         # creates required fields
@@ -1459,7 +1562,9 @@ class qprof_QWidget(QWidget):
         if self.profile_elements is None or \
            self.profile_elements.profile_source_type is None or \
            self.profile_elements.topo_profiles is None:
-            self.warn("Source profile not yet defined")
+            warn(self,
+                     self.plugin_name,
+                     "Source profile not yet defined")
             return False
 
         return True
@@ -1470,7 +1575,9 @@ class qprof_QWidget(QWidget):
             return False
 
         if not self.profile_elements.topo_profiles.statistics_defined:
-            self.warn("Statistics not yet calculated")
+            warn(self,
+                     self.plugin_name,
+                     "Statistics not yet calculated")
             return False
 
         return True
@@ -1481,7 +1588,9 @@ class qprof_QWidget(QWidget):
             return False
 
         if not self.profile_elements.topo_profiles.profile_defined:
-            self.warn("Topographic profile not yet created")
+            warn(self,
+                     self.plugin_name,
+                     "Topographic profile not yet created")
             return False
 
         return True
@@ -1537,7 +1646,9 @@ class qprof_QWidget(QWidget):
     def export_topography_all_dems(self, out_format, outfile_path, proj_sr):
 
         if self.profile_elements.profile_source_type != self.demline_source:
-            self.warn("No DEM-derived profile defined")
+            warn(self,
+                     self.plugin_name,
+                     "No DEM-derived profile defined")
             return
 
             # process results for data export
@@ -1563,15 +1674,19 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_allDEMs_lnshp(outfile_path, header_list, dem_names, export_data, proj_sr)
         else:
-            self.error("Debug: error in export all DEMs")
+            error("Debug: error in export all DEMs")
             return
 
-        self.info("Profile export completed")
+        info(self,
+             self.plugin_name,
+             "Profile export completed")
 
     def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
 
         if self.profile_elements.profile_source_type != self.demline_source:
-            self.warn("No DEM-derived profile defined")
+            warn(self,
+                     self.plugin_name,
+                     "No DEM-derived profile defined")
             return
 
         # process results for data export
@@ -1587,15 +1702,21 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
         else:
-            self.error("Debug: error in export single DEM")
+            error(self,
+                  self.plugin_name,
+                 "Debug: error in export single DEM")
             return
 
-        self.info("Profile export completed")
+        info(self,
+             self.plugin_name,
+             "Profile export completed")
 
     def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
 
         if self.profile_elements.profile_source_type != self.gpxfile_source:
-            self.warn("No GPX-derived profile defined")
+            warn(self,
+                     self.plugin_name,
+                     "No GPX-derived profile defined")
             return
 
         # process results from export
@@ -1612,10 +1733,14 @@ class qprof_QWidget(QWidget):
         elif out_format == "shapefile - line":
             self.write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
         else:
-            self.error("Debug: error in export single DEM")
+            error(self,
+                  self.plugin_name,
+                 "Debug: error in export single DEM")
             return
 
-        self.info("Profile export completed")
+        info(self,
+             self.plugin_name,
+             "Profile export completed")
 
     def write_topography_allDEMs_csv(self, fileName, header_list, export_data, sep=","):
 
@@ -1665,7 +1790,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1674,12 +1801,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
             # creates required fields
@@ -1734,7 +1865,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1743,12 +1876,16 @@ class qprof_QWidget(QWidget):
             ptshp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if ptshp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         ptshp_layer = ptshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
             # creates required fields
@@ -1799,7 +1936,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1808,12 +1947,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(output_filepath))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
             return
 
         ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
         if ptshp_layer is None:
-            self.warn("Point layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Point layer creation failed")
             return
 
             # creates required fields
@@ -1863,7 +2006,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -1872,12 +2017,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString)
         if lnshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
             # creates required fields
@@ -1930,8 +2079,10 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
-            return
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
+        return
 
         try:
             lnshp_datasource = shape_driver.CreateDataSource(unicode(fileName))
@@ -1939,12 +2090,16 @@ class qprof_QWidget(QWidget):
             lnshp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if lnshp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
             # creates required fields
@@ -1993,7 +2148,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -2002,12 +2159,16 @@ class qprof_QWidget(QWidget):
             lnshp_datasource = shape_driver.CreateDataSource(str(output_filepath))
 
         if lnshp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
             return
 
         lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
         if lnshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
             # creates required fields
@@ -2186,23 +2347,7 @@ class qprof_QWidget(QWidget):
 
         return structural_segment_s, structural_segment_z
 
-    def get_z_from_dem(self, struct_pts_2d, demObj):
 
-        z_list = []
-        for point_2d in struct_pts_2d:
-            interp_z = interpolate_z(demObj.layer, demObj.params, point_2d)
-            z_list.append(interp_z)
-
-        return z_list
-
-    def calculate_pts_in_projection(self, pts_in_orig_crs, srcCrs, destCrs):
-
-        pts_in_prj_crs = []
-        for pt in pts_in_orig_crs:
-            qgs_pt = qgs_point_2d(pt.x, pt.y)
-            qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
-            pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
-        return pts_in_prj_crs
 
     def calculate_projected_3d_pts(self, struct_pts, structural_pts_crs, demObj):
 
@@ -2213,19 +2358,19 @@ class qprof_QWidget(QWidget):
 
         # set points in the project crs                    
         if on_the_fly_projection and structural_pts_crs != project_crs:
-            struct_pts_in_prj_crs = self.calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
+            struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
         else:
             struct_pts_in_prj_crs = copy.deepcopy(struct_pts)
 
             # project the source points from point layer crs to DEM crs
         # if the two crs are different       
         if structural_pts_crs != demCrs:
-            struct_pts_in_dem_crs = self.calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
+            struct_pts_in_dem_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
         else:
             struct_pts_in_dem_crs = copy.deepcopy(struct_pts)
 
             # - 3D structural points, with x, y, and z extracted from the current DEM
-        struct_pts_z = self.get_z_from_dem(struct_pts_in_dem_crs, demObj)
+        struct_pts_z = get_zs_from_dem(struct_pts_in_dem_crs, demObj)
 
         assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
 
@@ -2267,12 +2412,16 @@ class qprof_QWidget(QWidget):
 
         # check that section is made up of only two points
         if self.profile_elements.source_profile_line2dt.num_pts != 2:
-            self.warn("Profile not made up by only two points")
+            warn(self,
+                 self.plugin_name,
+                 "Profile not made up by only two points")
             return False
 
         # check dem number is 1
         if len(self.profile_elements.topo_profiles.s3d) > 1:
-            self.warn("One (and only) topographic surface has to be used in the profile section")
+            warn(self,
+                 self.plugin_name,
+                 "One (and only) topographic surface has to be used in the profile section")
             return False
 
         return True
@@ -2285,7 +2434,9 @@ class qprof_QWidget(QWidget):
         # get point structural layer with parameter fields
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if prj_struct_point_qgis_ndx < 0:
-            self.warn("No defined point layer for structural data")
+            warn(self,
+                 self.plugin_name,
+                 "No defined point layer for structural data")
             return False
 
         return True
@@ -2318,7 +2469,9 @@ class qprof_QWidget(QWidget):
         try:
             structural_planes = [GPlane(float(rec[3]), float(rec[4]), isRHRStrike) for rec in structural_pts_attrs]
         except:
-            self.warn("Check defined fields for possible errors")
+            warn(self,
+                 self.plugin_name,
+                 "Check defined fields for possible errors")
             return
 
         struct_pts_3d = self.calculate_projected_3d_pts(struct_pts_in_orig_crs,
@@ -2365,17 +2518,23 @@ class qprof_QWidget(QWidget):
         # line structural layer with parameter fields
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if prj_struct_line_qgis_ndx < 0:
-            self.warn("No defined structural line layer")
+            warn(self,
+                 self.plugin_name,
+                 "No defined structural line layer")
             return False
 
         try:
             densify_distance = float(self.project_line_densify_distance_lineedit.text())
         except:
-            self.warn("No valid numeric value for densify line distance")
+            warn(self,
+                 self.plugin_name,
+                 "No valid numeric value for densify line distance")
             return False
         else:
             if densify_distance <= 0.0:
-                self.warn("Densify line distance must be larger than zero")
+                warn(self,
+                     self.plugin_name,
+                     "Densify line distance must be larger than zero")
                 return False
 
         return True
@@ -2539,7 +2698,9 @@ class qprof_QWidget(QWidget):
         shape_driver_name = "ESRI Shapefile"
         shape_driver = ogr.GetDriverByName(shape_driver_name)
         if shape_driver is None:
-            self.warn("%s driver is not available" % shape_driver_name)
+            warn(self,
+                 self.plugin_name,
+                 "%s driver is not available" % shape_driver_name)
             return
 
         try:
@@ -2548,12 +2709,16 @@ class qprof_QWidget(QWidget):
             shp_datasource = shape_driver.CreateDataSource(str(fileName))
 
         if shp_datasource is None:
-            self.warn("Creation of %s shapefile failed" % os.path.split(fileName)[1])
+            warn(self,
+                 self.plugin_name,
+                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
             return
 
         ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint25D)
         if ptshp_layer is None:
-            self.warn("Output layer creation failed")
+            warn(self,
+                 self.plugin_name,
+                 "Output layer creation failed")
             return
 
         # creates required fields
@@ -2828,7 +2993,9 @@ class qprof_QWidget(QWidget):
         # polygon layer with parameter fields
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
         if intersection_polygon_qgis_ndx < 0:
-            self.warn("No defined polygon layer")
+            warn(self,
+                 self.plugin_name,
+                 "No defined polygon layer")
             return False
 
         return True
@@ -2841,31 +3008,12 @@ class qprof_QWidget(QWidget):
         # line structural layer with parameter fields
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
         if intersection_line_qgis_ndx < 0:
-            self.warn("No defined geological line layer")
+            warn(self,
+                 self.plugin_name,
+                 "No defined geological line layer")
             return False
 
         return True
-
-    def extract_multiline2d_list(self, structural_line_layer, on_the_fly_projection, project_crs):
-
-        line_orig_crs_geoms_attrs = line_geoms_attrs(structural_line_layer)
-
-        line_orig_geom_list3 = [geom_data[0] for geom_data in line_orig_crs_geoms_attrs]
-        line_orig_crs_MultiLine2D_list = [xytuple_l2_to_MultiLine(xy_list2) for xy_list2 in line_orig_geom_list3]
-        line_orig_crs_clean_MultiLine2D_list = [multiline_2d.remove_coincident_points() for multiline_2d in
-                                                line_orig_crs_MultiLine2D_list]
-
-        # get CRS information
-        structural_line_layer_crs = structural_line_layer.crs()
-
-        # project input line layer to project CRS
-        if on_the_fly_projection:
-            line_proj_crs_MultiLine2D_list = [multiline2d.crs_project(structural_line_layer_crs, project_crs) for
-                                              multiline2d in line_orig_crs_clean_MultiLine2D_list]
-        else:
-            line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
-
-        return line_proj_crs_MultiLine2D_list
 
     def do_polygon_intersection(self):
 
@@ -2897,10 +3045,21 @@ class qprof_QWidget(QWidget):
         profile_qgsgeometry = QgsGeometry.fromPolyline(
             [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
-        intersection_polyline_polygon_crs_list = self.profile_polygon_intersection(profile_qgsgeometry, polygon_layer,
-                                                                                   inters_polygon_classifaction_field_ndx)
+        success, return_data = profile_polygon_intersection(profile_qgsgeometry, polygon_layer,
+                                                                              inters_polygon_classifaction_field_ndx)
+
+        if not success:
+            error(self,
+                  self.plugin_name,
+                  return_data)
+            return
+
+        intersection_polyline_polygon_crs_list = return_data
+
         if len(intersection_polyline_polygon_crs_list) == 0:
-            self.warn("No intersection found")
+            warn(self,
+                 self.plugin_name,
+                 "No intersection found")
             return
 
         # transform polyline intersections into prj crs line2d & classification list
@@ -2926,7 +3085,7 @@ class qprof_QWidget(QWidget):
             polygon_classification_set.add(polygon_classification)
 
             intersection_line3d = Line(
-                self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
+                intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
 
             s0_list = intersection_line3d.incremental_length_2d()
             s_start = sect_pt_1.dist_3d(intersection_line3d.pts[0])
@@ -2943,10 +3102,14 @@ class qprof_QWidget(QWidget):
             if dialog.exec_():
                 polygon_classification_colors_dict = self.classification_colors(dialog)
             else:
-                self.warn("No color chosen")
+                warn(self,
+                     self.plugin_name,
+                     "No color chosen")
                 return
             if len(polygon_classification_colors_dict) == 0:
-                self.warn("No defined colors")
+                warn(self,
+                     self.plugin_name,
+                     "No defined colors")
                 return
             else:
                 self.polygon_classification_colors = polygon_classification_colors_dict
@@ -2969,49 +3132,6 @@ class qprof_QWidget(QWidget):
 
         return polygon_classification_colors_dict
 
-    def profile_polygon_intersection(self, profile_qgsgeometry, polygon_layer, inters_polygon_classifaction_field_ndx):
-
-        intersection_polyline_polygon_crs_list = []
-
-        if polygon_layer.selectedFeatureCount() > 0:
-            features = polygon_layer.selectedFeatures()
-        else:
-            features = polygon_layer.getFeatures()
-
-        for polygon_feature in features:
-            # retrieve every (selected) feature with its geometry and attributes
-
-            # fetch geometry
-            poly_geom = polygon_feature.geometry()
-
-            intersection_qgsgeometry = poly_geom.intersection(profile_qgsgeometry)
-
-            try:
-                if intersection_qgsgeometry.isEmpty():
-                    continue
-            except:
-                try:
-                    if intersection_qgsgeometry.isGeosEmpty():
-                        continue
-                except:
-                    self.warn("Missing function for checking empty geometries.\nPlease upgrade QGIS")
-                    return
-
-            if inters_polygon_classifaction_field_ndx >= 0:
-                attrs = polygon_feature.attributes()
-                polygon_classification = attrs[inters_polygon_classifaction_field_ndx]
-            else:
-                polygon_classification = None
-
-            if intersection_qgsgeometry.isMultipart():
-                lines = intersection_qgsgeometry.asMultiPolyline()
-            else:
-                lines = [intersection_qgsgeometry.asPolyline()]
-
-            for line in lines:
-                intersection_polyline_polygon_crs_list.append([polygon_classification, line])
-
-        return intersection_polyline_polygon_crs_list
 
     def do_line_intersection(self):
 
@@ -3047,18 +3167,18 @@ class qprof_QWidget(QWidget):
                                                                        project_crs)
 
         # calculated Point intersection list
-        intersection_point_id_list = self.calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
+        intersection_point_id_list = calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
                                                                                id_list,
                                                                                self.profile_elements.source_profile_line2dt)
 
         # sort intersection points by spat_distance from profile start point
-        distances_from_profile_start_list = self.intersection_distances_by_profile_start_list(self.profile_elements.source_profile_line2dt,
+        distances_from_profile_start_list = intersection_distances_by_profile_start_list(self.profile_elements.source_profile_line2dt,
                                                                                               intersection_point_id_list)
 
         # create CartesianPoint from intersection with source DEM
         intersection_point_list = [pt2d for pt2d, _ in intersection_point_id_list]
         intersection_id_list = [id for _, id in intersection_point_id_list]
-        intersection_point3d_list = self.intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
+        intersection_point3d_list = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
                                                             intersection_point_list)
         intersection_colors = [color] * len(intersection_point_list)
 
@@ -3067,72 +3187,17 @@ class qprof_QWidget(QWidget):
 
         self.plot_profile_elements()
 
-    def intersect_with_dem(self, demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list):
 
-        # project to Dem CRS
-        if on_the_fly_projection and demParams.crs != project_crs:
-            qgs_point2d_list = [qgs_point_2d(point2D.x, point2D.y) for point2D in intersection_point_list]
-            dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
-                                                   qgs_point2d_list]
-            dem_crs_intersection_point_list = [Point(qgispt.x(), qgispt.y()) for qgispt in
-                                               dem_crs_intersection_qgispoint_list]
-        else:
-            dem_crs_intersection_point_list = intersection_point_list
 
-        # interpolate z values from Dem
-        z_list = [interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
-
-        return [Point(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
-
-    def calculate_profile_lines_intersection(self, multilines2d_list, id_list, profile_line2d):
-
-        profile_segment2d_list = profile_line2d.as_segments()
-
-        profile_segment2d = profile_segment2d_list[0]
-
-        intersection_list = []
-        for ndx, multiline2d in enumerate(multilines2d_list):
-            if id_list is None:
-                multiline_id = ''
-            else:
-                multiline_id = id_list[ndx]
-            for line2d in multiline2d.lines:
-                for line_segment2d in line2d.as_segments():
-                    try:
-                        intersection_point2d = profile_segment2d.intersection_2d_pt(line_segment2d)
-                    except ZeroDivisionError:
-                        continue
-                    if intersection_point2d is None:
-                        continue
-                    if line_segment2d.contains_2d_pt(intersection_point2d) and \
-                       profile_segment2d.contains_2d_pt(intersection_point2d):
-                        intersection_list.append([intersection_point2d, multiline_id])
-
-        return intersection_list
-
-    def intersection_distances_by_profile_start_list(self, profile_line, intersection_list):
-
-        # convert the profile line
-        # from a CartesianLine2DT to a CartesianSegment2DT
-        profile_segment2d_list = profile_line.as_segments()
-        # debug
-        assert len(profile_segment2d_list) == 1
-        profile_segment2d = profile_segment2d_list[0]
-
-        # determine distances for each point in intersection list
-        # creating a list of float values
-        distance_from_profile_start_list = []
-        for intersection_res in intersection_list:
-            distance_from_profile_start_list.append(profile_segment2d.start_pt.dist_2d(intersection_res[0]))
-
-        return distance_from_profile_start_list
 
     def do_export_image(self):
 
         try:
             profile_window = self.profile_windows[-1]
         except:
-            self.warn("Profile not yet calculated")
+            warn(self,
+                 self.plugin_name,
+                 "Profile not yet calculated")
             return
 
         dialog = FigureExportDialog()
@@ -3142,65 +3207,87 @@ class qprof_QWidget(QWidget):
             try:
                 fig_width_inches = float(dialog.figure_width_inches_QLineEdit.text())
             except:
-                self.warn("Error in figure width value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure width value")
                 return
 
             try:
                 fig_resolution_dpi = int(dialog.figure_resolution_dpi_QLineEdit.text())
             except:
-                self.warn("Error in figure resolution value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure resolution value")
                 return
 
             try:
                 fig_font_size_pts = float(dialog.figure_fontsize_pts_QLineEdit.text())
             except:
-                self.warn("Error in font size value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in font size value")
 
             try:
                 fig_outpath = unicode(dialog.figure_outpath_QLineEdit.text())
             except:
-                self.warn("Error in figure output path")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure output path")
                 return
 
             try:
                 top_space_value = float(dialog.top_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure top space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure top space value")
                 return
 
             try:
                 left_space_value = float(dialog.left_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure left space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure left space value")
                 return
 
             try:
                 right_space_value = float(dialog.right_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure right space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure right space value")
                 return
 
             try:
                 bottom_space_value = float(dialog.bottom_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure bottom space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure bottom space value")
                 return
 
             try:
                 blank_width_space = float(dialog.blank_width_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure blank widht space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure blank widht space value")
                 return
 
             try:
                 blank_height_space = float(dialog.blank_height_space_value_QDoubleSpinBox.value())
             except:
-                self.warn("Error in figure blank height space value")
+                warn(self,
+                     self.plugin_name,
+                     "Error in figure blank height space value")
                 return
 
         else:
 
-            self.warn("No export figure defined")
+            warn(self,
+                 self.plugin_name,
+                 "No export figure defined")
             return
 
         figure = profile_window.canvas.fig
@@ -3219,9 +3306,13 @@ class qprof_QWidget(QWidget):
         try:
             figure.savefig(str(fig_outpath), dpi=fig_resolution_dpi)
         except:
-            self.warn("Error with image saving")
+            warn(self,
+                 self.plugin_name,
+                 "Error with image saving")
         else:
-            self.info("Image saved")
+            info(self,
+                 self.plugin_name,
+                 "Image saved")
 
     def closeEvent(self, event):
 
@@ -3344,19 +3435,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         self.setWindowTitle("DEM(s) and line sources")
 
-
-    def info(self, msg):
-        QMessageBox.information(self, _plugin_name_, msg)
-
-
-    def warn(self, msg):
-        QMessageBox.warning(self, _plugin_name_, msg)
-
-
-    def error(self, msg):
-        QMessageBox.error(self, _plugin_name_, msg)
-
-
     def define_source_DEMs(self):
 
         ##self.profile_parameters = {}
@@ -3367,7 +3445,9 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         current_raster_layers = loaded_monoband_raster_layers()
         if len(current_raster_layers) == 0:
-            self.warn("No loaded DEM")
+            warn(self,
+                 self.plugin_name,
+                 "No loaded DEM")
             return
 
         dialog = SourceDEMsDialog(current_raster_layers)
@@ -3375,11 +3455,15 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         if dialog.exec_():
             selected_dems, selected_dem_colors = self.get_selected_dems_params(dialog)
         else:
-            self.warn("No chosen DEM")
+            warn(self,
+                 self.plugin_name,
+                 "No chosen DEM")
             return
 
         if len(selected_dems) == 0:
-            self.warn("No selected DEM")
+            warn(self,
+                 self.plugin_name,
+                 "No selected DEM")
             return
         else:
             self.selected_dems = selected_dems
@@ -3426,15 +3510,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         return line_layer, order_field_ndx
 
-
-    def info(self, msg):
-        QMessageBox.information(self, _plugin_name_, msg)
-
-
-    def warn(self, msg):
-        QMessageBox.warning(self, "qProf", msg)
-
-
     def get_point_list(self, dialog):
         raw_point_string = dialog.point_list_qtextedit.toPlainText()
         raw_point_list = raw_point_string.split("\n")
@@ -3453,15 +3528,21 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         if dialog.exec_():
             line2d = self.get_point_list(dialog)
         else:
-            self.warn("No defined line source")
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
             return
         try:
             npts = line2d.num_pts
             if npts < 2:
-                self.warn("Defined line source with less than two points")
+                warn(self,
+                     self.plugin_name,
+                     "Defined line source with less than two points")
                 return
         except:
-            self.warn("No defined line source")
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
             return
 
         self.dem_source_profile_line2dt = line2d
@@ -3524,7 +3605,9 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         current_line_layers = loaded_line_layers()
 
         if len(current_line_layers) == 0:
-            self.warn("No available line layers")
+            warn(self,
+                 self.plugin_name,
+                 "No available line layers")
             return
 
         dialog = SourceLineLayerDialog(current_line_layers)
@@ -3532,7 +3615,9 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         if dialog.exec_():
             line_layer, order_field_ndx = self.get_line_layer_params(dialog)
         else:
-            self.warn("No defined line source")
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
             return
 
         line_fld_ndx = int(order_field_ndx) - 1
@@ -3913,7 +3998,9 @@ class PlotTopoProfileDialog(QDialog):
         z_padding = 0.5
         delta_z = natural_elev_max - natural_elev_min
         if delta_z < 0.0:
-            self.warn("Error: min elevation larger then max elevation")
+            warn(self,
+                 self.plugin_name,
+                 "Error: min elevation larger then max elevation")
             return
         elif delta_z == 0.0:
             plot_z_min = floor(natural_elev_min) - 10
@@ -4198,7 +4285,9 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
         with open(output_file_path, "w") as ofile:
             ofile.write(out_configuration_string)
 
-        self.info("Graphic parameters saved")
+        info(self,
+             self.plugin_name,
+             "Graphic parameters saved")
 
     def output_graphic_params_load(self):
 
@@ -4221,7 +4310,9 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
             blank_width_space = float(config_lines[7].split("=")[1])
             blank_height_space = float(config_lines[8].split("=")[1])
         except:
-            self.warn("Error in configuration file")
+            warn(self,
+                 self.plugin_name,
+                 "Error in configuration file")
             return
 
         self.figure_width_inches_QLineEdit.setText(str(figure_width_inches))
@@ -4239,14 +4330,6 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
         outfile_path = new_file_path(self, "Create", "", "Images (*.svg *.pdf *.tif)")
 
         self.figure_outpath_QLineEdit.setText(outfile_path)
-
-    def info(self, msg):
-
-        QMessageBox.information(self, "qProf", msg)
-
-    def warn(self, msg):
-
-        QMessageBox.warning(self, "qProf", msg)
 
 
 class TopographicProfileExportDialog(QDialog):
@@ -4357,7 +4440,9 @@ class TopographicProfileExportDialog(QDialog):
         elif self.outtype_csv_QRadioButton.isChecked():
             outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
         else:
-            self.warn(self.tr("Output type definiton error"))
+            warn(self,
+                 self.plugin_name,
+                 self.tr("Output type definiton error"))
             return
 
         self.outpath_QLineEdit.setText(outfile_path)
@@ -4441,7 +4526,9 @@ class PointDataExportDialog(QDialog):
         elif self.outtype_csv_QRadioButton.isChecked():
             outfile_path = new_file_path(self, "Path", "*.csv", "Csv")
         else:
-            self.warn(self.tr("Output type definiton error"))
+            warn(self,
+                 self.plugin_name,
+                 self.tr("Output type definiton error"))
             return
 
         self.outpath_QLineEdit.setText(outfile_path)
@@ -4525,7 +4612,9 @@ class LineDataExportDialog(QDialog):
         elif self.outtype_csv_QRadioButton.isChecked():
             outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
         else:
-            self.warn(self.tr("Output type definiton error"))
+            warn(self,
+                 self.plugin_name,
+                 self.tr("Output type definiton error"))
             return
 
         self.outpath_QLineEdit.setText(outfile_path)

@@ -5,7 +5,7 @@ from math import *
 
 import numpy as np
 
-from ..gsf.geometry import Point, GAxis
+from ..gsf.geometry import Point, GAxis, GVect, Vect
 
 from .features import Segment, ParamLine3D
 from .profile import PlaneAttitude
@@ -14,19 +14,19 @@ from .errors import ConnectionException
 
 def calculate_distance_with_sign(projected_point, section_init_pt, section_vector):
 
-    assert projected_point.p_z != np.nan
-    assert projected_point.p_z is not None
+    assert projected_point.z != np.nan
+    assert projected_point.z is not None
 
     projected_vector = Segment(section_init_pt, projected_point).vector()
-    cos_alpha = section_vector.vectors_cos_angle(projected_vector)
+    cos_alpha = section_vector.cos_angle(projected_vector)
 
-    return projected_vector.length_3d * cos_alpha
+    return projected_vector.len_3d * cos_alpha
 
 
 def get_intersection_slope(intersection_versor_3d, section_vector):
 
-    slope_radians = abs(intersection_versor_3d.slope_radians())
-    scalar_product_for_downward_sense = section_vector.scalar_product(intersection_versor_3d.as_downvector())
+    slope_radians = abs(radians(intersection_versor_3d.slope))
+    scalar_product_for_downward_sense = section_vector.sp(intersection_versor_3d.downward)
     if scalar_product_for_downward_sense > 0.0:
         intersection_downward_sense = "right"
     elif scalar_product_for_downward_sense == 0.0:
@@ -39,25 +39,25 @@ def get_intersection_slope(intersection_versor_3d, section_vector):
 
 def calculate_intersection_versor(section_cartes_plane, structural_cartes_plane):
 
-    return section_cartes_plane.intersection_versor3d(structural_cartes_plane)
+    return section_cartes_plane.inters_versor(structural_cartes_plane)
 
 
 def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane, structural_cartes_plane,
                                    structural_pt):
 
-    dummy_inters_point = section_cartes_plane.intersection_point3dt(structural_cartes_plane)
+    dummy_inters_point = section_cartes_plane.inters_point(structural_cartes_plane)
     dummy_structural_vector = Segment(dummy_inters_point, structural_pt).vector()
-    dummy_distance = dummy_structural_vector.scalar_product(intersection_versor_3d)
+    dummy_distance = dummy_structural_vector.sp(intersection_versor_3d)
     offset_vector = intersection_versor_3d.scale(dummy_distance)
 
-    return Point(dummy_inters_point.p_x + offset_vector.x,
-                 dummy_inters_point.p_y + offset_vector.y,
-                 dummy_inters_point.p_z + offset_vector.z)
+    return Point(dummy_inters_point.x + offset_vector.x,
+                 dummy_inters_point.y + offset_vector.y,
+                 dummy_inters_point.z + offset_vector.z)
 
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
 
-    axis_versor = map_axis.versor_3d()
+    axis_versor = map_axis.as_vect().versor
     l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
     axis_param_line = ParamLine3D(structural_pt, l, m, n)
     return axis_param_line.intersect_cartes_plane(section_cartes_plane)
@@ -71,7 +71,7 @@ def map_measure_to_section(structural_rec, section_data, map_axis=None):
                                                             section_data['vector']
 
     # transform geological plane attitude into Cartesian plane      
-    structural_cartes_plane = structural_plane.as_cartesplane(structural_pt)
+    structural_cartes_plane = structural_plane.plane(structural_pt)
 
     ## intersection versor
     intersection_versor_3d = calculate_intersection_versor(section_cartes_plane, structural_cartes_plane)
@@ -140,6 +140,7 @@ class IntersectionParameters(object):
 
 
 class Intersections(object):
+
     def __init__(self):
 
         self.parameters = None
@@ -156,9 +157,7 @@ class Intersections(object):
         """
         Initialize a structured array of the possible and found links for each intersection.
         It will store a list of the possible connections for each intersection,
-        together with the found connections.
-        
-        
+        together with the found connections.       
         """
 
         # data type for structured array storing intersection parameters

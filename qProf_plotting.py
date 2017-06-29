@@ -11,7 +11,7 @@ colors_addit = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powde
                 "chartreuse"]
 
 
-def plot_structural_attitude(main_widget, axes, section_length, vertical_exaggeration, structural_attitude_list, color):
+def plot_structural_attitude(plot_addit_params, axes, section_length, vertical_exaggeration, structural_attitude_list, color):
 
     # TODO:  manage case for possible nan z values
     projected_z = [structural_attitude.pt_3d.z for structural_attitude in structural_attitude_list if
@@ -35,21 +35,21 @@ def plot_structural_attitude(main_widget, axes, section_length, vertical_exagger
 
             axes.plot(structural_segment_s, structural_segment_z, '-', color=color)
 
-    if main_widget.plot_prj_add_trendplunge_label.isChecked() or main_widget.plot_prj_add_pt_id_label.isChecked():
+    if plot_addit_params["add_trendplunge_label"] or plot_addit_params["add_ptid_label"]:
 
-        src_dip_dirs = [structural_attitude.src_geol_plane.dipdir for structural_attitude in
+        src_dip_dirs = [structural_attitude.src_geol_plane.dd for structural_attitude in
                         structural_attitude_list if 0.0 <= structural_attitude.sign_hor_dist <= section_length]
-        src_dip_angs = [structural_attitude.src_geol_plane.dipangle for structural_attitude in
+        src_dip_angs = [structural_attitude.src_geol_plane.da for structural_attitude in
                         structural_attitude_list if 0.0 <= structural_attitude.sign_hor_dist <= section_length]
 
         for rec_id, src_dip_dir, src_dip_ang, s, z in zip(projected_ids, src_dip_dirs, src_dip_angs, projected_s,
                                                           projected_z):
 
-            if main_widget.plot_prj_add_trendplunge_label.isChecked() and main_widget.plot_prj_add_pt_id_label.isChecked():
+            if plot_addit_params["add_trendplunge_label"] and plot_addit_params["add_ptid_label"]:
                 label = "%s-%03d/%02d" % (rec_id, src_dip_dir, src_dip_ang)
-            elif main_widget.plot_prj_add_pt_id_label.isChecked():
+            elif plot_addit_params["add_ptid_label"]:
                 label = "%s" % rec_id
-            elif main_widget.plot_prj_add_trendplunge_label.isChecked():
+            elif plot_addit_params["add_trendplunge_label"]:
                 label = "%03d/%02d" % (src_dip_dir, src_dip_ang)
 
             axes.annotate(label, (s + 15, z + 15))
@@ -71,21 +71,20 @@ def plot_profile_lines_intersection_points(axes, profile_lines_intersection_poin
             axes.annotate(str(intersection_id), (s + 25, pt3d.z + 25))
 
 
-def plot_profile_polygon_intersection_line(main_widget, axes, intersection_line_value):
+def plot_profile_polygon_intersection_line(plot_addit_params, axes, intersection_line_value):
 
     classification, line3d, s_list = intersection_line_value
     z_list = [pt3d.z for pt3d in line3d.pts]
 
-    if main_widget.polygon_classification_colors is None:
+    if plot_addit_params["polygon_class_colors"] is None:
         color = "red"
     else:
-        color = main_widget.polygon_classification_colors[unicode(classification)]
+        color = plot_addit_params["polygon_class_colors"][unicode(classification)]
 
     plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
 
-def plot_topo_profile_lines(main_widget, subplot_code, profile_window, topo_profiles, topo_type, plot_x_range,
-                            plot_y_range, topoline_colors, filled_choice):
+def plot_topo_profile_lines(profile_elements, subplot_code, profile_window, topo_type, plot_x_range, plot_y_range, filled_choice):
 
     def create_axes(subplot_code, profile_window, plot_x_range, plot_y_range):
 
@@ -99,19 +98,22 @@ def plot_topo_profile_lines(main_widget, subplot_code, profile_window, topo_prof
 
         return axes
 
+    topo_profiles = profile_elements.topo_profiles
+    topoline_colors = profile_elements.topoline_colors
+
     axes = create_axes(subplot_code,
                         profile_window,
                         plot_x_range,
                         plot_y_range)
 
-    if main_widget.profile_elements.plot_params['invert_xaxis']:
+    if profile_elements.plot_params['invert_xaxis']:
         axes.invert_xaxis()
 
     if topo_type == 'elevation':
         ys = topo_profiles.elevs
         plot_y_min = plot_y_range[0]
     else:
-        if main_widget.profile_elements.plot_params['plot_slope_absolute']:
+        if profile_elements.plot_params['plot_slope_absolute']:
             ys = topo_profiles.absolute_slopes
         else:
             ys = topo_profiles.dir_slopes
@@ -135,26 +137,26 @@ def plot_topo_profile_lines(main_widget, subplot_code, profile_window, topo_prof
     return axes
 
 
-def plot_profile_elements(main_widget, slope_padding=0.2):
+def plot_profile_elements(profile_elements, plot_addit_params, slope_padding=0.2):
 
-    vertical_exaggeration = main_widget.profile_elements.plot_params['vertical_exaggeration']
-    plot_s_min, plot_s_max = 0, main_widget.profile_elements.topo_profiles.profile_length
+    vertical_exaggeration = profile_elements.plot_params['vertical_exaggeration']
+    plot_s_min, plot_s_max = 0, profile_elements.topo_profiles.profile_length
 
-    plot_height_choice = main_widget.profile_elements.plot_params['plot_height_choice']
-    plot_slope_choice = main_widget.profile_elements.plot_params['plot_slope_choice']
+    plot_height_choice = profile_elements.plot_params['plot_height_choice']
+    plot_slope_choice = profile_elements.plot_params['plot_slope_choice']
 
     if plot_height_choice:
         # defines plot min and max values
-        plot_z_min = main_widget.profile_elements.plot_params['plot_min_elevation_user']
-        plot_z_max = main_widget.profile_elements.plot_params['plot_max_elevation_user']
+        plot_z_min = profile_elements.plot_params['plot_min_elevation_user']
+        plot_z_max = profile_elements.plot_params['plot_max_elevation_user']
 
     # if slopes to be calculated and plotted
     if plot_slope_choice:
         # defines slope value lists and the min and max values
-        if main_widget.profile_elements.plot_params['plot_slope_absolute']:
-            slopes = main_widget.profile_elements.topo_profiles.absolute_slopes
+        if profile_elements.plot_params['plot_slope_absolute']:
+            slopes = profile_elements.topo_profiles.absolute_slopes
         else:
-            slopes = main_widget.profile_elements.topo_profiles.dir_slopes
+            slopes = profile_elements.topo_profiles.dir_slopes
 
         profiles_slope_min = np.nanmin(np.array(map(np.nanmin, slopes)))
         profiles_slope_max = np.nanmax(np.array(map(np.nanmax, slopes)))
@@ -172,15 +174,13 @@ def plot_profile_elements(main_widget, slope_padding=0.2):
     subplot_code = mpl_code_list[0]
 
     if plot_height_choice:
-        axes_elevation = plot_topo_profile_lines(main_widget,
+        axes_elevation = plot_topo_profile_lines(profile_elements,
                                                  subplot_code,
-                                               profile_window,
-                                               main_widget.profile_elements.topo_profiles,
-                                               'elevation',
-                                               (plot_s_min, plot_s_max),
-                                               (plot_z_min, plot_z_max),
-                                               main_widget.profile_elements.topoline_colors,
-                                               main_widget.profile_elements.plot_params['filled_height'])
+                                                 profile_window,
+                                                 'elevation',
+                                                 (plot_s_min, plot_s_max),
+                                                 (plot_z_min, plot_z_max),
+                                                 profile_elements.plot_params['filled_height'])
 
         axes_elevation.set_aspect(vertical_exaggeration)
 
@@ -189,43 +189,41 @@ def plot_profile_elements(main_widget, slope_padding=0.2):
         if len(mpl_code_list) == 2:
             subplot_code = mpl_code_list[1]
 
-        plot_topo_profile_lines(main_widget,
+        plot_topo_profile_lines(profile_elements,
                                 subplot_code,
                                 profile_window,
-                                main_widget.profile_elements.topo_profiles,
                                 'slope',
                                 (plot_s_min, plot_s_max),
                                 (plot_slope_min, plot_slope_max),
-                                main_widget.profile_elements.topoline_colors,
-                                main_widget.profile_elements.plot_params['filled_slope'])
+                                profile_elements.plot_params['filled_slope'])
 
-    if len(main_widget.profile_elements.intersection_lines) > 0:
+    if len(profile_elements.intersection_lines) > 0:
 
-        for line_intersection_value in main_widget.profile_elements.intersection_lines:
-            plot_profile_polygon_intersection_line(main_widget,
+        for line_intersection_value in profile_elements.intersection_lines:
+            plot_profile_polygon_intersection_line(plot_addit_params,
                                                    axes_elevation,
                                                    line_intersection_value)
 
-    if len(main_widget.profile_elements.plane_attitudes) > 0:
+    if len(profile_elements.plane_attitudes) > 0:
 
-        for plane_attitude_set, color in zip(main_widget.profile_elements.plane_attitudes, main_widget.plane_attitudes_colors):
-            plot_structural_attitude(main_widget,
+        for plane_attitude_set, color in zip(profile_elements.plane_attitudes, plot_addit_params["plane_attitudes_colors"]):
+            plot_structural_attitude(plot_addit_params,
                                      axes_elevation,
-                                      plot_s_max,
-                                      vertical_exaggeration,
-                                      plane_attitude_set,
-                                      color)
+                                     plot_s_max,
+                                     vertical_exaggeration,
+                                     plane_attitude_set,
+                                     color)
 
-    if len(main_widget.profile_elements.curves) > 0:
+    if len(profile_elements.curves) > 0:
 
-        for curve_set, labels in zip(main_widget.profile_elements.curves, main_widget.profile_elements.curves_ids):
+        for curve_set, labels in zip(profile_elements.curves, profile_elements.curves_ids):
             plot_projected_line_set(axes_elevation,
                                     curve_set,
                                     labels)
 
-    if len(main_widget.profile_elements.intersection_pts) > 0:
+    if len(profile_elements.intersection_pts) > 0:
         plot_profile_lines_intersection_points(axes_elevation,
-                                               main_widget.profile_elements.intersection_pts)
+                                               profile_elements.intersection_pts)
 
     profile_window.canvas.draw()
 

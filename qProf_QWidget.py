@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import copy
 import os
 import unicodedata
 import webbrowser
 
 from qgis.core import QgsGeometry, QgsVectorLayer
 
-from .gsf.geometry import Plane, GPlane
+from .gsf.geometry import Plane, GPlane, GAxis, GVect, Vect
 from .gsf.array_utils import to_float
 
 from .gis_utils.features import Segment, MultiLine, Line, \
@@ -15,13 +14,10 @@ from .gis_utils.features import Segment, MultiLine, Line, \
 from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
 from .gis_utils.profile import Profile_Elements, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
     intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
-    calculate_pts_in_projection, profile_polygon_intersection, define_plot_structural_segment, \
-    calculate_projected_3d_pts
+    extract_multiline2d_list, profile_polygon_intersection, calculate_projected_3d_pts
 from .gis_utils.qgs_tools import *
 from .gis_utils.statistics import get_statistics
 from .gis_utils.errors import VectorInputException, VectorIOException
-
-from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
 
 from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
 from .qt_utils.tools import info, warn, error, update_ComboBox
@@ -55,6 +51,7 @@ class qprof_QWidget(QWidget):
         self.demline_source = "demline"
         self.gpxfile_source = "gpxfile"
         self.digitized_profile_line2dt = None
+        self.polygon_classification_colors = None
 
         self.profile_elements = None
 
@@ -1604,8 +1601,14 @@ class qprof_QWidget(QWidget):
 
         # plot profiles
 
-        profile_window = plot_profile_elements(self)
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def export_parse_DEM_results(self, profiles_elements):
@@ -2306,8 +2309,6 @@ class qprof_QWidget(QWidget):
 
         return [combobox.currentText() for combobox in combobox_list]
 
-
-
     def calculate_section_data(self):
 
         sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
@@ -2433,10 +2434,16 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
 
-        ### plot structural points in section ###
+        # plot profiles
 
-        profile_window = plot_profile_elements(self)
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
         self.profile_windows.append(profile_window)
 
 
@@ -2500,7 +2507,7 @@ class qprof_QWidget(QWidget):
 
         # read structural line values
         id_list = field_values(structural_line_layer, prj_struct_line_id_field_ndx)
-        line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
+        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
                                                                        project_crs)
 
         # densify with provided spat_distance
@@ -2539,7 +2546,7 @@ class qprof_QWidget(QWidget):
         # create projection vector        
         trend = float(self.common_axis_line_trend_SpinBox.value())
         plunge = float(self.common_axis_line_plunge_SpinBox.value())
-        axis_versor = GeolAxis(trend, plunge).versor_3d()
+        axis_versor = GAxis(trend, plunge).as_vect().versor
         l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
 
         # calculation of Cartesian plane expressing section plane        
@@ -2582,10 +2589,16 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_curves(curves_2d_list, id_list)
 
-        # plot new cross section
+        # plot profiles
 
-        profile_window = plot_profile_elements(self)
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def reset_structural_lines_projection(self):
@@ -2770,16 +2783,17 @@ class qprof_QWidget(QWidget):
         on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
 
         if on_the_fly_projection and polygon_layer_crs != project_crs:
-            profile_line2d_polycrs_densif = line2d_change_crs(profile_line2d_prjcrs_densif, project_crs,
-                                                              polygon_layer_crs)
+            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif.crs_project(project_crs,
+                                                                                     polygon_layer_crs)
         else:
             profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
 
         profile_qgsgeometry = QgsGeometry.fromPolyline(
             [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
-        success, return_data = profile_polygon_intersection(profile_qgsgeometry, polygon_layer,
-                                                                              inters_polygon_classifaction_field_ndx)
+        success, return_data = profile_polygon_intersection(profile_qgsgeometry,
+                                                            polygon_layer,
+                                                            inters_polygon_classifaction_field_ndx)
 
         if not success:
             error(self,
@@ -2801,8 +2815,8 @@ class qprof_QWidget(QWidget):
             rec_classification, xy_tuple_list = intersection_polyline_polygon_crs
             intersection_polygon_crs_line2d = xytuple_list_to_Line(xy_tuple_list)
             if on_the_fly_projection and polygon_layer_crs != project_crs:
-                intersection_prj_crs_line2d = line2d_change_crs(intersection_polygon_crs_line2d, polygon_layer_crs,
-                                                                project_crs)
+                intersection_prj_crs_line2d = intersection_polygon_crs_line2d.crs_project(polygon_layer_crs,
+                                                                                            project_crs)
             else:
                 intersection_prj_crs_line2d = intersection_polygon_crs_line2d
             intersection_line2d_prj_crs_list.append([rec_classification, intersection_prj_crs_line2d])
@@ -2851,8 +2865,16 @@ class qprof_QWidget(QWidget):
 
         self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
-        profile_window = plot_profile_elements(self)
+        # plot profiles
 
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
+
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def classification_colors(self, dialog):
@@ -2898,7 +2920,7 @@ class qprof_QWidget(QWidget):
         else:
             id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
 
-        line_proj_crs_MultiLine2D_list = self.extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
+        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
                                                                        project_crs)
 
         # calculated Point intersection list
@@ -2920,8 +2942,16 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_intersections_pts(
             zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list, intersection_colors))
 
-        profile_window = plot_profile_elements(self)
+        # plot profiles
 
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
+
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
         self.profile_windows.append(profile_window)
 
 

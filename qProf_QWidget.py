@@ -26,7 +26,9 @@ from .string_utils.utils_string import clean_string
 
 from qProf_plotting import plot_profile_elements
 from qProf_export import write_intersection_polygon_lnshp, write_topography_allDEMs_csv, write_topography_singleDEM_csv, \
-          write_generic_csv, write_line_csv, write_topography_allDEMs_ptshp, write_topography_allDEMs_lnshp
+          write_generic_csv, write_line_csv, write_topography_allDEMs_ptshp, write_topography_allDEMs_lnshp, \
+          write_geological_attitudes_ptshp, write_profile_lnshp, write_topography_GPX_lnshp, write_topography_singleDEM_lnshp, \
+          write_topography_singleDEM_ptshp, write_topography_GPX_ptshp, write_intersection_line_ptshp
 
 
 class qprof_QWidget(QWidget):
@@ -1022,18 +1024,27 @@ class qprof_QWidget(QWidget):
 
         # output for csv file
         if output_format == "csv":
-            write_generic_csv(output_filepath, header_list, parsed_geologicalattitudes_results)
+            success, msg = write_generic_csv(output_filepath, header_list, parsed_geologicalattitudes_results)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif output_format == "shapefile - point":
-            self.write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
+            success, msg = write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
             error(self,
                   self.plugin_name,
                   "Debug: error in export format")
             return
 
-        info(self,
-             self.plugin_name,
-             "Projected attitudes saved")
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Projected attitudes saved")
 
     def do_export_project_geol_lines(self):
 
@@ -1147,16 +1158,27 @@ class qprof_QWidget(QWidget):
 
         # output for csv file
         if output_format == "csv":
-            write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
+            success, msg = write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif output_format == "shapefile - point":
-            self.write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
+            success, msg = write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
             error(self,
                   self.plugin_name,
                   "Debug: error in export format")
             return
 
-
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Line intersections saved")
 
     def save_rubberband(self):
 
@@ -1221,73 +1243,32 @@ class qprof_QWidget(QWidget):
 
         points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
         if output_format == "csv":
-            write_generic_csv(output_filepath,
-                                   ['id', 'x', 'y'],
-                                   points)
+            success, msg = write_generic_csv(output_filepath,
+                                             ['id', 'x', 'y'],
+                                             points)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif output_format == "shapefile - line":
-            self.write_profile_lnshp(output_filepath,
-                                     ['id'],
-                                     points,
-                                     proj_sr)
+            success, msg = write_profile_lnshp(output_filepath,
+                                               ['id'],
+                                               points,
+                                               proj_sr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
             error(self,
                   self.plugin_name,
                   "Debug: error in export format")
             return
 
-        info(self,
-             self.plugin_name,
-             "Line saved")
-
-    def write_profile_lnshp(self, fileName, header_list, points, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
-                     self.plugin_name,
-                     "%s driver is not available" % shape_driver_name)
-            return
-
-        try:
-            shp_datasource = shape_driver.CreateDataSource(unicode(fileName))
-        except TypeError:
-            shp_datasource = shape_driver.CreateDataSource(str(fileName))
-
-        if shp_datasource is None:
-            warn(self,
-                     self.plugin_name,
-                     "Creation of %s shapefile failed" % os.path.split(fileName)[1])
-            return
-
-        lnshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString)
-        if lnshp_layer is None:
-            warn(self,
-                     self.plugin_name,
-                     "Output layer creation failed")
-            return
-
-        # creates required fields
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
-
-        # loops through output records
-
-        for ndx in range(len(points)-1):
-
-            _, x0, y0 = points[ndx]
-            _, x1, y1 = points[ndx+1]
-
-            ln_feature = ogr.Feature(lnshp_featureDefn)
-            segment_2d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f, %f %f)' % (x0, y0, x1, y1))
-            ln_feature.SetGeometry(segment_2d)
-
-            ln_feature.SetField(header_list[0], 1)
-            lnshp_layer.CreateFeature(ln_feature)
-
-            ln_feature.Destroy()
-
-        shp_datasource.Destroy()
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Line saved")
 
     def do_export_polygon_intersections(self):
 
@@ -1362,20 +1343,25 @@ class qprof_QWidget(QWidget):
 
         # output for csv file
         if output_format == "csv":
-            write_line_csv(output_filepath, header_list, self.profile_elements.intersection_lines)
-        elif output_format == "shapefile - line":
-            success, msg = write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines, sr)
-            if success:
-                info(self,
+            success, msg = write_line_csv(output_filepath, header_list, self.profile_elements.intersection_lines)
+            if not success:
+                warn(self,
                      self.plugin_name,
                      msg)
-            else:
+        elif output_format == "shapefile - line":
+            success, msg = write_intersection_polygon_lnshp(output_filepath, header_list, self.profile_elements.intersection_lines, sr)
+            if not success:
                 warn(self,
                      self.plugin_name,
                      msg)
         else:
             error("Debug: error in export format")
             return
+
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Polygon intersections saved")
 
     def struct_point_refresh_lyr_combobox(self):
 
@@ -1565,16 +1551,17 @@ class qprof_QWidget(QWidget):
             error("Debug: error in export all DEMs")
             return
 
-        info(self,
-             self.plugin_name,
-             "Profile export ended")
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Profile export completed")
 
     def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
 
         if self.profile_elements.profile_source_type != self.demline_source:
             warn(self,
-                     self.plugin_name,
-                     "No DEM-derived profile defined")
+                 self.plugin_name,
+                 "No DEM-derived profile defined")
             return
 
         # process results for data export
@@ -1584,20 +1571,33 @@ class qprof_QWidget(QWidget):
         header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "dirslop"]
 
         if out_format == "csv":
-            write_topography_singleDEM_csv(outfile_path, header_list, export_data, ndx_dem_to_export)
+            success, msg = write_topography_singleDEM_csv(outfile_path, header_list, export_data, ndx_dem_to_export)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif out_format == "shapefile - point":
-            self.write_topography_singleDEM_ptshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
+            success, msg = write_topography_singleDEM_ptshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif out_format == "shapefile - line":
-            self.write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
+            success, msg = write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
             error(self,
                   self.plugin_name,
                  "Debug: error in export single DEM")
             return
 
-        info(self,
-             self.plugin_name,
-             "Profile export completed")
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Profile export completed")
 
     def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
 
@@ -1608,311 +1608,40 @@ class qprof_QWidget(QWidget):
             return
 
         # process results from export
-        gpx_parsed_results = self.export_gpx_parse_results()
+        gpx_parsed_results = self.export_parse_gpx_results()
 
         # definition of field names        
         header_list = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "dirslop"]
-        # header_list = [unicodedata.normalize('NFKD', unicode(header)).encode('ascii', 'ignore') for header in header_list]
 
         if out_format == "csv":
-            write_generic_csv(output_filepath, header_list, gpx_parsed_results)
+            success, msg = write_generic_csv(output_filepath, header_list, gpx_parsed_results)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif out_format == "shapefile - point":
-            self.write_topography_GPX_ptshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
+            success, msg = write_topography_GPX_ptshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         elif out_format == "shapefile - line":
-            self.write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
+            success, msg = write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
             error(self,
                   self.plugin_name,
                  "Debug: error in export single DEM")
             return
 
-        info(self,
-             self.plugin_name,
-             "Profile export completed")
-
-
-    def write_topography_singleDEM_ptshp(self, fileName, header_list, export_data, current_dem_ndx, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
+        if success:
+            info(self,
                  self.plugin_name,
-                 "%s driver is not available" % shape_driver_name)
-            return
+                 "Profile export completed")
 
-        try:
-            ptshp_datasource = shape_driver.CreateDataSource(unicode(fileName))
-        except TypeError:
-            ptshp_datasource = shape_driver.CreateDataSource(str(fileName))
-
-        if ptshp_datasource is None:
-            warn(self,
-                 self.plugin_name,
-                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
-            return
-
-        ptshp_layer = ptshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
-        if ptshp_layer is None:
-            warn(self,
-                 self.plugin_name,
-                 "Output layer creation failed")
-            return
-
-            # creates required fields
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[1], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[3], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[4], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
-
-        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
-
-        # loops through output records   
-
-        for rec in export_data:
-
-            rec_id, x, y, cumdist2D = rec[0], rec[1], rec[2], rec[3]
-            z = rec[3 + current_dem_ndx * 3 + 1]
-            cumdist3D = rec[3 + current_dem_ndx * 3 + 2]
-            slopedegr = rec[3 + current_dem_ndx * 3 + 3]
-
-            if z == "":
-                continue
-
-            pt_feature = ogr.Feature(ptshp_featureDefn)
-
-            pt = ogr.Geometry(ogr.wkbPoint)
-            pt.SetPoint_2D(0, x, y)
-            pt_feature.SetGeometry(pt)
-
-            pt_feature.SetField(header_list[0], rec_id)
-            pt_feature.SetField(header_list[1], x)
-            pt_feature.SetField(header_list[2], y)
-            pt_feature.SetField(header_list[3], cumdist2D)
-            pt_feature.SetField(header_list[4], z)
-            if cumdist3D != '':
-                pt_feature.SetField(header_list[5], cumdist3D)
-            if slopedegr != '':
-                pt_feature.SetField(header_list[6], slopedegr)
-
-            ptshp_layer.CreateFeature(pt_feature)
-            pt_feature.Destroy()
-        ptshp_datasource.Destroy()
-
-    def write_topography_GPX_ptshp(self, output_filepath, header_list, gpx_parsed_results, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
-                 self.plugin_name,
-                 "%s driver is not available" % shape_driver_name)
-            return
-
-        try:
-            shp_datasource = shape_driver.CreateDataSource(unicode(output_filepath))
-        except TypeError:
-            shp_datasource = shape_driver.CreateDataSource(str(output_filepath))
-
-        if shp_datasource is None:
-            warn(self,
-                 self.plugin_name,
-                 "Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
-            return
-
-        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint)
-        if ptshp_layer is None:
-            warn(self,
-                 self.plugin_name,
-                 "Point layer creation failed")
-            return
-
-            # creates required fields
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[1], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTReal))
-        time_field = ogr.FieldDefn(header_list[3], ogr.OFTString)
-        time_field.SetWidth(20)
-        ptshp_layer.CreateField(time_field)
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[4], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn(header_list[7], ogr.OFTReal))
-
-        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
-
-        # loops through output records                       
-        for rec in gpx_parsed_results:
-
-            pt_feature = ogr.Feature(ptshp_featureDefn)
-
-            pt = ogr.Geometry(ogr.wkbPoint)
-            pt.SetPoint_2D(0, rec[2], rec[1])
-            pt_feature.SetGeometry(pt)
-
-            pt_feature.SetField(header_list[0], rec[0])
-            pt_feature.SetField(header_list[1], rec[1])
-            pt_feature.SetField(header_list[2], rec[2])
-
-            pt_feature.SetField(header_list[3], str(rec[3]))
-            if rec[4] != '':
-                pt_feature.SetField(header_list[4], str(rec[4]))
-            pt_feature.SetField(header_list[5], rec[5])
-            if rec[6] != '':
-                pt_feature.SetField(header_list[6], rec[6])
-            if rec[7] != '':
-                pt_feature.SetField(header_list[7], rec[7])
-
-            ptshp_layer.CreateFeature(pt_feature)
-
-            pt_feature.Destroy()
-
-        shp_datasource.Destroy()
-
-    def write_topography_singleDEM_lnshp(self, fileName, header_list, export_data, current_dem_ndx, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
-                 self.plugin_name,
-                 "%s driver is not available" % shape_driver_name)
-            return
-
-        try:
-            lnshp_datasource = shape_driver.CreateDataSource(unicode(fileName))
-        except TypeError:
-            lnshp_datasource = shape_driver.CreateDataSource(str(fileName))
-
-        if lnshp_datasource is None:
-            warn(self,
-                 self.plugin_name,
-                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
-            return
-
-        lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
-        if lnshp_layer is None:
-            warn(self,
-                 self.plugin_name,
-                 "Output layer creation failed")
-            return
-
-            # creates required fields
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[3], ogr.OFTReal))
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
-
-        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
-
-        # loops through output records   
-
-        for ndx in range(len(export_data) - 1):
-
-            rec_a = export_data[ndx]
-            rec_b = export_data[ndx + 1]
-
-            rec_id = rec_a[0]
-            x0, y0, z0 = rec_a[1], rec_a[2], rec_a[3 + current_dem_ndx * 3 + 1]
-            x1, y1, z1 = rec_b[1], rec_b[2], rec_b[3 + current_dem_ndx * 3 + 1]
-            cum3ddist = rec_b[3 + current_dem_ndx * 3 + 2]
-            slope_degr = rec_b[3 + current_dem_ndx * 3 + 3]
-
-            if z0 == '' or z1 == '':
-                continue
-
-            ln_feature = ogr.Feature(lnshp_featureDefn)
-            segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (x0, y0, z0, x1, y1, z1))
-            ln_feature.SetGeometry(segment_3d)
-
-            ln_feature.SetField(header_list[0], rec_id)
-            ln_feature.SetField(header_list[3], rec_b[3])
-
-            if cum3ddist != '':
-                ln_feature.SetField(header_list[5], cum3ddist)
-
-            if slope_degr != '':
-                ln_feature.SetField(header_list[6], slope_degr)
-
-            lnshp_layer.CreateFeature(ln_feature)
-            ln_feature.Destroy()
-        lnshp_datasource.Destroy()
-
-    def write_topography_GPX_lnshp(self, output_filepath, header_list, gpx_parsed_results, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
-                 self.plugin_name,
-                 "%s driver is not available" % shape_driver_name)
-            return
-
-        try:
-            lnshp_datasource = shape_driver.CreateDataSource(unicode(output_filepath))
-        except TypeError:
-            lnshp_datasource = shape_driver.CreateDataSource(str(output_filepath))
-
-        if lnshp_datasource is None:
-            warn(self,
-                 self.plugin_name,
-                 "Creation of %s shapefile failed" % os.path.split(output_filepath)[1])
-            return
-
-        lnshp_layer = lnshp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbLineString25D)
-        if lnshp_layer is None:
-            warn(self,
-                 self.plugin_name,
-                 "Output layer creation failed")
-            return
-
-            # creates required fields
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-        time_beg_field = ogr.FieldDefn('time_beg', ogr.OFTString)
-        time_beg_field.SetWidth(20)
-        lnshp_layer.CreateField(time_beg_field)
-        time_end_field = ogr.FieldDefn('time_end', ogr.OFTString)
-        time_end_field.SetWidth(20)
-        lnshp_layer.CreateField(time_end_field)
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
-        lnshp_layer.CreateField(ogr.FieldDefn(header_list[7], ogr.OFTReal))
-
-        lnshp_featureDefn = lnshp_layer.GetLayerDefn()
-
-        # loops through output records                     
-        for ndx in range(len(gpx_parsed_results) - 1):
-
-            rec_a = gpx_parsed_results[ndx]
-            rec_b = gpx_parsed_results[ndx + 1]
-
-            lon0, lat0, z0 = rec_a[2], rec_a[1], rec_a[4]
-            lon1, lat1, z1 = rec_b[2], rec_b[1], rec_b[4]
-
-            if z0 == '' or z1 == '':
-                continue
-
-            ln_feature = ogr.Feature(lnshp_featureDefn)
-            segment_3d = ogr.CreateGeometryFromWkt('LINESTRING(%f %f %f, %f %f %f)' % (lon0, lat0, z0, lon1, lat1, z1))
-            ln_feature.SetGeometry(segment_3d)
-
-            ln_feature.SetField(header_list[0], rec_a[0])
-            ln_feature.SetField('time_beg', str(rec_a[3]))
-            ln_feature.SetField('time_end', str(rec_b[3]))
-            ln_feature.SetField(header_list[5], rec_b[5])
-            if rec_b[6] != '':
-                ln_feature.SetField(header_list[6], rec_b[6])
-            if rec_b[7] != '':
-                ln_feature.SetField(header_list[7], rec_b[7])
-
-            lnshp_layer.CreateFeature(ln_feature)
-
-            ln_feature.Destroy()
-
-        lnshp_datasource.Destroy()
 
     def gpx_profile_check_parameters(self):
 
@@ -1928,7 +1657,7 @@ class qprof_QWidget(QWidget):
 
         return True, 'OK'
 
-    def export_gpx_parse_results(self):
+    def export_parse_gpx_results(self):
 
         # definition of output results
         topo_profile = self.profile_elements.topo_profiles
@@ -2347,79 +2076,6 @@ class qprof_QWidget(QWidget):
                     for pt in line.pts:
                         data_list.append([rec_id, pt.x, pt.y])
         return data_list
-
-    def write_geological_attitudes_ptshp(self, fileName, parsed_crosssect_results, sr):
-
-        shape_driver_name = "ESRI Shapefile"
-        shape_driver = ogr.GetDriverByName(shape_driver_name)
-        if shape_driver is None:
-            warn(self,
-                 self.plugin_name,
-                 "%s driver is not available" % shape_driver_name)
-            return
-
-        try:
-            shp_datasource = shape_driver.CreateDataSource(unicode(fileName))
-        except TypeError:
-            shp_datasource = shape_driver.CreateDataSource(str(fileName))
-
-        if shp_datasource is None:
-            warn(self,
-                 self.plugin_name,
-                 "Creation of %s shapefile failed" % os.path.split(fileName)[1])
-            return
-
-        ptshp_layer = shp_datasource.CreateLayer('profile', sr, geom_type=ogr.wkbPoint25D)
-        if ptshp_layer is None:
-            warn(self,
-                 self.plugin_name,
-                 "Output layer creation failed")
-            return
-
-        # creates required fields
-        ptshp_layer.CreateField(ogr.FieldDefn('id', ogr.OFTString))
-        ptshp_layer.CreateField(ogr.FieldDefn('or_pt_x', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('or_pt_y', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('or_pt_z', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('prj_pt_x', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('prj_pt_y', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('prj_pt_z', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('s', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('or_dpdir', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('or_dpang', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('tr_dpang', ogr.OFTReal))
-        ptshp_layer.CreateField(ogr.FieldDefn('tr_dpdir', ogr.OFTString))
-
-        ptshp_featureDefn = ptshp_layer.GetLayerDefn()
-
-        # loops through output records
-        for rec in parsed_crosssect_results:
-            pt_id, or_pt_x, or_pt_y, or_pt_z, pr_pt_x, pr_pt_y, pr_pt_z, s, or_dipdir, or_dipangle, tr_dipangle, tr_dipdir = rec
-
-            pt_feature = ogr.Feature(ptshp_featureDefn)
-
-            pt = ogr.Geometry(ogr.wkbPoint25D)
-            pt.SetPoint(0, pr_pt_x, pr_pt_y, pr_pt_z)
-            pt_feature.SetGeometry(pt)
-
-            pt_feature.SetField('id', str(pt_id))
-            pt_feature.SetField('or_pt_x', or_pt_x)
-            pt_feature.SetField('or_pt_y', or_pt_y)
-            pt_feature.SetField('or_pt_z', or_pt_z)
-            pt_feature.SetField('prj_pt_x', pr_pt_x)
-            pt_feature.SetField('prj_pt_y', pr_pt_y)
-            pt_feature.SetField('prj_pt_z', pr_pt_z)
-            pt_feature.SetField('s', s)
-            pt_feature.SetField('or_dpdir', or_dipdir)
-            pt_feature.SetField('or_dpang', or_dipangle)
-            pt_feature.SetField('tr_dpang', tr_dipangle)
-            pt_feature.SetField('tr_dpdir', str(tr_dipdir))
-
-            ptshp_layer.CreateFeature(pt_feature)
-
-            pt_feature.Destroy()
-
-        shp_datasource.Destroy()
 
 
     def line_intersection_reset(self):

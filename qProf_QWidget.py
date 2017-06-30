@@ -2801,46 +2801,52 @@ class qprof_QWidget(QWidget):
                   return_data)
             return
 
-        intersection_polyline_polygon_crs_list = return_data
+        lIntersectPolylinePolygonCrs = return_data
 
-        if len(intersection_polyline_polygon_crs_list) == 0:
+        if len(lIntersectPolylinePolygonCrs) == 0:
             warn(self,
                  self.plugin_name,
                  "No intersection found")
             return
 
         # transform polyline intersections into prj crs line2d & classification list
-        intersection_line2d_prj_crs_list = []
-        for intersection_polyline_polygon_crs in intersection_polyline_polygon_crs_list:
+        lIntersLine2dPrjCrs = []
+        for intersection_polyline_polygon_crs in lIntersectPolylinePolygonCrs:
             rec_classification, xy_tuple_list = intersection_polyline_polygon_crs
             intersection_polygon_crs_line2d = xytuple_list_to_Line(xy_tuple_list)
             if on_the_fly_projection and polygon_layer_crs != project_crs:
                 intersection_prj_crs_line2d = intersection_polygon_crs_line2d.crs_project(polygon_layer_crs,
-                                                                                            project_crs)
+                                                                                          project_crs)
             else:
                 intersection_prj_crs_line2d = intersection_polygon_crs_line2d
-            intersection_line2d_prj_crs_list.append([rec_classification, intersection_prj_crs_line2d])
+            lIntersLine2dPrjCrs.append([rec_classification, intersection_prj_crs_line2d])
 
-        # create CartesianPoint lists from intersection with source DEM
+        # create Point lists from intersection with source DEM
 
         polygon_classification_set = set()
         sect_pt_1, sect_pt_2 = self.profile_elements.source_profile_line2dt.pts
         formation_list = []
         intersection_line3d_list = []
         intersection_polygon_s_list2 = []
-        for polygon_classification, line2d in intersection_line2d_prj_crs_list:
+        for polygon_classification, line2d in lIntersLine2dPrjCrs:
             polygon_classification_set.add(polygon_classification)
 
-            intersection_line3d = Line(
-                intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts))
+            lptIntersPts3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts)
+            lineIntersectionLine3d = Line(lptIntersPts3d)
 
-            s0_list = intersection_line3d.incremental_length_2d()
-            s_start = sect_pt_1.dist_3d(intersection_line3d.pts[0])
+            s0_list = lineIntersectionLine3d.incremental_length_2d()
+            s_start = sect_pt_1.dist_2d(lineIntersectionLine3d.pts[0])
             s_list = [s + s_start for s in s0_list]
 
             formation_list.append(polygon_classification)
-            intersection_line3d_list.append(intersection_line3d)
+            intersection_line3d_list.append(lineIntersectionLine3d)
             intersection_polygon_s_list2.append(s_list)
+
+        if len(intersection_polygon_s_list2) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No reprojected intersection")
+            return
 
         # create windows for user_definition of intersection colors in profile
         if polygon_classification_set != set() and polygon_classification_set != set([None]):
@@ -2866,7 +2872,6 @@ class qprof_QWidget(QWidget):
         self.profile_elements.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
         # plot profiles
-
         plot_addit_params = dict()
         plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
         plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
@@ -3317,8 +3322,8 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
 
-            qgspt_start_src_crs = qgs_point_2d(x, y)
-            qgspt_end_src_crs = qgs_point_2d(x + delta_x, y + delta_y)
+            qgspt_start_src_crs = qgs_pt(x, y)
+            qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
 
             qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
             qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)

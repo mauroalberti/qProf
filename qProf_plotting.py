@@ -2,8 +2,10 @@
 import numpy as np
 
 from .gis_utils.profile import define_plot_structural_segment
-
 from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+
+
+
 
 colors_addit = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen",
                 "palevioletred",
@@ -165,6 +167,7 @@ def plot_profile_elements(profile_elements, plot_addit_params, slope_padding=0.2
         plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope * slope_padding, profiles_slope_max + delta_slope * slope_padding
 
     # map
+
     profile_window = MplWidget()
 
     if plot_height_choice and plot_slope_choice:
@@ -198,7 +201,6 @@ def plot_profile_elements(profile_elements, plot_addit_params, slope_padding=0.2
                                 profile_elements.plot_params['filled_slope'])
 
     if len(profile_elements.intersection_lines) > 0:
-
         for line_intersection_value in profile_elements.intersection_lines:
             plot_profile_polygon_intersection_line(plot_addit_params,
                                                    axes_elevation,

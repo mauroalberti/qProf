@@ -252,7 +252,7 @@ def raster_qgis_params(raster_layer):
     return name, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue, crs
 
 
-def qgs_point_2d(x, y):
+def qgs_pt(x, y):
 
     return QgsPoint(x, y)
 
@@ -264,9 +264,9 @@ def project_qgs_point(qgsPt, srcCrs, destCrs):
 
 def project_point(pt, srcCrs, destCrs):
 
-    qgs_pt = qgs_point_2d(pt.x, pt.y)
-    projected_qgs_point = project_qgs_point(qgs_pt, srcCrs, destCrs)
-    proj_x, proj_y = projected_qgs_point.x(), projected_qgs_point.y()
+    qgs_pt = QgsPoint(pt.x, pt.y)
+    proj_qgs_pt = project_qgs_point(qgs_pt, srcCrs, destCrs)
+    proj_x, proj_y = proj_qgs_pt.x(), proj_qgs_pt.y()
 
     return Point(proj_x, proj_y)
 

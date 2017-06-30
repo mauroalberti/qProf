@@ -5,12 +5,14 @@ import resources
 
 from qProf_QWidget import qprof_QWidget
 
+_plugin_name_ = "qProf"
+
 
 class qProf_main(object):
 
     def __init__(self, interface):
 
-        self.plugin_name = "qProf"
+        self.plugin_name = _plugin_name_
         self.interface = interface
         self.main_window = self.interface.mainWindow()
         self.canvas = self.interface.mapCanvas()
@@ -18,7 +20,7 @@ class qProf_main(object):
 
     def initGui(self):
 
-        self.qprof_QAction = QAction(QIcon(":/plugins/qProf/icon.png"),
+        self.qprof_QAction = QAction(QIcon(":/plugins/{}/icon.png".format(self.plugin_name)),
                                      self.plugin_name,
                                      self.interface.mainWindow())
         self.qprof_QAction.setWhatsThis("Topographic and geological profiles")

@@ -359,22 +359,32 @@ def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
     return topo_profiles
 
 
-def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, intersection_point_list):
+def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, lIntersPts):
+    """
+    
+    :param demLayer: 
+    :param demParams: 
+    :param on_the_fly_projection: 
+    :param project_crs: 
+    :param lIntersPts: 
+    :return: a list of Point instances
+    """
 
     # project to Dem CRS
     if on_the_fly_projection and demParams.crs != project_crs:
-        qgs_point2d_list = [qgs_point_2d(point2D.x, point2D.y) for point2D in intersection_point_list]
-        dem_crs_intersection_qgispoint_list = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
-                                               qgs_point2d_list]
-        dem_crs_intersection_point_list = [Point(qgispt.x(), qgispt.y()) for qgispt in
-                                           dem_crs_intersection_qgispoint_list]
+        lQgsPoints = [qgs_pt(pt.x, pt.y) for pt in lIntersPts]
+        lDemCrsIntersQgsPoints = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
+                                               lQgsPoints]
+        lDemCrsIntersPts = [Point(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
     else:
-        dem_crs_intersection_point_list = intersection_point_list
+        lDemCrsIntersPts = lIntersPts
 
     # interpolate z values from Dem
-    z_list = [interpolate_z(demLayer, demParams, pt_2d) for pt_2d in dem_crs_intersection_point_list]
+    lZVals = [interpolate_z(demLayer, demParams, pt) for pt in lDemCrsIntersPts]
 
-    return [Point(pt2d.x, pt2d.y, z) for pt2d, z in zip(intersection_point_list, z_list)]
+    lXYZVals = [(pt2d.x, pt2d.y, z) for pt2d, z in zip(lIntersPts, lZVals)]
+
+    return [Point(x, y, z) for x, y, z in lXYZVals]
 
 
 def calculate_profile_lines_intersection(multilines2d_list, id_list, profile_line2d):
@@ -426,7 +436,7 @@ def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
 
     pts_in_prj_crs = []
     for pt in pts_in_orig_crs:
-        qgs_pt = qgs_point_2d(pt.x, pt.y)
+        qgs_pt = qgs_pt(pt.x, pt.y)
         qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
         pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
     return pts_in_prj_crs

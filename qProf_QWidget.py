@@ -732,10 +732,11 @@ class qprof_QWidget(QWidget):
             return profile_elements
 
         if self.prof_toposources_fromdems_checkbox.isChecked():
-            dialog = TopoSourceFromDEMAndLineDialog(self.canvas)
+            dialog = TopoSourceFromDEMAndLineDialog(self.plugin_name, self.canvas)
             topo_source_type = self.demline_source
         elif self.prof_toposources_fromgpxfile_checkbox.isChecked():
-            dialog = TopoSourceFromGPXFileDialog(self.settings,
+            dialog = TopoSourceFromGPXFileDialog(self.plugin_name,
+                                                 self.settings,
                                                  self.settings_gpxdir_key)
             topo_source_type = self.gpxfile_source
         else:
@@ -877,7 +878,8 @@ class qprof_QWidget(QWidget):
             return
 
         selected_dems_params = self.profile_elements.topo_profiles.dem_params
-        dialog = TopographicProfileExportDialog(selected_dems_params)
+        dialog = TopographicProfileExportDialog(self.plugin_name,
+                                                selected_dems_params)
 
         if dialog.exec_():
 
@@ -964,7 +966,7 @@ class qprof_QWidget(QWidget):
                      "No available geological attitudes")
                 return
 
-        dialog = PointDataExportDialog()
+        dialog = PointDataExportDialog(self.plugin_name)
 
         if dialog.exec_():
 
@@ -1107,7 +1109,7 @@ class qprof_QWidget(QWidget):
                      "No available profile-line intersections")
                 return
 
-        dialog = PointDataExportDialog()
+        dialog = PointDataExportDialog(self.plugin_name)
 
         if dialog.exec_():
             output_format = get_format_type()
@@ -1198,11 +1200,11 @@ class qprof_QWidget(QWidget):
             return
         elif self.digitized_profile_line2dt.num_pts < 2:
             warn(self,
-                     self.plugin_name,
-                     "No available line to save [2]")
+                 self.plugin_name,
+                 "No available line to save [2]")
             return
 
-        dialog = LineDataExportDialog()
+        dialog = LineDataExportDialog(self.plugin_name)
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
@@ -1295,7 +1297,7 @@ class qprof_QWidget(QWidget):
                      "No available profile-polygon intersections")
                 return
 
-        dialog = LineDataExportDialog()
+        dialog = LineDataExportDialog(self.plugin_name)
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
@@ -1404,7 +1406,8 @@ class qprof_QWidget(QWidget):
         self.profile_elements.topo_profiles.natural_elev_range = (np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
                                                                   np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
 
-        dialog = StatisticsDialog(self.profile_elements.topo_profiles)
+        dialog = StatisticsDialog(self.plugin_name,
+                                  self.profile_elements.topo_profiles)
         dialog.exec_()
 
         self.profile_elements.topo_profiles.statistics_defined = True
@@ -1455,7 +1458,10 @@ class qprof_QWidget(QWidget):
 
         natural_elev_min, natural_elev_max = self.profile_elements.topo_profiles.natural_elev_range
         profile_length = self.profile_elements.topo_profiles.profile_length
-        dialog = PlotTopoProfileDialog(profile_length, natural_elev_min, natural_elev_max)
+        dialog = PlotTopoProfileDialog(self.plugin_name,
+                                       profile_length,
+                                       natural_elev_min,
+                                       natural_elev_max)
 
         if dialog.exec_():
             self.profile_elements.plot_params = get_profile_plot_params(dialog)
@@ -2055,8 +2061,8 @@ class qprof_QWidget(QWidget):
                 pr_pt_y = plane_attitude_rec.pt_3d.y
                 pr_pt_z = plane_attitude_rec.pt_3d.z
                 s = plane_attitude_rec.sign_hor_dist
-                or_dipdir = plane_attitude_rec.src_geol_plane.dipdir
-                or_dipangle = plane_attitude_rec.src_geol_plane.dipangle
+                or_dipdir = plane_attitude_rec.src_geol_plane.dd
+                or_dipangle = plane_attitude_rec.src_geol_plane.da
                 tr_dipangle = degrees(plane_attitude_rec.slope_rad)
                 tr_dipdir = plane_attitude_rec.dwnwrd_sense
 
@@ -2208,7 +2214,8 @@ class qprof_QWidget(QWidget):
         # create windows for user_definition of intersection colors in profile
         if polygon_classification_set != set() and polygon_classification_set != set([None]):
 
-            dialog = PolygonIntersectionRepresentationDialog(polygon_classification_set)
+            dialog = PolygonIntersectionRepresentationDialog(self.plugin_name,
+                                                             polygon_classification_set)
             if dialog.exec_():
                 polygon_classification_colors_dict = self.classification_colors(dialog)
             else:
@@ -2327,7 +2334,7 @@ class qprof_QWidget(QWidget):
                  "Profile not yet calculated")
             return
 
-        dialog = FigureExportDialog()
+        dialog = FigureExportDialog(self.plugin_name)
 
         if dialog.exec_():
 
@@ -2486,10 +2493,11 @@ class qprof_QWidget(QWidget):
 
 class TopoSourceFromDEMAndLineDialog(QDialog):
 
-    def __init__(self, canvas, parent=None):
+    def __init__(self, plugin_name, canvas, parent=None):
 
         super(TopoSourceFromDEMAndLineDialog, self).__init__(parent)
 
+        self.plugin_name = plugin_name
         self.canvas = canvas
         self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
 
@@ -2577,7 +2585,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
                  "No loaded DEM")
             return
 
-        dialog = SourceDEMsDialog(current_raster_layers)
+        dialog = SourceDEMsDialog(self.plugin_name, current_raster_layers)
 
         if dialog.exec_():
             selected_dems, selected_dem_colors = self.get_selected_dems_params(dialog)
@@ -2650,7 +2658,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
     def load_point_list(self):
 
-        dialog = LoadPointListDialog()
+        dialog = LoadPointListDialog(self.plugin_name)
 
         if dialog.exec_():
             line2d = self.get_point_list(dialog)
@@ -2737,7 +2745,8 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
                  "No available line layers")
             return
 
-        dialog = SourceLineLayerDialog(current_line_layers)
+        dialog = SourceLineLayerDialog(self.plugin_name,
+                                       current_line_layers)
 
         if dialog.exec_():
             line_layer, order_field_ndx = self.get_line_layer_params(dialog)
@@ -2784,10 +2793,11 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
 class TopoSourceFromGPXFileDialog(QDialog):
 
-    def __init__(self, settings, settings_gpxdir_key, parent=None):
+    def __init__(self, plugin_name, settings, settings_gpxdir_key, parent=None):
 
         super(TopoSourceFromGPXFileDialog, self).__init__(parent)
 
+        self.plugin_name = plugin_name
         self.settings = settings
         self.settings_gpxdir_key = settings_gpxdir_key
 
@@ -2860,9 +2870,11 @@ class TopoSourceFromGPXFileDialog(QDialog):
 
 class SourceDEMsDialog(QDialog):
 
-    def __init__(self, raster_layers, parent=None):
+    def __init__(self, plugin_name, raster_layers, parent=None):
 
         super(SourceDEMsDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         self.singleband_raster_layers_in_project = raster_layers
 
@@ -2920,10 +2932,12 @@ class SourceDEMsDialog(QDialog):
 
 
 class SourceLineLayerDialog(QDialog):
-    def __init__(self, current_line_layers, parent=None):
+
+    def __init__(self, plugin_name, current_line_layers, parent=None):
 
         super(SourceLineLayerDialog, self).__init__(parent)
 
+        self.plugin_name = plugin_name
         self.current_line_layers = current_line_layers
 
         layout = QGridLayout()
@@ -2985,9 +2999,12 @@ class SourceLineLayerDialog(QDialog):
 
 
 class LoadPointListDialog(QDialog):
-    def __init__(self, parent=None):
+
+    def __init__(self, plugin_name, parent=None):
+
         super(LoadPointListDialog, self).__init__(parent)
 
+        self.plugin_name = plugin_name
         layout = QGridLayout()
 
         layout.addWidget(QLabel(self.tr("Point list, with at least two points.")), 0, 0, 1, 1)
@@ -3025,9 +3042,11 @@ class PolygonIntersectionRepresentationDialog(QDialog):
               "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
               "chartreuse"]
 
-    def __init__(self, polygon_classification_set, parent=None):
+    def __init__(self, plugin_name, polygon_classification_set, parent=None):
+
         super(PolygonIntersectionRepresentationDialog, self).__init__(parent)
 
+        self.plugin_name = plugin_name
         self.polygon_classifications = list(polygon_classification_set)
 
         self.polygon_classifications_treeWidget = QTreeWidget()
@@ -3116,10 +3135,14 @@ def get_profile_plot_params(dialog):
 
     return profile_params
 
+
 class PlotTopoProfileDialog(QDialog):
-    def __init__(self, profile_length, natural_elev_min, natural_elev_max, parent=None):
+
+    def __init__(self, plugin_name, profile_length, natural_elev_min, natural_elev_max, parent=None):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         # pre-process elevation values
 
@@ -3237,9 +3260,12 @@ class PlotTopoProfileDialog(QDialog):
 
 
 class FigureExportDialog(QDialog):
-    def __init__(self, parent=None):
+
+    def __init__(self, plugin_name, parent=None):
 
         super(FigureExportDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         layout = QVBoxLayout()
 
@@ -3462,9 +3488,12 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
 
 
 class TopographicProfileExportDialog(QDialog):
-    def __init__(self, selected_dem_params, parent=None):
+
+    def __init__(self, plugin_name, selected_dem_params, parent=None):
 
         super(TopographicProfileExportDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         layout = QVBoxLayout()
 
@@ -3578,9 +3607,12 @@ class TopographicProfileExportDialog(QDialog):
 
 
 class PointDataExportDialog(QDialog):
-    def __init__(self, parent=None):
+
+    def __init__(self, plugin_name, parent=None):
 
         super(PointDataExportDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         layout = QVBoxLayout()
 
@@ -3664,9 +3696,12 @@ class PointDataExportDialog(QDialog):
 
 
 class LineDataExportDialog(QDialog):
-    def __init__(self, parent=None):
+
+    def __init__(self, plugin_name, parent=None):
 
         super(LineDataExportDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         layout = QVBoxLayout()
 
@@ -3751,8 +3786,11 @@ class LineDataExportDialog(QDialog):
 
 class StatisticsDialog(QDialog):
 
-    def __init__(self, topo_profiles, parent=None):
+    def __init__(self, plugin_name, topo_profiles, parent=None):
+
         super(StatisticsDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
 
         profiles_stats = zip(topo_profiles.names,
                              zip(topo_profiles.statistics_elev,

@@ -1156,7 +1156,7 @@ class qprof_QWidget(QWidget):
                        'y',
                        'z']
 
-        parsed_profilelineintersections = self.parse_profilelineintersections_for_export(self.profile_elements.intersection_pts)
+        parsed_profilelineintersections = self.export_parse_lineintersections(self.profile_elements.intersection_pts)
 
         # output for csv file
         if output_format == "csv":
@@ -2083,6 +2083,16 @@ class qprof_QWidget(QWidget):
                         data_list.append([rec_id, pt.x, pt.y])
         return data_list
 
+    def export_parse_lineintersections(self, profile_intersection_pts):
+
+        result_data = []
+
+        for distances_from_profile_start, intersection_point3d, intersection_id, _ in profile_intersection_pts:
+            result_data.append(
+                [intersection_id, distances_from_profile_start, intersection_point3d.x, intersection_point3d.y,
+                 intersection_point3d.z])
+
+        return result_data
 
     def line_intersection_reset(self):
 

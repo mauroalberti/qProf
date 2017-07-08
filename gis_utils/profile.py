@@ -20,7 +20,7 @@ class Profile_Elements(object):
     def __init__(self):
 
         self.profile_source_type = None
-        self.source_profile_line2dt = None
+        self.source_profile_line = None
         self.sample_distance = None  # max spacing along profile; float
         self.topoline_colors = None
         self.plot_params = None
@@ -108,59 +108,18 @@ class Profile_Elements(object):
 
         self.plane_attitudes.append(plane_attitudes)
 
-    def add_curves(self, multiline_2d_list, ids_list):
+    def add_curves(self, lMultilines, lIds):
 
-        self.curves.append(multiline_2d_list)
-        self.curves_ids.append(ids_list)
+        self.curves.append(lMultilines)
+        self.curves_ids.append(lIds)
+
 
 class DEMParams(object):
 
     def __init__(self, layer, params):
+
         self.layer = layer
         self.params = params
-
-
-class TopoLine3D(object):
-
-    def __init__(self, name, line3d):
-        self.name = name
-        self.profile_3d = line3d  # class CartesianLine3DT, a list of CartesianPoint3DT
-
-    def min_z(self):
-        return self.profile_3d.z_min()
-
-    def max_z(self):
-        return self.profile_3d.z_max()
-
-    def mean_z(self):
-        return self.profile_3d.z_mean()
-
-    def var_z(self):
-        return self.profile_3d.z_var()
-
-    def std_z(self):
-        return self.profile_3d.z_std()
-
-    def x_list(self):
-        return [pt_3d.p_x for pt_3d in self.profile_3d.pts]
-
-    def y_list(self):
-        return [pt_3d.p_y for pt_3d in self.profile_3d.pts]
-
-    def z_list(self):
-        return [pt_3d.p_z for pt_3d in self.profile_3d.pts]
-
-    def directional_slopes(self):
-        return self.profile_3d.slopes()
-
-    def length_2d(self):
-        return self.profile_3d.length_2d()
-
-    def get_increm_dist_3d(self):
-        return self.profile_3d.incremental_length_3d()
-
-    def get_increm_dist_2d(self):
-        return self.profile_3d.incremental_length_2d()
 
 
 class TopoProfiles(object):
@@ -196,9 +155,11 @@ class TopoProfiles(object):
     def absolute_slopes(self):
         return map(np.fabs, self.dir_slopes)
 
+
 class PlaneAttitude(object):
 
     def __init__(self, rec_id, source_point_3d, source_geol_plane, point_3d, slope_rad, dwnwrd_sense, sign_hor_dist):
+
         self.id = rec_id
         self.src_pt_3d = source_point_3d
         self.src_geol_plane = source_geol_plane

@@ -725,7 +725,7 @@ class qprof_QWidget(QWidget):
             profile_elements = Profile_Elements()
             profile_elements.profile_source_type = topo_source_type
             profile_elements.topoline_colors = topoline_colors
-            profile_elements.source_profile_line2dt = source_profile_line2dt
+            profile_elements.source_profile_line = source_profile_line2dt
             profile_elements.sample_distance = sample_distance
             profile_elements.set_topo_profiles(topo_profiles)
 
@@ -2503,11 +2503,11 @@ class qprof_QWidget(QWidget):
 
 class TopoSourceFromDEMAndLineDialog(QDialog):
 
-    def __init__(self, plugin_name, canvas, parent=None):
+    def __init__(self, tPluginName, canvas, parent=None):
 
         super(TopoSourceFromDEMAndLineDialog, self).__init__(parent)
 
-        self.plugin_name = plugin_name
+        self.plugin_name = tPluginName
         self.canvas = canvas
         self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
 
@@ -2582,8 +2582,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
     def define_source_DEMs(self):
 
-        ##self.profile_parameters = {}
-
         self.selected_dems = None
         self.selected_dem_colors = None
         self.selected_dem_parameters = []
@@ -2635,6 +2633,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         return QGisRasterParameters(*raster_qgis_params(dem))
 
     def get_selected_dems_params(self, dialog):
+
         selected_dems = []
         selected_dem_colors = []
         for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
@@ -2691,7 +2690,6 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             return
 
         self.dem_source_profile_line2dt = line2d
-
 
     def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs):
 
@@ -2928,6 +2926,7 @@ class SourceDEMsDialog(QDialog):
         self.setWindowTitle("Define source DEMs")
 
     def refresh_raster_layer_treewidget(self):
+
         self.listDEMs_treeWidget.clear()
 
         for raster_layer in self.singleband_raster_layers_in_project:

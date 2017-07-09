@@ -1,8 +1,12 @@
+import os
+import webbrowser
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 import resources
 
+from .qgis_utils.utils import create_action
 from qProf_QWidget import qprof_QWidget
 
 _plugin_name_ = "qProf"
@@ -17,20 +21,34 @@ class qProf_main(object):
         self.main_window = self.interface.mainWindow()
         self.canvas = self.interface.mapCanvas()
 
+        self.actions = []
 
     def initGui(self):
 
-        self.qprof_QAction = QAction(QIcon(":/plugins/{}/icon.png".format(self.plugin_name)),
-                                     self.plugin_name,
-                                     self.interface.mainWindow())
-        self.qprof_QAction.setWhatsThis("Topographic and geological profiles")
-        self.qprof_QAction.triggered.connect(self.open_qprof)
+        self.qactOpenMainWin = create_action(
+            ":/plugins/{}/icons/qprof.png".format(self.plugin_name),
+            self.plugin_name,
+            self.open_qprof,
+            whats_this="Topographic and geological profiles",
+            parent=self.interface.mainWindow())
         self.interface.addPluginToMenu(self.plugin_name,
-                                       self.qprof_QAction)
+                                       self.qactOpenMainWin)
+        self.actions.append(self.qactOpenMainWin)
+
+        self.qactOpenHelp = create_action(
+            ':/plugins/{}/icons/help.ico'.format(self.plugin_name),
+            'Help',
+            self.open_html_help,
+            whats_this="Topographic and geological profiles Help",
+            parent=self.interface.mainWindow())
+        self.actions.append(self.qactOpenHelp)
+        self.interface.addPluginToMenu(self.plugin_name,
+                                       self.qactOpenHelp)
 
     def unload(self):
 
-        self.interface.removePluginMenu(self.plugin_name, self.qprof_QAction)
+        self.interface.removePluginMenu(self.plugin_name, self.qactOpenMainWin)
+        self.interface.removePluginMenu(self.plugin_name, self.qactOpenHelp)
 
     def open_qprof(self):
 
@@ -43,3 +61,7 @@ class qProf_main(object):
         qprof_DockWidget.setWidget(self.qProf_QWidget)
         qprof_DockWidget.destroyed.connect(self.qProf_QWidget.closeEvent)
         self.interface.addDockWidget(Qt.RightDockWidgetArea, qprof_DockWidget)
+
+    def open_html_help(self):
+
+        webbrowser.open('{}/help/help.html'.format(os.path.dirname(__file__)), new=True)

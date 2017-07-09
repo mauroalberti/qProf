@@ -169,7 +169,7 @@ class PlaneAttitude(object):
         self.sign_hor_dist = sign_hor_dist
 
 
-def profile_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
+def topoline_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
 
     if bOnTheFlyProjection and dem.crs() != project_crs:
         trace2d_in_dem_crs = resampled_trace2d.crs_project(project_crs, dem.crs())
@@ -203,11 +203,11 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
     dem_topolines3d = []
     for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-        dem_topoline3d = profile_from_dem(resampled_line,
-                                          on_the_fly_projection,
-                                          project_crs,
-                                          dem,
-                                          dem_params)
+        dem_topoline3d = topoline_from_dem(resampled_line,
+                                           on_the_fly_projection,
+                                           project_crs,
+                                           dem,
+                                           dem_params)
         dem_topolines3d.append(dem_topoline3d)
 
     # setup topoprofiles properties
@@ -228,6 +228,7 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
 
 def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
+
     doc = xml.dom.minidom.parse(source_gpx_path)
 
     # define track name

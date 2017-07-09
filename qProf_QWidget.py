@@ -2,7 +2,6 @@
 
 import os
 import unicodedata
-import webbrowser
 
 from qgis.core import QgsGeometry, QgsVectorLayer
 
@@ -74,7 +73,6 @@ class qprof_QWidget(QWidget):
         self.main_widget.addTab(self.setup_project_section_tab(), "Projections")
         self.main_widget.addTab(self.setup_intersect_section_tab(), "Intersections")
         self.main_widget.addTab(self.setup_export_section_tab(), "Export")
-        self.main_widget.addTab(self.setup_about_tab(), "Help/About")
 
         self.prj_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
         self.inters_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
@@ -108,12 +106,12 @@ class qprof_QWidget(QWidget):
 
         prof_toposources_Layout = QGridLayout()
 
+        self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
+        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 0, 0, 1, 1)
+
         self.prof_toposources_fromdems_checkbox = QRadioButton(self.tr("DEM-line"))
         self.prof_toposources_fromdems_checkbox.setChecked(True)
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 0, 0, 1, 1)
-
-        self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 1, 0, 1, 1)
+        prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 1, 0, 1, 1)
 
         self.prof_digitizeline_pushbutton = QPushButton(self.tr("Digitize line"))
         self.prof_digitizeline_pushbutton.clicked.connect(self.digitize_line)
@@ -576,25 +574,6 @@ class qprof_QWidget(QWidget):
         impexp_widget.setLayout(impexp_layout)
 
         return impexp_widget
-
-    def setup_about_tab(self):
-
-        help_QGroupBox = QGroupBox(self.tr("Help"))
-
-        helpLayout = QVBoxLayout()
-
-        self.help_pButton = QPushButton("Open help in browser")
-        self.help_pButton.clicked[bool].connect(self.open_html_help)
-        self.help_pButton.setEnabled(True)
-        helpLayout.addWidget(self.help_pButton)
-
-        help_QGroupBox.setLayout(helpLayout)
-
-        return help_QGroupBox
-
-    def open_html_help(self):
-
-        webbrowser.open('{}/help/help.html'.format(os.path.dirname(__file__)), new=True)
 
     def stop_rubberband(self):
 

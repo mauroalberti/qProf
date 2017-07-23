@@ -94,24 +94,70 @@ class qprof_QWidget(QWidget):
         self.adjustSize()
         self.setWindowTitle(self.plugin_name)
 
+    def select_input_gpxFile(self):
+
+        gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
+                                                "")
+        fileName = QFileDialog.getOpenFileName(self,
+                                               self.tr("Open GPX file"),
+                                               gpx_last_used_dir,
+                                               "GPX (*.gpx *.GPX)")
+        if not fileName:
+            return
+        else:
+            update_directory_key(self.settings,
+                                 self.settings_gpxdir_key,
+                                 fileName)
+            self.qlneInputGPXFile.setText(fileName)
+
+
     def setup_topoprofile_tab(self):
 
-        profile_widget = QWidget()
-        profile_layout = QVBoxLayout()
+        qwdgTopoProfile = QWidget()
+        qlytTopoProfile = QVBoxLayout()
 
         ## Input data
 
-        prof_toposources_QGroupBox = QGroupBox(profile_widget)
-        prof_toposources_QGroupBox.setTitle("Topographic data sources")
+        qgbxTopoSources = QGroupBox(qwdgTopoProfile)
+        qgbxTopoSources.setTitle("Topographic profile sources")
 
-        prof_toposources_Layout = QGridLayout()
+        qlyTopoSources = QVBoxLayout()
 
-        self.prof_toposources_fromgpxfile_checkbox = QRadioButton(self.tr("GPX file"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromgpxfile_checkbox, 0, 0, 1, 1)
+        ####
 
+        qtbxGPXInput = QToolBox()
+        qwdgGPXInput = QWidget()
+        qlytGPXInput = QHBoxLayout()
+
+        qlytGPXInput.addWidget(QLabel(self.tr("Input GPX file with track points:")))
+
+        self.qlneInputGPXFile = QLineEdit()
+        self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
+        qlytGPXInput.addWidget(self.qlneInputGPXFile)
+
+        self.qphbInputGPXFile = QPushButton("...")
+        self.qphbInputGPXFile.clicked.connect(self.select_input_gpxFile)
+        qlytGPXInput.addWidget(self.qphbInputGPXFile)
+
+        qwdgGPXInput.setLayout(qlytGPXInput)
+        qtbxGPXInput.addItem(qwdgGPXInput, "GPX input")
+        qlyTopoSources.addWidget(qtbxGPXInput)
+
+        #####
+
+        qtbxDEMLineInput = QToolBox()
+        qwdgDEMLineInput = QWidget()
+        qlytDEMLineInput = QHBoxLayout()
+
+
+        qwdgDEMLineInput.setLayout(qlytDEMLineInput)
+        qtbxDEMLineInput.addItem(qwdgDEMLineInput, "DEM and line input")
+        qlyTopoSources.addWidget(qtbxDEMLineInput)
+
+        """
         self.prof_toposources_fromdems_checkbox = QRadioButton(self.tr("DEM-line"))
         self.prof_toposources_fromdems_checkbox.setChecked(True)
-        prof_toposources_Layout.addWidget(self.prof_toposources_fromdems_checkbox, 1, 0, 1, 1)
+        qlyTopoSources.addWidget(self.prof_toposources_fromdems_checkbox, 1, 0, 1, 1)
 
         self.prof_digitizeline_pushbutton = QPushButton(self.tr("Digitize line"))
         self.prof_digitizeline_pushbutton.clicked.connect(self.digitize_line)
@@ -121,30 +167,31 @@ class qprof_QWidget(QWidget):
                                                      "From: Define topographic sources (below)\n"
                                                      "you can use also an existing line\n"
                                                      "or a point list")
-        prof_toposources_Layout.addWidget(self.prof_digitizeline_pushbutton, 2, 1, 1, 1)
+        qlyTopoSources.addWidget(self.prof_digitizeline_pushbutton, 2, 1, 1, 1)
 
         self.prof_clearline_pushbutton = QPushButton(self.tr("Clear"))
         self.prof_clearline_pushbutton.clicked.connect(self.clear_rubberband)
-        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 2, 2, 1, 1)
+        qlyTopoSources.addWidget(self.prof_clearline_pushbutton, 2, 2, 1, 1)
 
         self.prof_clearline_pushbutton = QPushButton(self.tr("Save"))
         self.prof_clearline_pushbutton.clicked.connect(self.save_rubberband)
-        prof_toposources_Layout.addWidget(self.prof_clearline_pushbutton, 2, 3, 1, 1)
+        qlyTopoSources.addWidget(self.prof_clearline_pushbutton, 2, 3, 1, 1)
 
         self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert source line orientation"))
-        prof_toposources_Layout.addWidget(self.prof_toposources_reverse_direction_checkbox, 3, 1, 1, 2)
+        qlyTopoSources.addWidget(self.prof_toposources_reverse_direction_checkbox, 3, 1, 1, 2)
 
         self.prof_toposources_pushbutton = QPushButton(self.tr("Define topographic sources"))
         self.prof_toposources_pushbutton.clicked.connect(self.define_topographic_sources)
-        prof_toposources_Layout.addWidget(self.prof_toposources_pushbutton, 4, 0, 1, 4)
+        qlyTopoSources.addWidget(self.prof_toposources_pushbutton, 4, 0, 1, 4)
+        """
 
-        prof_toposources_QGroupBox.setLayout(prof_toposources_Layout)
+        qgbxTopoSources.setLayout(qlyTopoSources)
 
-        profile_layout.addWidget(prof_toposources_QGroupBox)
+        qlytTopoProfile.addWidget(qgbxTopoSources)
 
         ## Profile statistics
 
-        prof_stats_QGroupBox = QGroupBox(profile_widget)
+        prof_stats_QGroupBox = QGroupBox(qwdgTopoProfile)
         prof_stats_QGroupBox.setTitle("Profile statistics")
 
         prof_stats_Layout = QGridLayout()
@@ -156,11 +203,11 @@ class qprof_QWidget(QWidget):
 
         prof_stats_QGroupBox.setLayout(prof_stats_Layout)
 
-        profile_layout.addWidget(prof_stats_QGroupBox)
+        qlytTopoProfile.addWidget(prof_stats_QGroupBox)
 
         ## Create profile section
 
-        plotProfile_QGroupBox = QGroupBox(profile_widget)
+        plotProfile_QGroupBox = QGroupBox(qwdgTopoProfile)
         plotProfile_QGroupBox.setTitle('Profile plot')
 
         plotProfile_Layout = QGridLayout()
@@ -172,13 +219,13 @@ class qprof_QWidget(QWidget):
 
         plotProfile_QGroupBox.setLayout(plotProfile_Layout)
 
-        profile_layout.addWidget(plotProfile_QGroupBox)
+        qlytTopoProfile.addWidget(plotProfile_QGroupBox)
 
         ###################
 
-        profile_widget.setLayout(profile_layout)
+        qwdgTopoProfile.setLayout(qlytTopoProfile)
 
-        return profile_widget
+        return qwdgTopoProfile
 
     def setup_project_section_tab(self):
 
@@ -1630,7 +1677,7 @@ class qprof_QWidget(QWidget):
 
     def gpx_profile_check_parameters(self):
 
-        source_gpx_path = unicode(self.input_gpx_lineEdit.text())
+        source_gpx_path = unicode(self.qlneInputGPXFile.text())
         if source_gpx_path == '':
             return False, 'Source GPX file is not set'
 

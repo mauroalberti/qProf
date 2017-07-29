@@ -122,7 +122,7 @@ class DEMParams(object):
         self.params = params
 
 
-class TopoProfiles(object):
+class Line_TopoProfiles(object):
 
     def __init__(self):
 
@@ -138,9 +138,11 @@ class TopoProfiles(object):
         self.dir_slopes = []
         self.dem_params = []
         self.gpx_params = None
-        self.colors = []
-        self.statistics_defined = False
-        self.profile_defined = False
+        self.line_source = None
+        self.inverted = None
+        #self.colors = []
+        #self.statistics_defined = False
+        #self.profile_defined = False
 
     def max_s(self):
         return self.s[-1]
@@ -212,7 +214,7 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
     # setup topoprofiles properties
 
-    topo_profiles = TopoProfiles()
+    topo_profiles = Line_TopoProfiles()
 
     topo_profiles.xs = np.asarray(resampled_line.x_list)
     topo_profiles.ys = np.asarray(resampled_line.y_list)
@@ -227,7 +229,7 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
     return topo_profiles
 
 
-def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
+def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
 
     doc = xml.dom.minidom.parse(source_gpx_path)
 
@@ -308,8 +310,10 @@ def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
     time_values = [track.time for track in track_points]
     elevations = [track.elev for track in track_points]
 
-    topo_profiles = TopoProfiles()
+    topo_profiles = Line_TopoProfiles()
 
+    topo_profiles.line_source = gpx_source
+    topo_profiles.inverted = invert_profile
     topo_profiles.lons = np.asarray(lon_values)
     topo_profiles.lats = np.asarray(lat_values)
     topo_profiles.times = time_values
@@ -318,7 +322,6 @@ def topoprofiles_from_gpxfile(source_gpx_path, gpx_colors, invert_profile):
     topo_profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
     topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
     topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
-    topo_profiles.colors = gpx_colors
 
     return topo_profiles
 

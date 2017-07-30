@@ -314,6 +314,7 @@ def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
 
     topo_profiles.line_source = gpx_source
     topo_profiles.inverted = invert_profile
+
     topo_profiles.lons = np.asarray(lon_values)
     topo_profiles.lats = np.asarray(lat_values)
     topo_profiles.times = time_values

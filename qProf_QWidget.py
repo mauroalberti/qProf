@@ -94,29 +94,28 @@ class qprof_QWidget(QWidget):
         self.adjustSize()
         self.setWindowTitle(self.plugin_name)
 
-    def select_input_gpxFile(self):
-
-        gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
-                                                "")
-        fileName = QFileDialog.getOpenFileName(self,
-                                               self.tr("Open GPX file"),
-                                               gpx_last_used_dir,
-                                               "GPX (*.gpx *.GPX)")
-        if not fileName:
-            return
-        else:
-            update_directory_key(self.settings,
-                                 self.settings_gpxdir_key,
-                                 fileName)
-            self.qlneInputGPXFile.setText(fileName)
-
-
     def setup_topoprofile_tab(self):
 
-        def read_input_gpxFile(qlneInputGPXFile, qcbxInvertProfile):
+        def select_input_gpxFile():
+
+            gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
+                                                    "")
+            fileName = QFileDialog.getOpenFileName(self,
+                                                   self.tr("Open GPX file"),
+                                                   gpx_last_used_dir,
+                                                   "GPX (*.gpx *.GPX)")
+            if not fileName:
+                return
+            else:
+                update_directory_key(self.settings,
+                                     self.settings_gpxdir_key,
+                                     fileName)
+                self.qlneInputGPXFile.setText(fileName)
+
+        def read_input_gpxFile():
 
             try:
-                source_gpx_path = unicode(qlneInputGPXFile.text())
+                source_gpx_path = unicode(self.qlneInputGPXFile.text())
                 if source_gpx_path == '':
                     warn(self,
                          self.plugin_name,
@@ -128,7 +127,7 @@ class qprof_QWidget(QWidget):
                      "Source GPX file not correctly set: {}".format(e.message))
                 return
 
-            invert_profile_choice = qcbxInvertProfile.isChecked()
+            invert_profile_choice = self.qcbxInvertProfile.isChecked()
 
             try:
                 topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
@@ -145,9 +144,11 @@ class qprof_QWidget(QWidget):
                      self.plugin_name,
                      "Debug: profile not created")
                 return
-
-            topo_source_type = self.gpxfile_source
-
+            else:
+                self.topo_profiles = topo_profiles
+                info(self,
+                     self.plugin_name,
+                     "Data profile read")
 
         qwdgTopoProfile = QWidget()
         qlytTopoProfile = QVBoxLayout()
@@ -165,22 +166,22 @@ class qprof_QWidget(QWidget):
         qwdgGPXInput = QWidget()
         qlytGPXInput = QGridLayout()
 
-        qlytGPXInput.addWidget(QLabel(self.tr("Input GPX file with track points:")), 0, 0, 1, 1)
+        qlytGPXInput.addWidget(QLabel(self.tr("Choose input file:")), 0, 0, 1, 1)
 
         self.qlneInputGPXFile = QLineEdit()
         self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
         qlytGPXInput.addWidget(self.qlneInputGPXFile, 0, 1, 1, 1)
 
         self.qphbInputGPXFile = QPushButton("...")
-        self.qphbInputGPXFile.clicked.connect(self.select_input_gpxFile)
-        qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 0, 1, 2)
+        self.qphbInputGPXFile.clicked.connect(select_input_gpxFile)
+        qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 2, 1, 1)
 
         self.qcbxInvertProfile = QCheckBox("Invert profile orientation")
         qlytGPXInput.addWidget(self.qcbxInvertProfile, 1, 0, 1, 1)
 
-        self.qphbGetInputGPXFile = QPushButton("Get")
-        self.qphbGetInputGPXFile.clicked.connect(self.read_input_gpxFile)
-        qlytGPXInput.addWidget(self.qphbGetInputGPXFile, 1, 2, 1, 1)
+        self.qphbGetInputGPXFile = QPushButton("Read file")
+        self.qphbGetInputGPXFile.clicked.connect(read_input_gpxFile)
+        qlytGPXInput.addWidget(self.qphbGetInputGPXFile, 1, 1, 1, 2)
 
         qwdgGPXInput.setLayout(qlytGPXInput)
         qtbxGPXInput.addItem(qwdgGPXInput, "GPX input")

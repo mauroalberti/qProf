@@ -96,23 +96,23 @@ class qprof_QWidget(QWidget):
 
     def setup_topoprofile_tab(self):
 
-        def select_input_gpxFile():
+        def select_input_gpx_file():
 
             gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
                                                     "")
-            fileName = QFileDialog.getOpenFileName(self,
+            file_name = QFileDialog.getOpenFileName(self,
                                                    self.tr("Open GPX file"),
                                                    gpx_last_used_dir,
                                                    "GPX (*.gpx *.GPX)")
-            if not fileName:
+            if not file_name:
                 return
             else:
                 update_directory_key(self.settings,
                                      self.settings_gpxdir_key,
-                                     fileName)
-                self.qlneInputGPXFile.setText(fileName)
+                                     file_name)
+                self.qlneInputGPXFile.setText(file_name)
 
-        def read_input_gpxFile():
+        def read_input_gpx_file():
 
             try:
                 source_gpx_path = unicode(self.qlneInputGPXFile.text())
@@ -173,14 +173,14 @@ class qprof_QWidget(QWidget):
         qlytGPXInput.addWidget(self.qlneInputGPXFile, 0, 1, 1, 1)
 
         self.qphbInputGPXFile = QPushButton("...")
-        self.qphbInputGPXFile.clicked.connect(select_input_gpxFile)
+        self.qphbInputGPXFile.clicked.connect(select_input_gpx_file)
         qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 2, 1, 1)
 
         self.qcbxInvertProfile = QCheckBox("Invert profile orientation")
         qlytGPXInput.addWidget(self.qcbxInvertProfile, 1, 0, 1, 1)
 
         self.qphbGetInputGPXFile = QPushButton("Read file")
-        self.qphbGetInputGPXFile.clicked.connect(read_input_gpxFile)
+        self.qphbGetInputGPXFile.clicked.connect(read_input_gpx_file)
         qlytGPXInput.addWidget(self.qphbGetInputGPXFile, 1, 1, 1, 2)
 
         qwdgGPXInput.setLayout(qlytGPXInput)
@@ -794,7 +794,7 @@ class qprof_QWidget(QWidget):
 
             profile_elements = Profile_Elements()
             profile_elements.profile_source_type = topo_source_type
-            profile_elements.topoline_colors = topoline_colors
+            #profile_elements.topoline_colors = topoline_colors
             profile_elements.source_profile_line = source_profile_line2dt
             profile_elements.sample_distance = sample_distance
             profile_elements.set_topo_profiles(topo_profiles)
@@ -1463,44 +1463,60 @@ class qprof_QWidget(QWidget):
 
     def calculate_profile_statistics(self):
 
-        if not self.check_pre_statistics():
+        def check_pre_statistics():
+
+            if self.topo_profiles is None:
+                warn(self,
+                     self.plugin_name,
+                     "Source profile not yet defined")
+                return False
+
+            return True
+        
+        if not check_pre_statistics():
             return
 
-        topo_profiles = self.profile_elements.topo_profiles
-        self.profile_elements.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), topo_profiles.elevs)
-        self.profile_elements.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p), topo_profiles.dir_slopes)
-        self.profile_elements.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p), np.absolute(topo_profiles.dir_slopes))
+        """
+        profile_elements = Profile_Elements()
+        #profile_elements.profile_source_type = topo_source_type
+        #profile_elements.topoline_colors = topoline_colors
+        profile_elements.source_profile_line = source_profile_line2dt
+        profile_elements.sample_distance = sample_distance
+        profile_elements.set_topo_profiles(topo_profiles)
+        """
+            
+        #topo_profiles = self.profile_elements.topo_profiles
+        self.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), self.topo_profiles.elevs)
+        self.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p), self.topo_profiles.dir_slopes)
+        self.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p), np.absolute(self.topo_profiles.dir_slopes))
 
-        self.profile_elements.topo_profiles.profile_length = topo_profiles.s[-1] - topo_profiles.s[0]
-        statistics_elev = self.profile_elements.topo_profiles.statistics_elev
-        self.profile_elements.topo_profiles.natural_elev_range = (np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
+        self.topo_profiles.profile_length = self.topo_profiles.s[-1] - self.topo_profiles.s[0]
+        statistics_elev = self.topo_profiles.statistics_elev
+        self.topo_profiles.natural_elev_range = (np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
                                                                   np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
 
         dialog = StatisticsDialog(self.plugin_name,
-                                  self.profile_elements.topo_profiles)
+                                  self.topo_profiles)
         dialog.exec_()
 
-        self.profile_elements.topo_profiles.statistics_defined = True
+        self.topo_profiles.statistics_defined = True
 
+        self.profile_elements = Profile_Elements()
+        #profile_elements.profile_source_type = topo_source_type
+        #profile_elements.topoline_colors = topoline_colors
+        #profile_elements.source_profile_line = source_profile_line2dt
+        #profile_elements.sample_distance = sample_distance
+        self.profile_elements.set_topo_profiles(self.topo_profiles)
 
-    def check_pre_statistics(self):
-
-        if self.profile_elements is None or \
-           self.profile_elements.profile_source_type is None or \
-           self.profile_elements.topo_profiles is None:
-            warn(self,
-                     self.plugin_name,
-                     "Source profile not yet defined")
-            return False
-
-        return True
 
     def check_pre_profile(self):
-
+        
+        """
         if not self.check_pre_statistics():
             return False
-
-        if not self.profile_elements.topo_profiles.statistics_defined:
+        """
+        
+        if not self.topo_profiles.statistics_defined:
             warn(self,
                      self.plugin_name,
                      "Statistics not yet calculated")
@@ -1513,7 +1529,7 @@ class qprof_QWidget(QWidget):
         if not self.check_pre_profile():
             return False
 
-        if not self.profile_elements.topo_profiles.profile_defined:
+        if not self.topo_profiles.profile_defined:
             warn(self,
                      self.plugin_name,
                      "Topographic profile not yet created")

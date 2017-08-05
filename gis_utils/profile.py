@@ -15,79 +15,84 @@ from .geodetic import TrackPointGPX
 from .errors import GPXIOException
 
 
-class Profile_Elements(object):
+class ProfileElements(object):
+    """
+    Class representing the topographic and geological elements
+    embodying a single profile.
+    """
 
     def __init__(self):
 
-        self.profile_source_type = None
-        self.source_profile_line = None
+        self.source_data_type = None
+        self.original_line = None
         self.sample_distance = None  # max spacing along profile; float
-        self.topoline_colors = None
+        self.resampled_line = None
+
+        #self.topoline_colors = None
         self.plot_params = None
 
-        self.resamp_src_line = None
-        self.topo_profiles = None
-        self.plane_attitudes = []
-        self.curves = []
-        self.curves_ids = []
-        self.intersection_pts = []
-        self.intersection_lines = []
+        self.profile_elevations = None
+        self.geoplane_attitudes = []
+        self.geosurfaces = []
+        #self.geosurfaces_ids = []
+        self.lineaments = []
+        self.outcrops = []
 
     def set_topo_profiles(self, topo_profiles):
 
-        self.topo_profiles = topo_profiles
+        self.profile_elevations = topo_profiles
 
     def add_intersections_pts(self, intersection_list):
 
-        self.intersection_pts += intersection_list
+        self.lineaments += intersection_list
 
     def add_intersections_lines(self, formation_list, intersection_line3d_list, intersection_polygon_s_list2):
 
-        self.intersection_lines = zip(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
+        self.outcrops = zip(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
     def get_current_dem_names(self):
 
-        return self.topo_profiles.names
+        return self.profile_elevations.names
 
     def max_s(self):
-        return self.topo_profiles.max_s()
+        return self.profile_elevations.max_s()
 
     def min_z_topo(self):
-        return self.topo_profiles.min_z()
+        return self.profile_elevations.min_z()
 
     def max_z_topo(self):
-        return self.topo_profiles.max_z()
+        return self.profile_elevations.max_z()
 
     def min_z_plane_attitudes(self):
 
         # TODO:  manage case for possible nan p_z values
-        return min([plane_attitude.pt_3d.p_z for plane_attitude_set in self.plane_attitudes for plane_attitude in
+        return min([plane_attitude.pt_3d.p_z for plane_attitude_set in self.geoplane_attitudes for plane_attitude in
                     plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.max_s()])
 
     def max_z_plane_attitudes(self):
 
         # TODO:  manage case for possible nan p_z values
-        return max([plane_attitude.pt_3d.p_z for plane_attitude_set in self.plane_attitudes for plane_attitude in
+        return max([plane_attitude.pt_3d.p_z for plane_attitude_set in self.geoplane_attitudes for plane_attitude in
                     plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.max_s()])
 
     def min_z_curves(self):
 
-        return min([pt_2d.p_y for multiline_2d_list in self.curves for multiline_2d in multiline_2d_list for line_2d in
+        return min([pt_2d.p_y for multiline_2d_list in self.geosurfaces for multiline_2d in multiline_2d_list for line_2d in
                     multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.max_s()])
 
     def max_z_curves(self):
 
-        return max([pt_2d.p_y for multiline_2d_list in self.curves for multiline_2d in multiline_2d_list for line_2d in
+        return max([pt_2d.p_y for multiline_2d_list in self.geosurfaces for multiline_2d in multiline_2d_list for line_2d in
                     multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.max_s()])
 
     def min_z(self):
 
         min_z = self.min_z_topo()
 
-        if len(self.plane_attitudes) > 0:
+        if len(self.geoplane_attitudes) > 0:
             min_z = min([min_z, self.min_z_plane_attitudes()])
 
-        if len(self.curves) > 0:
+        if len(self.geosurfaces) > 0:
             min_z = min([min_z, self.min_z_curves()])
 
         return min_z
@@ -96,22 +101,22 @@ class Profile_Elements(object):
 
         max_z = self.max_z_topo()
 
-        if len(self.plane_attitudes) > 0:
+        if len(self.geoplane_attitudes) > 0:
             max_z = max([max_z, self.max_z_plane_attitudes()])
 
-        if len(self.curves) > 0:
+        if len(self.geosurfaces) > 0:
             max_z = max([max_z, self.max_z_curves()])
 
         return max_z
 
     def add_plane_attitudes(self, plane_attitudes):
 
-        self.plane_attitudes.append(plane_attitudes)
+        self.geoplane_attitudes.append(plane_attitudes)
 
     def add_curves(self, lMultilines, lIds):
 
-        self.curves.append(lMultilines)
-        self.curves_ids.append(lIds)
+        self.geosurfaces.append(lMultilines)
+        self.geosurfaces_ids.append(lIds)
 
 
 class DEMParams(object):
@@ -122,40 +127,46 @@ class DEMParams(object):
         self.params = params
 
 
-class Line_TopoProfiles(object):
+class ProfileElevations(object):
 
     def __init__(self):
 
-        self.xs = None
-        self.ys = None
+        self.line_source = None
+        self.dem_params = []
+        self.gpx_params = None
+
+        self.planar_xs = None
+        self.planar_ys = None
         self.lons = None
         self.lats = None
         self.times = None
-        self.names = []
-        self.s = None
-        self.s3d = []
-        self.elevs = []
-        self.dir_slopes = []
-        self.dem_params = []
-        self.gpx_params = None
-        self.line_source = None
+        self.profile_s = None
+
+        self.surface_names = []
+
+        self.profile_s3ds = []
+        self.profile_zs = []
+        self.profile_dirslopes = []
+
         self.inverted = None
-        #self.colors = []
-        self.statistics_defined = False
-        self.profile_defined = False
+
+        self.statistics_calculated = False
+        self.profile_created = False
+
+        self.surface_colors = []
 
     def max_s(self):
-        return self.s[-1]
+        return self.profile_s[-1]
 
     def min_z(self):
-        return min(map(np.nanmin, self.elevs))
+        return min(map(np.nanmin, self.profile_zs))
 
     def max_z(self):
-        return max(map(np.nanmax, self.elevs))
+        return max(map(np.nanmax, self.profile_zs))
 
     @property
     def absolute_slopes(self):
-        return map(np.fabs, self.dir_slopes)
+        return map(np.fabs, self.profile_dirslopes)
 
 
 class PlaneAttitude(object):
@@ -214,15 +225,15 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
     # setup topoprofiles properties
 
-    topo_profiles = Line_TopoProfiles()
+    topo_profiles = ProfileElevations()
 
-    topo_profiles.xs = np.asarray(resampled_line.x_list)
-    topo_profiles.ys = np.asarray(resampled_line.y_list)
-    topo_profiles.names = map(lambda dem: dem.name(), selected_dems)
-    topo_profiles.s = np.asarray(resampled_line.incremental_length_2d())
-    topo_profiles.s3d = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
-    topo_profiles.elevs = map(lambda cl3dt: cl3dt.z_array(), dem_topolines3d)
-    topo_profiles.dir_slopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
+    topo_profiles.planar_xs = np.asarray(resampled_line.x_list)
+    topo_profiles.planar_ys = np.asarray(resampled_line.y_list)
+    topo_profiles.surface_names = map(lambda dem: dem.name(), selected_dems)
+    topo_profiles.profile_s = np.asarray(resampled_line.incremental_length_2d())
+    topo_profiles.profile_s3ds = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
+    topo_profiles.profile_zs = map(lambda cl3dt: cl3dt.z_array(), dem_topolines3d)
+    topo_profiles.profile_dirslopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
     topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                                 zip(selected_dems, selected_dem_parameters)]
 
@@ -310,7 +321,7 @@ def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
     time_values = [track.time for track in track_points]
     elevations = [track.elev for track in track_points]
 
-    topo_profiles = Line_TopoProfiles()
+    topo_profiles = ProfileElevations()
 
     topo_profiles.line_source = gpx_source
     topo_profiles.inverted = invert_profile
@@ -318,11 +329,11 @@ def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
     topo_profiles.lons = np.asarray(lon_values)
     topo_profiles.lats = np.asarray(lat_values)
     topo_profiles.times = time_values
-    topo_profiles.names = [trkname]  # [] required for compatibility with DEM case
-    topo_profiles.s = np.asarray(cum_distances_2D)
-    topo_profiles.s3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
-    topo_profiles.elevs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
-    topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
+    topo_profiles.surface_names = [trkname]  # [] required for compatibility with DEM case
+    topo_profiles.profile_s = np.asarray(cum_distances_2D)
+    topo_profiles.profile_s3ds = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
+    topo_profiles.profile_zs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
+    topo_profiles.profile_dirslopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
 
     return topo_profiles
 

@@ -56,6 +56,7 @@ class qprof_QWidget(QWidget):
         self.digitized_profile_line2dt = None
         self.polygon_classification_colors = None
 
+        self.topo_profiles = None
         self.profile_elements = None
 
         self.profile_windows = []
@@ -1516,10 +1517,16 @@ class qprof_QWidget(QWidget):
             return False
         """
         
+        if self.topo_profiles is None:
+            warn(self,
+                 self.plugin_name,
+                 "Profile not yet calculated")
+            return False
+
         if not self.topo_profiles.statistics_defined:
             warn(self,
-                     self.plugin_name,
-                     "Statistics not yet calculated")
+                 self.plugin_name,
+                 "Profile statistics not yet calculated")
             return False
 
         return True
@@ -1739,7 +1746,7 @@ class qprof_QWidget(QWidget):
 
         source_gpx_path = unicode(self.qlneInputGPXFile.text())
         if source_gpx_path == '':
-            return False, 'Source GPX file is not set'
+            return False, 'Source GPX file is not defined'
 
         plot_height_choice = self.GPX_plot_height_checkbox.isChecked()
         plot_slope_choice = self.GPX_plot_slope_checkbox.isChecked()
@@ -3294,15 +3301,9 @@ class PlotTopoProfileDialog(QDialog):
 
         plotvariables_layout = QGridLayout()
 
-        self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("filled"))
-        plotvariables_layout.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
-
         self.plotProfile_height_checkbox = QCheckBox(self.tr("Height"))
         self.plotProfile_height_checkbox.setChecked(True)
         plotvariables_layout.addWidget(self.plotProfile_height_checkbox, 0, 1, 1, 1)
-
-        self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("filled"))
-        plotvariables_layout.addWidget(self.plotProfile_slope_filled_checkbox, 1, 0, 1, 1)
 
         self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
         plotvariables_layout.addWidget(self.plotProfile_slope_checkbox, 1, 1, 1, 1)
@@ -3319,16 +3320,26 @@ class PlotTopoProfileDialog(QDialog):
 
         plotProfile_Layout.addWidget(plotVariables_groupbox)
 
-        advanced_parameters_groupbox = QGroupBox("Advanced parameters")
+        qgbxAdditionalParameters = QGroupBox("Additional parameters")
 
-        advparams_layout = QHBoxLayout()
+        qlytAdditionalParameters = QGridLayout()
+
+        self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("Filled height"))
+        qlytAdditionalParameters.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
+
+        self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("Filled slope"))
+        qlytAdditionalParameters.addWidget(self.plotProfile_slope_filled_checkbox, 1, 0, 1, 1)
 
         self.plotProfile_invert_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
-        advparams_layout.addWidget(self.plotProfile_invert_xaxis_checkbox)
+        qlytAdditionalParameters.addWidget(self.plotProfile_invert_xaxis_checkbox, 0, 1, 1, 1)
 
-        advanced_parameters_groupbox.setLayout(advparams_layout)
+        self.qpbtDefineTopoColors = QPushButton(self.tr("Define profile colors"))
+        self.qpbtDefineTopoColors.clicked.connect(self.define_profile_colors)
+        qlytAdditionalParameters.addWidget(self.qpbtDefineTopoColors, 1, 1, 1, 1)
 
-        plotProfile_Layout.addWidget(advanced_parameters_groupbox)
+        qgbxAdditionalParameters.setLayout(qlytAdditionalParameters)
+
+        plotProfile_Layout.addWidget(qgbxAdditionalParameters)
 
         layout.addLayout(plotProfile_Layout)
 
@@ -3352,6 +3363,11 @@ class PlotTopoProfileDialog(QDialog):
                      self, SLOT("reject()"))
 
         self.setWindowTitle("Topographic plot parameters")
+
+    def define_profile_colors(self):
+
+        # TO IMPLEMENT
+        pass
 
 
 class FigureExportDialog(QDialog):

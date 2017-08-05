@@ -141,8 +141,8 @@ class Line_TopoProfiles(object):
         self.line_source = None
         self.inverted = None
         #self.colors = []
-        #self.statistics_defined = False
-        #self.profile_defined = False
+        self.statistics_defined = False
+        self.profile_defined = False
 
     def max_s(self):
         return self.s[-1]

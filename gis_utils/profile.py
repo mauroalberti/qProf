@@ -34,7 +34,7 @@ class ProfileElements(object):
         self.profile_elevations = None
         self.geoplane_attitudes = []
         self.geosurfaces = []
-        #self.geosurfaces_ids = []
+        self.geosurfaces_ids = []
         self.lineaments = []
         self.outcrops = []
 
@@ -143,7 +143,8 @@ class ProfileElevations(object):
         self.profile_s = None
 
         self.surface_names = []
-
+        #self.surface_visibility = []  # list of Booleans
+        #self.surface_colors = []
         self.profile_s3ds = []
         self.profile_zs = []
         self.profile_dirslopes = []
@@ -153,7 +154,7 @@ class ProfileElevations(object):
         self.statistics_calculated = False
         self.profile_created = False
 
-        self.surface_colors = []
+
 
     def max_s(self):
         return self.profile_s[-1]

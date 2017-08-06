@@ -1546,6 +1546,42 @@ class qprof_QWidget(QWidget):
 
     def plot_topo_profiles(self):
 
+        def get_profile_plot_params(dialog):
+
+            profile_params = {}
+
+            # get profile plot parameters
+
+            try:
+                profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
+            except:
+                profile_params['plot_min_elevation_user'] = None
+
+            try:
+                profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
+            except:
+                profile_params['plot_max_elevation_user'] = None
+
+            try:
+                profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
+                assert profile_params['vertical_exaggeration'] > 0
+            except:
+                profile_params['vertical_exaggeration'] = 1
+
+            profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
+            profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
+            profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
+            profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
+            profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
+            profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
+            profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
+
+            profile_params['visible_elev_lyrs'] = dialog.visible_layers
+            profile_params['elev_lyr_colors'] = dialog.layer_colors
+
+            return profile_params
+
+
         if not self.check_pre_profile():
             return
 
@@ -1554,7 +1590,8 @@ class qprof_QWidget(QWidget):
         dialog = PlotTopoProfileDialog(self.plugin_name,
                                        profile_length,
                                        natural_elev_min,
-                                       natural_elev_max)
+                                       natural_elev_max,
+                                       self.profile_elements.profile_elevations.surface_names)
 
         if dialog.exec_():
             self.profile_elements.plot_params = get_profile_plot_params(dialog)
@@ -2994,7 +3031,7 @@ class SourceDEMsDialog(QDialog):
         self.listDEMs_treeWidget.setSelectionMode(QAbstractItemView.SingleSelection)
         self.listDEMs_treeWidget.setTextElideMode(Qt.ElideLeft)
 
-        self.refresh_raster_layer_treewidget()
+        self.populate_raster_layer_treewidget()
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3018,7 +3055,7 @@ class SourceDEMsDialog(QDialog):
 
         self.setWindowTitle("Define source DEMs")
 
-    def refresh_raster_layer_treewidget(self):
+    def populate_raster_layer_treewidget(self):
 
         self.listDEMs_treeWidget.clear()
 
@@ -3138,6 +3175,70 @@ class LoadPointListDialog(QDialog):
         self.setWindowTitle("Point list")
 
 
+class ElevationLineStyleDialog(QDialog):
+
+    def __init__(self, plugin_name, layer_names, parent=None):
+
+        super(ElevationLineStyleDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
+
+        #self.elevation_layers = layer_names
+
+        self.qtwdElevationLayers = QTreeWidget()
+        self.qtwdElevationLayers.setColumnCount(3)
+        self.qtwdElevationLayers.setColumnWidth(0, 43)
+        self.qtwdElevationLayers.setColumnWidth(1, 135)
+        self.qtwdElevationLayers.setColumnWidth(2, 58)
+        self.qtwdElevationLayers.headerItem().setText(0, "Visible")
+        self.qtwdElevationLayers.headerItem().setText(1, "Name")
+        self.qtwdElevationLayers.headerItem().setText(2, "Color")
+        self.qtwdElevationLayers.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.qtwdElevationLayers.setDragEnabled(False)
+        self.qtwdElevationLayers.setDragDropMode(QAbstractItemView.NoDragDrop)
+        self.qtwdElevationLayers.setAlternatingRowColors(True)
+        self.qtwdElevationLayers.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.qtwdElevationLayers.setTextElideMode(Qt.ElideLeft)
+
+        self.populate_elevation_layer_treewidget(layer_names)
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        layout = QGridLayout()
+
+        layout.addWidget(self.qtwdElevationLayers, 0, 0, 1, 3)
+        layout.addLayout(buttonLayout, 1, 0, 1, 3)
+
+        self.setLayout(layout)
+
+        self.connect(okButton, SIGNAL("clicked()"),
+                     self, SLOT("accept()"))
+        self.connect(cancelButton, SIGNAL("clicked()"),
+                     self, SLOT("reject()"))
+
+        self.setWindowTitle("Define elevation line style")
+
+    def populate_elevation_layer_treewidget(self, layer_names):
+
+        self.qtwdElevationLayers.clear()
+
+        for layer_name in layer_names:
+            tree_item = QTreeWidgetItem(self.qtwdElevationLayers)
+
+            tree_item.setText(1, layer_name)
+            color_button = QgsColorButtonV2()
+            color_button.setColor(QColor('red'))
+            self.qtwdElevationLayers.setItemWidget(tree_item, 2, color_button)
+            tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
+            tree_item.setCheckState(0, 2)
+
+
 class PolygonIntersectionRepresentationDialog(QDialog):
 
     colors = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen", "palevioletred",
@@ -3205,50 +3306,19 @@ class PolygonIntersectionRepresentationDialog(QDialog):
             self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButtonV2)
 
 
-def get_profile_plot_params(dialog):
-
-    profile_params = {}
-
-    # get profile plot parameters
-
-    try:
-        profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
-    except:
-        profile_params['plot_min_elevation_user'] = None
-
-    try:
-        profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
-    except:
-        profile_params['plot_max_elevation_user'] = None
-
-    try:
-        profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
-        assert profile_params['vertical_exaggeration'] > 0
-    except:
-        profile_params['vertical_exaggeration'] = 1
-
-    profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
-    profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
-    profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
-    profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
-    profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
-    profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
-    profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
-
-    return profile_params
-
-
 class PlotTopoProfileDialog(QDialog):
 
-    def __init__(self, plugin_name, profile_length, natural_elev_min, natural_elev_max, parent=None):
+    def __init__(self, plugin_name, profile_length, natural_elev_min, natural_elev_max, elevation_layer_names, parent=None):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
 
         self.plugin_name = plugin_name
+        self.elevation_layer_names = elevation_layer_names
 
         # pre-process elevation values
 
         # suggested plot elevation range
+
         z_padding = 0.5
         delta_z = natural_elev_max - natural_elev_min
         if delta_z < 0.0:
@@ -3264,7 +3334,8 @@ class PlotTopoProfileDialog(QDialog):
             plot_z_max = ceil(natural_elev_max + delta_z * z_padding)
         delta_plot_z = plot_z_max - plot_z_min
 
-        # suggested exxageration value
+        # suggested exaggeration value
+
         w_to_h_rat = float(profile_length) / float(delta_plot_z)
         sugg_ve = 0.2*w_to_h_rat
 
@@ -3342,7 +3413,6 @@ class PlotTopoProfileDialog(QDialog):
         self.qpbtDefineTopoColors.clicked.connect(self.define_profile_colors)
         qlyStyleParameters.addWidget(self.qpbtDefineTopoColors, 1, 0, 1, 3)
 
-
         qgbxStyleParameters.setLayout(qlyStyleParameters)
 
         qlytProfilePlot.addWidget(qgbxStyleParameters)
@@ -3372,8 +3442,53 @@ class PlotTopoProfileDialog(QDialog):
 
     def define_profile_colors(self):
 
-        # TO IMPLEMENT
-        pass
+        def layer_styles(dialog):
+
+            layer_visibilities = []
+            layer_colors = []
+
+            for layer_ndx in range(len(self.elevation_layer_names)):
+                curr_item = dialog.qtwdElevationLayers.topLevelItem(layer_ndx)
+                if curr_item.checkState(0) == 2:
+                    layer_visibilities.append(True)
+                else:
+                    layer_visibilities.append(False)
+
+                qcolor = dialog.qtwdElevationLayers.itemWidget(curr_item, 2).color()
+                mpl_color = qcolor2rgbmpl(qcolor)
+                layer_colors.append(mpl_color)
+
+            return layer_visibilities, layer_colors
+
+        self.visible_layers = []
+        self.layer_colors = []
+
+        if len(self.elevation_layer_names) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No loaded elevation layer")
+            return
+
+        dialog = ElevationLineStyleDialog(
+            self.plugin_name,
+            self.elevation_layer_names)
+
+        if dialog.exec_():
+            visible_layers, layer_colors = layer_styles(dialog)
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No chosen DEM")
+            return
+
+        if len(visible_layers) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No visible layer")
+            return
+        else:
+            self.visible_layers = visible_layers
+            self.layer_colors = layer_colors
 
 
 class FigureExportDialog(QDialog):

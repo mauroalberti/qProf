@@ -3270,78 +3270,84 @@ class PlotTopoProfileDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        # profile options
+        # Axes
 
-        plotProfile_Layout = QVBoxLayout()
+        qlytProfilePlot = QVBoxLayout()
 
-        plotsettings_groupbox = QGroupBox("Plot settings")
+        qgbxPlotSettings = QGroupBox("Axes")
 
-        plotsetting_layout = QGridLayout()
+        qlytAxisSettings = QGridLayout()
 
-        plotsetting_layout.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 0, 1, 1)
+        qlytAxisSettings.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 0, 1, 1)
         self.DEM_exageration_ratio_Qlineedit = QLineEdit()
         self.DEM_exageration_ratio_Qlineedit.setText("%f" % sugg_ve)
-        plotsetting_layout.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 1, 1, 1)
+        qlytAxisSettings.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 1, 1, 1)
 
-        plotsetting_layout.addWidget(QLabel(self.tr("Plot z min value")), 1, 0, 1, 1)
-        self.plot_min_value_QLineedit = QLineEdit()
-        self.plot_min_value_QLineedit.setText("%f" % plot_z_min)
-        plotsetting_layout.addWidget(self.plot_min_value_QLineedit, 1, 1, 1, 1)
-
-        plotsetting_layout.addWidget(QLabel(self.tr("Plot z max value")), 1, 2, 1, 1)
+        qlytAxisSettings.addWidget(QLabel(self.tr("Plot z max value")), 0, 2, 1, 1)
         self.plot_max_value_QLineedit = QLineEdit()
         self.plot_max_value_QLineedit.setText("%f" % plot_z_max)
-        plotsetting_layout.addWidget(self.plot_max_value_QLineedit, 1, 3, 1, 1)
+        qlytAxisSettings.addWidget(self.plot_max_value_QLineedit, 0, 3, 1, 1)
 
-        plotsettings_groupbox.setLayout(plotsetting_layout)
+        self.plotProfile_invert_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
+        qlytAxisSettings.addWidget(self.plotProfile_invert_xaxis_checkbox, 1, 0, 1, 2)
 
-        plotProfile_Layout.addWidget(plotsettings_groupbox)
+        qlytAxisSettings.addWidget(QLabel(self.tr("Plot z min value")), 1, 2, 1, 1)
+        self.plot_min_value_QLineedit = QLineEdit()
+        self.plot_min_value_QLineedit.setText("%f" % plot_z_min)
+        qlytAxisSettings.addWidget(self.plot_min_value_QLineedit, 1, 3, 1, 1)
 
-        plotVariables_groupbox = QGroupBox("Plot variables")
+        qgbxPlotSettings.setLayout(qlytAxisSettings)
 
-        plotvariables_layout = QGridLayout()
+        qlytProfilePlot.addWidget(qgbxPlotSettings)
+
+        # Y variables
+
+        qgbxYVariables = QGroupBox("Y variables")
+
+        qlytYVariables = QGridLayout()
 
         self.plotProfile_height_checkbox = QCheckBox(self.tr("Height"))
         self.plotProfile_height_checkbox.setChecked(True)
-        plotvariables_layout.addWidget(self.plotProfile_height_checkbox, 0, 1, 1, 1)
+        qlytYVariables.addWidget(self.plotProfile_height_checkbox, 0, 0, 1, 1)
 
         self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
-        plotvariables_layout.addWidget(self.plotProfile_slope_checkbox, 1, 1, 1, 1)
+        qlytYVariables.addWidget(self.plotProfile_slope_checkbox, 1, 0, 1, 1)
 
         self.plotProfile_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
         self.plotProfile_slope_absolute_qradiobutton.setChecked(True);
-        plotvariables_layout.addWidget(self.plotProfile_slope_absolute_qradiobutton, 1, 2, 1, 1)
+        qlytYVariables.addWidget(self.plotProfile_slope_absolute_qradiobutton, 1, 1, 1, 1)
 
         self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
-        plotvariables_layout.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 3, 1, 1)
+        qlytYVariables.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 2, 1, 1)
 
-        plotvariables_layout.addWidget(QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"), 2, 1, 2, 3)
-        plotVariables_groupbox.setLayout(plotvariables_layout)
+        qlytYVariables.addWidget(QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"), 2, 0, 1, 3)
 
-        plotProfile_Layout.addWidget(plotVariables_groupbox)
+        qgbxYVariables.setLayout(qlytYVariables)
 
-        qgbxAdditionalParameters = QGroupBox("Additional parameters")
+        qlytProfilePlot.addWidget(qgbxYVariables)
 
-        qlytAdditionalParameters = QGridLayout()
+        # Style parameters
+
+        qgbxStyleParameters = QGroupBox("Plot style")
+
+        qlyStyleParameters = QGridLayout()
 
         self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("Filled height"))
-        qlytAdditionalParameters.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
+        qlyStyleParameters.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
 
         self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("Filled slope"))
-        qlytAdditionalParameters.addWidget(self.plotProfile_slope_filled_checkbox, 1, 0, 1, 1)
+        qlyStyleParameters.addWidget(self.plotProfile_slope_filled_checkbox, 0, 1, 1, 1)
 
-        self.plotProfile_invert_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
-        qlytAdditionalParameters.addWidget(self.plotProfile_invert_xaxis_checkbox, 0, 1, 1, 1)
-
-        self.qpbtDefineTopoColors = QPushButton(self.tr("Define profile colors"))
+        self.qpbtDefineTopoColors = QPushButton(self.tr("Elevation line visibility and colors"))
         self.qpbtDefineTopoColors.clicked.connect(self.define_profile_colors)
-        qlytAdditionalParameters.addWidget(self.qpbtDefineTopoColors, 1, 1, 1, 1)
+        qlyStyleParameters.addWidget(self.qpbtDefineTopoColors, 1, 0, 1, 3)
 
-        qgbxAdditionalParameters.setLayout(qlytAdditionalParameters)
 
-        plotProfile_Layout.addWidget(qgbxAdditionalParameters)
+        qgbxStyleParameters.setLayout(qlyStyleParameters)
 
-        layout.addLayout(plotProfile_Layout)
+        qlytProfilePlot.addWidget(qgbxStyleParameters)
+
+        layout.addLayout(qlytProfilePlot)
 
         # ok/cancel section
 

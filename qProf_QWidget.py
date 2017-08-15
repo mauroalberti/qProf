@@ -165,36 +165,7 @@ class qprof_QWidget(QWidget):
 
         ####
 
-        qtbxGPXInput = QToolBox()
-        qwdgGPXInput = QWidget()
-        qlytGPXInput = QGridLayout()
-
-        qlytGPXInput.addWidget(QLabel(self.tr("Choose input file:")), 0, 0, 1, 1)
-
-        self.qlneInputGPXFile = QLineEdit()
-        self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
-        qlytGPXInput.addWidget(self.qlneInputGPXFile, 0, 1, 1, 1)
-
-        self.qphbInputGPXFile = QPushButton("...")
-        self.qphbInputGPXFile.clicked.connect(select_input_gpx_file)
-        qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 2, 1, 1)
-
-        self.qcbxInvertProfile = QCheckBox("Invert profile orientation")
-        qlytGPXInput.addWidget(self.qcbxInvertProfile, 1, 0, 1, 1)
-
-        self.qphbGetInputGPXFile = QPushButton("Read file")
-        self.qphbGetInputGPXFile.clicked.connect(read_input_gpx_file)
-        qlytGPXInput.addWidget(self.qphbGetInputGPXFile, 1, 1, 1, 2)
-
-        qwdgGPXInput.setLayout(qlytGPXInput)
-        qtbxGPXInput.addItem(qwdgGPXInput, "GPX input")
-        qlyTopoSources.addWidget(qtbxGPXInput)
-
-        #####
-
-        qtbxDEMInput = QToolBox()
-        qwdgDEMInput = QWidget()
-        qlytDEMInput = QGridLayout()
+        qtbxDataInput = QToolBox()
 
         """
         self.prof_digitizeline_pushbutton = QPushButton(self.tr("Digitize line"))
@@ -223,8 +194,6 @@ class qprof_QWidget(QWidget):
         qlytDEMInput.addWidget(self.prof_toposources_pushbutton, 4, 0, 1, 4)
         """
 
-        #self.plugin_name = tPluginName
-        #self.canvas = canvas
         self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
 
         qwdgDEMInput = QWidget()
@@ -283,7 +252,7 @@ class qprof_QWidget(QWidget):
 
         self.qcbxPointListforLine = QRadioButton(self.tr("point list"))
         qlytInputLine.addWidget(self.qcbxPointListforLine, 2, 0, 1, 1)
-        self.qpbtDefinePointList = QPushButton(self.tr("Create"))
+        self.qpbtDefinePointList = QPushButton(self.tr("Create list"))
         self.qpbtDefinePointList.clicked.connect(self.load_point_list)
         qlytInputLine.addWidget(self.qpbtDefinePointList, 2, 1, 1, 3)
 
@@ -294,15 +263,59 @@ class qprof_QWidget(QWidget):
 
         qgbxInputLine.setLayout(qlytInputLine)
 
-
         qlytDEMInput.addWidget(qgbxInputLine)
 
-
         qwdgDEMInput.setLayout(qlytDEMInput)
-        qtbxDEMInput.addItem(qwdgDEMInput, "DEM input")
-        qlyTopoSources.addWidget(qtbxDEMInput)
+
+        qtbxDataInput.addItem(qwdgDEMInput, "DEM input")
+
+        #
+
+        qwdgGPXInput = QWidget()
+        qlytGPXInput = QGridLayout()
+
+        qlytGPXInput.addWidget(QLabel(self.tr("Choose input file:")), 0, 0, 1, 1)
+
+        self.qlneInputGPXFile = QLineEdit()
+        self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
+        qlytGPXInput.addWidget(self.qlneInputGPXFile, 0, 1, 1, 1)
+
+        self.qphbInputGPXFile = QPushButton("...")
+        self.qphbInputGPXFile.clicked.connect(select_input_gpx_file)
+        qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 2, 1, 1)
+
+        qwdgGPXInput.setLayout(qlytGPXInput)
+
+        qtbxDataInput.addItem(qwdgGPXInput, "GPX input")
+
+        #
+
+        qlyTopoSources.addWidget(qtbxDataInput)
+
+        #
+
+        qwgtDoTopoDataRead = QWidget()
+        qlytDoTopoDataRead = QGridLayout()
+
+        self.qpbtReadData = QPushButton("Read source data")
+        self.qpbtReadData.clicked.connect(self.read_input_data)
+        qlytDoTopoDataRead.addWidget(self.qpbtReadData, 0, 0, 1, 2)
+
+        self.qrbtDEMDataType = QRadioButton("DEM")
+        self.qrbtDEMDataType.setChecked(True)
+        qlytDoTopoDataRead.addWidget(self.qrbtDEMDataType, 0, 2, 1, 1)
+
+        self.qrbtGPXDataType = QRadioButton("GPX")
+        qlytDoTopoDataRead.addWidget(self.qrbtGPXDataType, 0, 3, 1, 1)
+
+        self.qcbxInvertProfile = QCheckBox("Invert orientation")
+        qlytDoTopoDataRead.addWidget(self.qcbxInvertProfile, 1, 2, 1, 2)
+
+        qwgtDoTopoDataRead.setLayout(qlytDoTopoDataRead)
 
         ##
+
+        qlyTopoSources.addWidget(qwgtDoTopoDataRead)
 
         qgbxTopoSources.setLayout(qlyTopoSources)
 
@@ -741,6 +754,10 @@ class qprof_QWidget(QWidget):
 
         return impexp_widget
 
+    def read_input_data(self):
+
+        pass
+
     def stop_rubberband(self):
 
         try:
@@ -915,7 +932,7 @@ class qprof_QWidget(QWidget):
 
     def define_source_DEMs(self):
 
-        def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs):
+        def get_dem_resolution_in_prj_crs(dem, dem_params, on_the_fly_projection, prj_crs):
 
             def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
 
@@ -942,26 +959,26 @@ class qprof_QWidget(QWidget):
 
             return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
-        def get_dem_parameters(self, dem):
+        def get_dem_parameters(dem):
 
             return QGisRasterParameters(*raster_qgis_params(dem))
 
-        def get_selected_dems_params(self, dialog):
+        def get_selected_dems_params(dialog):
 
             selected_dems = []
-            selected_dem_colors = []
+            # selected_dem_colors = []
             for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
                 curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
                 if curr_DEM_item.checkState(0) == 2:
                     selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
-                    qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
-                    mpl_color = qcolor2rgbmpl(qcolor)
-                    selected_dem_colors.append(mpl_color)
+                    #qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
+                    #mpl_color = qcolor2rgbmpl(qcolor)
+                    #selected_dem_colors.append(mpl_color)
 
-            return selected_dems, selected_dem_colors
+            return selected_dems #, selected_dem_colors
 
         self.selected_dems = None
-        self.selected_dem_colors = None
+        #self.selected_dem_colors = None
         self.selected_dem_parameters = []
 
         current_raster_layers = loaded_monoband_raster_layers()
@@ -974,7 +991,7 @@ class qprof_QWidget(QWidget):
         dialog = SourceDEMsDialog(self.plugin_name, current_raster_layers)
 
         if dialog.exec_():
-            selected_dems, selected_dem_colors = get_selected_dems_params(dialog)
+            selected_dems = get_selected_dems_params(dialog)
         else:
             warn(self,
                  self.plugin_name,
@@ -988,7 +1005,7 @@ class qprof_QWidget(QWidget):
             return
         else:
             self.selected_dems = selected_dems
-            self.selected_dem_colors = selected_dem_colors
+            #self.selected_dem_colors = selected_dem_colors
 
         # get geodata
         self.selected_dem_parameters = [get_dem_parameters(dem) for dem in selected_dems]
@@ -2973,8 +2990,8 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
         inputDEM_QGroupBox.setTitle("Input DEMs")
 
         inputDEM_Layout = QVBoxLayout()
-        self.DefineSourceDEMs_pushbutton = QPushButton(self.tr("Define source DEMs"))
-        self.DefineSourceDEMs_pushbutton.clicked.connect(self.define_source_DEMs)
+        self.DefineSourceDEMs_pushbutton = QPushButton(self.tr("Choose source DEMs"))
+        self.DefineSourceDEMs_pushbutton.clicked.connect(self.choose_source_DEMs)
         inputDEM_Layout.addWidget(self.DefineSourceDEMs_pushbutton)
         inputDEM_QGroupBox.setLayout(inputDEM_Layout)
 
@@ -3033,10 +3050,10 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
         self.setWindowTitle("DEM(s) and line sources")
 
-    def define_source_DEMs(self):
+    def choose_source_DEMs(self):
 
         self.selected_dems = None
-        self.selected_dem_colors = None
+        #self.selected_dem_colors = None
         self.selected_dem_parameters = []
 
         current_raster_layers = loaded_monoband_raster_layers()
@@ -3063,7 +3080,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
             return
         else:
             self.selected_dems = selected_dems
-            self.selected_dem_colors = selected_dem_colors
+           # self.selected_dem_colors = selected_dem_colors
 
         # get geodata
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
@@ -3088,16 +3105,16 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
     def get_selected_dems_params(self, dialog):
 
         selected_dems = []
-        selected_dem_colors = []
+        #selected_dem_colors = []
         for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
             curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
             if curr_DEM_item.checkState(0) == 2:
                 selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
-                qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
-                mpl_color = qcolor2rgbmpl(qcolor)
-                selected_dem_colors.append(mpl_color)
+                #qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
+                #mpl_color = qcolor2rgbmpl(qcolor)
+                #selected_dem_colors.append(mpl_color)
 
-        return selected_dems, selected_dem_colors
+        return selected_dems #, selected_dem_colors
 
 
     def get_line_layer_params(self, dialog):
@@ -3109,6 +3126,7 @@ class TopoSourceFromDEMAndLineDialog(QDialog):
 
 
     def get_point_list(self, dialog):
+
         raw_point_string = dialog.point_list_qtextedit.toPlainText()
         raw_point_list = raw_point_string.split("\n")
         raw_point_list = map(lambda unicode_txt: clean_string(str(unicode_txt)), raw_point_list)
@@ -3341,13 +3359,13 @@ class SourceDEMsDialog(QDialog):
         self.singleband_raster_layers_in_project = raster_layers
 
         self.listDEMs_treeWidget = QTreeWidget()
-        self.listDEMs_treeWidget.setColumnCount(3)
+        self.listDEMs_treeWidget.setColumnCount(2)
         self.listDEMs_treeWidget.setColumnWidth(0, 43)
-        self.listDEMs_treeWidget.setColumnWidth(1, 135)
-        self.listDEMs_treeWidget.setColumnWidth(2, 58)
+        self.listDEMs_treeWidget.setColumnWidth(1, 165)
+        #self.listDEMs_treeWidget.setColumnWidth(2, 58)
         self.listDEMs_treeWidget.headerItem().setText(0, "Select")
         self.listDEMs_treeWidget.headerItem().setText(1, "Name")
-        self.listDEMs_treeWidget.headerItem().setText(2, "Color")
+        #self.listDEMs_treeWidget.headerItem().setText(2, "Color")
         self.listDEMs_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.listDEMs_treeWidget.setDragEnabled(False)
         self.listDEMs_treeWidget.setDragDropMode(QAbstractItemView.NoDragDrop)
@@ -3386,10 +3404,10 @@ class SourceDEMsDialog(QDialog):
         for raster_layer in self.singleband_raster_layers_in_project:
             tree_item = QTreeWidgetItem(self.listDEMs_treeWidget)
             tree_item.setText(1, raster_layer.name())
-            color_button = QgsColorButtonV2()
-            color_button.setColor(QColor('red'))
+            #color_button = QgsColorButtonV2()
+            #color_button.setColor(QColor('red'))
 
-            self.listDEMs_treeWidget.setItemWidget(tree_item, 2, color_button)
+            #self.listDEMs_treeWidget.setItemWidget(tree_item, 2, color_button)
             tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
             tree_item.setCheckState(0, 0)
 

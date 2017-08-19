@@ -99,6 +99,243 @@ class qprof_QWidget(QWidget):
 
     def setup_topoprofile_tab(self):
 
+        def create_topo_profiles():
+
+            def stop_rubberband():
+
+                try:
+                    self.canvas_end_profile_line()
+                except:
+                    pass
+
+                try:
+                    self.clear_rubberband()
+                except:
+                    pass
+
+            selected_dems = None
+            selected_dem_parameters = None
+
+            sample_distance = None
+            source_profile_line2dt = None
+
+            if self.qrbtDEMDataType.isChecked():
+                topo_source_type = self.demline_source
+            elif self.qrbtGPXDataType.isChecked():
+                topo_source_type = self.gpxfile_source
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "Debug: no source data type definition")
+                return
+
+            if topo_source_type == self.demline_source:
+
+                try:
+                    selected_dems = self.selected_dems
+                    selected_dem_parameters = self.selected_dem_parameters
+                except Exception as e:
+                    warn(self,
+                         self.plugin_name,
+                         "Input DEMs definition not correct: {}".format(e.message))
+                    return
+
+                try:
+                    sample_distance = float(self.qledProfileDensifyDistance.text())
+                    assert sample_distance > 0.0
+                except Exception as e:
+                    warn(self,
+                         self.plugin_name,
+                         "Sample distance value not correct: {}".format(e.message))
+                    return
+
+                if self.qcbxDigitizeLineSource.isChecked():
+                    if self.digitized_profile_line2dt is None or \
+                       self.digitized_profile_line2dt.num_pts < 2:
+                        warn(self,
+                             self.plugin_name,
+                             "No digitized line available")
+                        return
+                    else:
+                        source_profile_line2dt = self.digitized_profile_line2dt
+                else:
+                    stop_rubberband()
+                    try:
+                        source_profile_line2dt = self.dem_source_profile_line2dt
+                    except:
+                        warn(self,
+                             self.plugin_name,
+                             "DEM-line profile source not correctly created [1]")
+                        return
+                    if source_profile_line2dt is None:
+                        warn(self,
+                             self.plugin_name,
+                             "DEM-line profile source not correctly created [2]")
+                        return
+
+            elif topo_source_type == self.gpxfile_source:
+                stop_rubberband()
+                try:
+                    source_gpx_path = unicode(self.qlneInputGPXFile.text())
+                    if source_gpx_path == '':
+                        warn(self,
+                             self.plugin_name,
+                             "Source GPX file is not set")
+                        return
+                except Exception as e:
+                    warn(self,
+                         self.plugin_name,
+                         "Source GPX file not correctly set: {}".format(e.message))
+                    return
+
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "Debug: uncorrect type source for topo sources def")
+                return
+
+            # calculates profiles
+
+            invert_profile = self.qcbxInvertProfile.isChecked()
+
+            if topo_source_type == self.demline_source:  # sources are DEM(s) and line
+                try:
+                    topo_profiles = topoprofiles_from_dems(self.canvas,
+                                                            source_profile_line2dt,
+                                                            sample_distance,
+                                                            selected_dems,
+                                                            selected_dem_parameters,
+                                                            invert_profile)
+                except Exception as e:
+                     warn(self,
+                         self.plugin_name,
+                         e.message)
+                     return
+
+            elif topo_source_type == self.gpxfile_source:  # source is GPX file
+
+                try:
+                    topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
+                                                              invert_profile,
+                                                              self.gpxfile_source)
+                except Exception as e:
+                    warn(self,
+                         self.plugin_name,
+                         "Error with profile calculation from GPX file: {}".format(e.message))
+                    return
+            else:  # source error
+                error(self,
+                      self.plugin_name,
+                     "Algorithm error: profile calculation not defined")
+                return
+
+            if topo_profiles is None:
+                warn(self,
+                     self.plugin_name,
+                     "Debug: profile not created")
+                return
+
+            profile_elements = ProfileElements()
+            profile_elements.source_data_type = topo_source_type
+            profile_elements.original_line = source_profile_line2dt
+            profile_elements.sample_distance = sample_distance
+            profile_elements.set_topo_profiles(topo_profiles)
+
+            self.profile_elements = profile_elements
+
+            info(self,
+                 self.plugin_name,
+                 "Data profile read")
+
+        def define_source_DEMs():
+
+            def get_dem_resolution_in_prj_crs(dem, dem_params, on_the_fly_projection, prj_crs):
+
+                def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
+
+                    qgspt_start_src_crs = qgs_pt(x, y)
+                    qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
+
+                    qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
+                    qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
+
+                    pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
+                    pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
+
+                    return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
+
+                cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
+                xMin, yMin = dem_params.xMin, dem_params.yMin
+
+                if on_the_fly_projection and dem.crs() != prj_crs:
+                    cellsizeEW_prj_crs = distance_projected_pts(xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs)
+                    cellsizeNS_prj_crs = distance_projected_pts(xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs)
+                else:
+                    cellsizeEW_prj_crs = cellsizeEW
+                    cellsizeNS_prj_crs = cellsizeNS
+
+                return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
+
+            def get_dem_parameters(dem):
+
+                return QGisRasterParameters(*raster_qgis_params(dem))
+
+            def get_selected_dems_params(dialog):
+
+                selected_dems = []
+                for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
+                    curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
+                    if curr_DEM_item.checkState(0) == 2:
+                        selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
+
+                return selected_dems
+
+            self.selected_dems = None
+            self.selected_dem_parameters = []
+
+            current_raster_layers = loaded_monoband_raster_layers()
+            if len(current_raster_layers) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No loaded DEM")
+                return
+
+            dialog = SourceDEMsDialog(self.plugin_name, current_raster_layers)
+
+            if dialog.exec_():
+                selected_dems = get_selected_dems_params(dialog)
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No chosen DEM")
+                return
+
+            if len(selected_dems) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No selected DEM")
+                return
+            else:
+                self.selected_dems = selected_dems
+
+            # get geodata
+
+            self.selected_dem_parameters = [get_dem_parameters(dem) for dem in selected_dems]
+
+            # get DEMs resolutions in project CRS and choose the min value
+
+            dem_resolutions_prj_crs_list = []
+            for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+                dem_resolutions_prj_crs_list.append(
+                    get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
+
+            min_dem_resolution = min(dem_resolutions_prj_crs_list)
+            if min_dem_resolution > 1:
+                min_dem_proposed_resolution = round(min_dem_resolution)
+            else:
+                min_dem_proposed_resolution = min_dem_resolution
+            self.qledProfileDensifyDistance.setText(str(min_dem_proposed_resolution))
+
         def save_rubberband():
 
             def get_format_type():
@@ -163,7 +400,7 @@ class qprof_QWidget(QWidget):
 
             def check_pre_statistics():
 
-                if self.topo_profiles is None:
+                if self.profile_elements is None:
                     warn(self,
                          self.plugin_name,
                          "Source profile not yet defined")
@@ -174,40 +411,23 @@ class qprof_QWidget(QWidget):
             if not check_pre_statistics():
                 return
 
-            """
-            profile_elements = Profile_Elements()
-            #profile_elements.profile_source_type = topo_source_type
-            #profile_elements.topoline_colors = topoline_colors
-            profile_elements.source_profile_line = source_profile_line2dt
-            profile_elements.sample_distance = sample_distance
-            profile_elements.set_topo_profiles(topo_profiles)
-            """
+            self.profile_elements.profile_elevations.statistics_elev = map(lambda p: get_statistics(p), self.profile_elements.profile_elevations.profile_zs)
+            self.profile_elements.profile_elevations.statistics_dirslopes = map(lambda p: get_statistics(p),
+                                                          self.profile_elements.profile_elevations.profile_dirslopes)
+            self.profile_elements.profile_elevations.statistics_slopes = map(lambda p: get_statistics(p),
+                                                       np.absolute(self.profile_elements.profile_elevations.profile_dirslopes))
 
-            # topo_profiles = self.profile_elements.topo_profiles
-            self.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), self.topo_profiles.profile_zs)
-            self.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p),
-                                                          self.topo_profiles.profile_dirslopes)
-            self.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p),
-                                                       np.absolute(self.topo_profiles.profile_dirslopes))
-
-            self.topo_profiles.profile_length = self.topo_profiles.profile_s[-1] - self.topo_profiles.profile_s[0]
-            statistics_elev = self.topo_profiles.statistics_elev
-            self.topo_profiles.natural_elev_range = (
+            self.profile_elements.profile_elevations.profile_length = self.profile_elements.profile_elevations.profile_s[-1] - self.profile_elements.profile_elevations.profile_s[0]
+            statistics_elev = self.profile_elements.profile_elevations.statistics_elev
+            self.profile_elements.profile_elevations.natural_elev_range = (
             np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
             np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
 
             dialog = StatisticsDialog(self.plugin_name,
-                                      self.topo_profiles)
+                                      self.profile_elements.profile_elevations)
             dialog.exec_()
 
-            self.topo_profiles.statistics_calculated = True
-
-            self.profile_elements = ProfileElements()
-            # profile_elements.profile_source_type = topo_source_type
-            # profile_elements.topoline_colors = topoline_colors
-            # profile_elements.source_profile_line = source_profile_line2dt
-            # profile_elements.sample_distance = sample_distance
-            self.profile_elements.set_topo_profiles(self.topo_profiles)
+            self.profile_elements.profile_elevations.statistics_calculated = True
 
         def load_line_layer():
 
@@ -405,7 +625,7 @@ class qprof_QWidget(QWidget):
 
         inputDEM_Layout = QVBoxLayout()
         self.DefineSourceDEMs_pushbutton = QPushButton(self.tr("Define source DEMs"))
-        self.DefineSourceDEMs_pushbutton.clicked.connect(self.define_source_DEMs)
+        self.DefineSourceDEMs_pushbutton.clicked.connect(define_source_DEMs)
         inputDEM_Layout.addWidget(self.DefineSourceDEMs_pushbutton)
         inputDEM_QGroupBox.setLayout(inputDEM_Layout)
 
@@ -417,9 +637,9 @@ class qprof_QWidget(QWidget):
         qgbxInputLine.setTitle("Input line")
         qlytInputLine = QGridLayout()
 
-        self.DigitizeLine_checkbox = QRadioButton(self.tr("digitized line"))
-        self.DigitizeLine_checkbox.setChecked(True)
-        qlytInputLine.addWidget(self.DigitizeLine_checkbox, 0, 0, 1, 1)
+        self.qcbxDigitizeLineSource = QRadioButton(self.tr("digitized line"))
+        self.qcbxDigitizeLineSource.setChecked(True)
+        qlytInputLine.addWidget(self.qcbxDigitizeLineSource, 0, 0, 1, 1)
 
         #
 
@@ -497,7 +717,7 @@ class qprof_QWidget(QWidget):
         qlytDoTopoDataRead = QGridLayout()
 
         self.qpbtReadData = QPushButton("Read source data")
-        self.qpbtReadData.clicked.connect(self.read_input_data)
+        self.qpbtReadData.clicked.connect(create_topo_profiles)
         qlytDoTopoDataRead.addWidget(self.qpbtReadData, 0, 0, 1, 2)
 
         self.qrbtDEMDataType = QRadioButton("DEM")
@@ -953,8 +1173,7 @@ class qprof_QWidget(QWidget):
 
         return impexp_widget
 
-
-
+    """
     def gpx_profile_check_parameters(self):
 
         source_gpx_path = unicode(self.qlneInputGPXFile.text())
@@ -968,48 +1187,7 @@ class qprof_QWidget(QWidget):
             return False, 'One of height or slope plot options are to be chosen'
 
         return True, 'OK'
-
-    def read_input_data(self):
-
-        def read_input_gpx_file():
-
-            try:
-                source_gpx_path = unicode(self.qlneInputGPXFile.text())
-                if source_gpx_path == '':
-                    warn(self,
-                         self.plugin_name,
-                         "Source GPX file is not set")
-                    return
-            except Exception as e:
-                warn(self,
-                     self.plugin_name,
-                     "Source GPX file not correctly set: {}".format(e.message))
-                return
-
-            invert_profile_choice = self.qcbxInvertProfile.isChecked()
-
-            try:
-                topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
-                                                          invert_profile_choice,
-                                                          self.gpxfile_source)
-            except Exception as e:
-                warn(self,
-                     self.plugin_name,
-                     "Error with profile calculation from GPX file: {}".format(e.message))
-                return
-
-            if topo_profiles is None:
-                warn(self,
-                     self.plugin_name,
-                     "Debug: profile not created")
-                return
-            else:
-                self.topo_profiles = topo_profiles
-                info(self,
-                     self.plugin_name,
-                     "Data profile read")
-
-        pass
+    """
 
     def clear_rubberband(self):
 
@@ -1085,99 +1263,7 @@ class qprof_QWidget(QWidget):
 
         return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
-    def define_source_DEMs(self):
-
-        def get_dem_resolution_in_prj_crs(dem, dem_params, on_the_fly_projection, prj_crs):
-
-            def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
-
-                qgspt_start_src_crs = qgs_pt(x, y)
-                qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
-
-                qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
-                qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
-
-                pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
-                pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
-
-                return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
-
-            cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
-            xMin, yMin = dem_params.xMin, dem_params.yMin
-
-            if on_the_fly_projection and dem.crs() != prj_crs:
-                cellsizeEW_prj_crs = distance_projected_pts(xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs)
-                cellsizeNS_prj_crs = distance_projected_pts(xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs)
-            else:
-                cellsizeEW_prj_crs = cellsizeEW
-                cellsizeNS_prj_crs = cellsizeNS
-
-            return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
-
-        def get_dem_parameters(dem):
-
-            return QGisRasterParameters(*raster_qgis_params(dem))
-
-        def get_selected_dems_params(dialog):
-
-            selected_dems = []
-            # selected_dem_colors = []
-            for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
-                curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
-                if curr_DEM_item.checkState(0) == 2:
-                    selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
-                    #qcolor = dialog.listDEMs_treeWidget.itemWidget(curr_DEM_item, 2).color()
-                    #mpl_color = qcolor2rgbmpl(qcolor)
-                    #selected_dem_colors.append(mpl_color)
-
-            return selected_dems #, selected_dem_colors
-
-        self.selected_dems = None
-        #self.selected_dem_colors = None
-        self.selected_dem_parameters = []
-
-        current_raster_layers = loaded_monoband_raster_layers()
-        if len(current_raster_layers) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No loaded DEM")
-            return
-
-        dialog = SourceDEMsDialog(self.plugin_name, current_raster_layers)
-
-        if dialog.exec_():
-            selected_dems = get_selected_dems_params(dialog)
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No chosen DEM")
-            return
-
-        if len(selected_dems) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No selected DEM")
-            return
-        else:
-            self.selected_dems = selected_dems
-            #self.selected_dem_colors = selected_dem_colors
-
-        # get geodata
-        self.selected_dem_parameters = [get_dem_parameters(dem) for dem in selected_dems]
-
-        # get DEMs resolutions in project CRS and choose the min value
-        dem_resolutions_prj_crs_list = []
-        for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
-            dem_resolutions_prj_crs_list.append(
-                get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
-
-        min_dem_resolution = min(dem_resolutions_prj_crs_list)
-        if min_dem_resolution > 1:
-            min_dem_proposed_resolution = round(min_dem_resolution)
-        else:
-            min_dem_proposed_resolution = min_dem_resolution
-        self.qledProfileDensifyDistance.setText(str(min_dem_proposed_resolution))
-
+    """
     def define_dem_sources(self):
 
         def create_topo_profiles():
@@ -1205,7 +1291,7 @@ class qprof_QWidget(QWidget):
                 try:
                     selected_dems = dialog.selected_dems
                     selected_dem_parameters = dialog.selected_dem_parameters
-                    topoline_colors = dialog.selected_dem_colors
+                    #topoline_colors = dialog.selected_dem_colors
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
@@ -1332,6 +1418,7 @@ class qprof_QWidget(QWidget):
                  self.plugin_name,
                  "No topographic source defined")
             return
+    """
 
     def plot_topo_profiles(self):
 
@@ -1901,13 +1988,14 @@ class qprof_QWidget(QWidget):
             return False
         """
         
-        if self.topo_profiles is None:
+        if self.profile_elements is None or \
+                self.profile_elements.profile_elevations is None:
             warn(self,
                  self.plugin_name,
                  "Profile not yet calculated")
             return False
 
-        if not self.topo_profiles.statistics_calculated:
+        if not self.profile_elements.profile_elevations.statistics_calculated:
             warn(self,
                  self.plugin_name,
                  "Profile statistics not yet calculated")

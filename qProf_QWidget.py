@@ -99,6 +99,243 @@ class qprof_QWidget(QWidget):
 
     def setup_topoprofile_tab(self):
 
+        def save_rubberband():
+
+            def get_format_type():
+
+                if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                    return "shapefile - line"
+                elif dialog.outtype_csv_QRadioButton.isChecked():
+                    return "csv"
+                else:
+                    return ""
+
+            if self.digitized_profile_line2dt is None:
+                warn(self,
+                     self.plugin_name,
+                     "No available line to save [1]")
+                return
+            elif self.digitized_profile_line2dt.num_pts < 2:
+                warn(self,
+                     self.plugin_name,
+                     "No available line to save [2]")
+                return
+
+            dialog = LineDataExportDialog(self.plugin_name)
+            if dialog.exec_():
+                output_format = get_format_type()
+                if output_format == "":
+                    warn(self,
+                         self.plugin_name,
+                         "Error in output format")
+                    return
+                output_filepath = dialog.outpath_QLineEdit.text()
+                if len(output_filepath) == 0:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in output path")
+                    return
+                add_to_project = dialog.load_output_checkBox.isChecked()
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No export defined")
+                return
+
+            # get project CRS information
+            project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+            self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts,
+                                     project_crs_osr)
+
+            # add theme to QGis project
+            if output_format == "shapefile - line" and add_to_project:
+                try:
+                    digitized_line_layer = QgsVectorLayer(output_filepath,
+                                                          QFileInfo(output_filepath).baseName(),
+                                                          "ogr")
+                    QgsMapLayerRegistry.instance().addMapLayer(digitized_line_layer)
+                except:
+                    QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                    return
+
+        def calculate_profile_statistics():
+
+            def check_pre_statistics():
+
+                if self.topo_profiles is None:
+                    warn(self,
+                         self.plugin_name,
+                         "Source profile not yet defined")
+                    return False
+
+                return True
+
+            if not check_pre_statistics():
+                return
+
+            """
+            profile_elements = Profile_Elements()
+            #profile_elements.profile_source_type = topo_source_type
+            #profile_elements.topoline_colors = topoline_colors
+            profile_elements.source_profile_line = source_profile_line2dt
+            profile_elements.sample_distance = sample_distance
+            profile_elements.set_topo_profiles(topo_profiles)
+            """
+
+            # topo_profiles = self.profile_elements.topo_profiles
+            self.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), self.topo_profiles.profile_zs)
+            self.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p),
+                                                          self.topo_profiles.profile_dirslopes)
+            self.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p),
+                                                       np.absolute(self.topo_profiles.profile_dirslopes))
+
+            self.topo_profiles.profile_length = self.topo_profiles.profile_s[-1] - self.topo_profiles.profile_s[0]
+            statistics_elev = self.topo_profiles.statistics_elev
+            self.topo_profiles.natural_elev_range = (
+            np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
+            np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
+
+            dialog = StatisticsDialog(self.plugin_name,
+                                      self.topo_profiles)
+            dialog.exec_()
+
+            self.topo_profiles.statistics_calculated = True
+
+            self.profile_elements = ProfileElements()
+            # profile_elements.profile_source_type = topo_source_type
+            # profile_elements.topoline_colors = topoline_colors
+            # profile_elements.source_profile_line = source_profile_line2dt
+            # profile_elements.sample_distance = sample_distance
+            self.profile_elements.set_topo_profiles(self.topo_profiles)
+
+        def load_line_layer():
+
+            def create_line_in_project_crs(profile_processed_line, line_layer_crs, on_the_fly_projection,
+                                           project_crs):
+
+                if not on_the_fly_projection:
+                    return profile_processed_line
+                else:
+                    return profile_processed_line.crs_project(line_layer_crs, project_crs)
+
+            def get_line_trace(line_shape, order_field_ndx):
+
+                try:
+                    profile_orig_lines, mergeorder_ids = line_geoms_with_id(line_shape, order_field_ndx)
+                except VectorInputException as error_msg:
+                    return False, error_msg
+                return True, (profile_orig_lines, mergeorder_ids)
+
+            def get_line_layer_params(dialog):
+
+                line_layer = dialog.line_shape
+                order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
+
+                return line_layer, order_field_ndx
+
+            current_line_layers = loaded_line_layers()
+
+            if len(current_line_layers) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No available line layers")
+                return
+
+            dialog = SourceLineLayerDialog(self.plugin_name,
+                                           current_line_layers)
+
+            if dialog.exec_():
+                line_layer, order_field_ndx = get_line_layer_params(dialog)
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No defined line source")
+                return
+
+            line_fld_ndx = int(order_field_ndx) - 1
+            # get profile path from input line layer
+            success, result = get_line_trace(line_layer, line_fld_ndx)
+            if not success:
+                raise VectorIOException(result)
+
+            profile_orig_lines, mergeorder_ids = result
+
+            profile_processed_line2d = merge_lines(profile_orig_lines, mergeorder_ids)
+
+            # process input line layer
+            profile_projected_line_2d = create_line_in_project_crs(profile_processed_line2d,
+                                                                   line_layer.crs(),
+                                                                   self.on_the_fly_projection,
+                                                                   self.project_crs)
+
+            self.dem_source_profile_line2dt = profile_projected_line_2d.remove_coincident_points()
+
+        def load_point_list():
+
+            def get_point_list(dialog):
+
+                raw_point_string = dialog.point_list_qtextedit.toPlainText()
+                raw_point_list = raw_point_string.split("\n")
+                raw_point_list = map(lambda unicode_txt: clean_string(str(unicode_txt)), raw_point_list)
+                data_list = filter(lambda rp: rp != "", raw_point_list)
+
+                point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
+                line2d = xytuple_list_to_Line(point_list)
+
+                return line2d
+
+            dialog = LoadPointListDialog(self.plugin_name)
+
+            if dialog.exec_():
+                line2d = get_point_list(dialog)
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No defined line source")
+                return
+            try:
+                npts = line2d.num_pts
+                if npts < 2:
+                    warn(self,
+                         self.plugin_name,
+                         "Defined line source with less than two points")
+                    return
+            except:
+                warn(self,
+                     self.plugin_name,
+                     "No defined line source")
+                return
+
+            self.dem_source_profile_line2dt = line2d
+
+        def digitize_line():
+
+            def connect_digitize_maptool():
+
+                QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
+                QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
+                QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+
+            qprof_QWidget.map_digitations += 1
+
+            self.clear_rubberband()
+            self.profile_canvas_points = []
+
+            if qprof_QWidget.map_digitations == 1:
+                info(self,
+                     self.plugin_name,
+                     "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+
+            self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
+            self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
+            self.canvas.setMapTool(self.digitize_maptool)
+            connect_digitize_maptool()
+
+            self.rubberband = QgsRubberBand(self.canvas)
+            self.rubberband.setWidth(2)
+            self.rubberband.setColor(QColor(Qt.red))
+
         def select_input_gpx_file():
 
             gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
@@ -114,44 +351,6 @@ class qprof_QWidget(QWidget):
                                      self.settings_gpxdir_key,
                                      file_name)
                 self.qlneInputGPXFile.setText(file_name)
-
-        def read_input_gpx_file():
-
-            try:
-                source_gpx_path = unicode(self.qlneInputGPXFile.text())
-                if source_gpx_path == '':
-                    warn(self,
-                         self.plugin_name,
-                         "Source GPX file is not set")
-                    return
-            except Exception as e:
-                warn(self,
-                     self.plugin_name,
-                     "Source GPX file not correctly set: {}".format(e.message))
-                return
-
-            invert_profile_choice = self.qcbxInvertProfile.isChecked()
-
-            try:
-                topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
-                                                          invert_profile_choice,
-                                                          self.gpxfile_source)
-            except Exception as e:
-                warn(self,
-                     self.plugin_name,
-                     "Error with profile calculation from GPX file: {}".format(e.message))
-                return
-
-            if topo_profiles is None:
-                warn(self,
-                     self.plugin_name,
-                     "Debug: profile not created")
-                return
-            else:
-                self.topo_profiles = topo_profiles
-                info(self,
-                     self.plugin_name,
-                     "Data profile read")
 
         qwdgTopoProfile = QWidget()
         qlytTopoProfile = QVBoxLayout()
@@ -183,7 +382,7 @@ class qprof_QWidget(QWidget):
         qlytDEMInput.addWidget(self.prof_clearline_pushbutton, 2, 2, 1, 1)
 
         self.prof_clearline_pushbutton = QPushButton(self.tr("Save"))
-        self.prof_clearline_pushbutton.clicked.connect(self.save_rubberband)
+        self.prof_clearline_pushbutton.clicked.connect(save_rubberband)
         qlytDEMInput.addWidget(self.prof_clearline_pushbutton, 2, 3, 1, 1)
 
         self.prof_toposources_reverse_direction_checkbox = QCheckBox(self.tr("Invert source line orientation"))
@@ -225,7 +424,7 @@ class qprof_QWidget(QWidget):
         #
 
         self.qpbtDigitizeLine = QPushButton(self.tr("Digitize line"))
-        self.qpbtDigitizeLine.clicked.connect(self.digitize_line)
+        self.qpbtDigitizeLine.clicked.connect(digitize_line)
         self.qpbtDigitizeLine.setToolTip("Digitize a line on the map.\n"
                                                      "Left click: add point\n"
                                                      "Right click: end adding point\n"
@@ -239,7 +438,7 @@ class qprof_QWidget(QWidget):
         qlytInputLine.addWidget(self.qpbtClearLine, 0, 2, 1, 1)
 
         self.qpbtClearLine = QPushButton(self.tr("Save"))
-        self.qpbtClearLine.clicked.connect(self.save_rubberband)
+        self.qpbtClearLine.clicked.connect(save_rubberband)
         qlytInputLine.addWidget(self.qpbtClearLine, 0, 3, 1, 1)
 
         #
@@ -247,13 +446,13 @@ class qprof_QWidget(QWidget):
         self.qcbxLoadLineLayer = QRadioButton(self.tr("line layer"))
         qlytInputLine.addWidget(self.qcbxLoadLineLayer, 1, 0, 1, 1)
         self.qpbtDefineLineLayer = QPushButton(self.tr("Choose layer"))
-        self.qpbtDefineLineLayer.clicked.connect(self.load_line_layer)
+        self.qpbtDefineLineLayer.clicked.connect(load_line_layer)
         qlytInputLine.addWidget(self.qpbtDefineLineLayer, 1, 1, 1, 3)
 
         self.qcbxPointListforLine = QRadioButton(self.tr("point list"))
         qlytInputLine.addWidget(self.qcbxPointListforLine, 2, 0, 1, 1)
         self.qpbtDefinePointList = QPushButton(self.tr("Create list"))
-        self.qpbtDefinePointList.clicked.connect(self.load_point_list)
+        self.qpbtDefinePointList.clicked.connect(load_point_list)
         qlytInputLine.addWidget(self.qpbtDefinePointList, 2, 1, 1, 3)
 
         # trace sampling spat_distance
@@ -329,7 +528,7 @@ class qprof_QWidget(QWidget):
         prof_stats_Layout = QGridLayout()
 
         self.profile_stats_pushbutton = QPushButton(self.tr("Calculate profile statistics"))
-        self.profile_stats_pushbutton.clicked.connect(self.calculate_profile_statistics)
+        self.profile_stats_pushbutton.clicked.connect(calculate_profile_statistics)
 
         prof_stats_Layout.addWidget(self.profile_stats_pushbutton, 0, 0, 1, 3)
 
@@ -754,68 +953,110 @@ class qprof_QWidget(QWidget):
 
         return impexp_widget
 
+
+
+    def gpx_profile_check_parameters(self):
+
+        source_gpx_path = unicode(self.qlneInputGPXFile.text())
+        if source_gpx_path == '':
+            return False, 'Source GPX file is not defined'
+
+        plot_height_choice = self.GPX_plot_height_checkbox.isChecked()
+        plot_slope_choice = self.GPX_plot_slope_checkbox.isChecked()
+
+        if not (plot_height_choice or plot_slope_choice):
+            return False, 'One of height or slope plot options are to be chosen'
+
+        return True, 'OK'
+
     def read_input_data(self):
+
+        def read_input_gpx_file():
+
+            try:
+                source_gpx_path = unicode(self.qlneInputGPXFile.text())
+                if source_gpx_path == '':
+                    warn(self,
+                         self.plugin_name,
+                         "Source GPX file is not set")
+                    return
+            except Exception as e:
+                warn(self,
+                     self.plugin_name,
+                     "Source GPX file not correctly set: {}".format(e.message))
+                return
+
+            invert_profile_choice = self.qcbxInvertProfile.isChecked()
+
+            try:
+                topo_profiles = topoprofiles_from_gpxfile(source_gpx_path,
+                                                          invert_profile_choice,
+                                                          self.gpxfile_source)
+            except Exception as e:
+                warn(self,
+                     self.plugin_name,
+                     "Error with profile calculation from GPX file: {}".format(e.message))
+                return
+
+            if topo_profiles is None:
+                warn(self,
+                     self.plugin_name,
+                     "Debug: profile not created")
+                return
+            else:
+                self.topo_profiles = topo_profiles
+                info(self,
+                     self.plugin_name,
+                     "Data profile read")
 
         pass
 
-    def stop_rubberband(self):
+    def clear_rubberband(self):
 
+        self.profile_canvas_points = []
+        self.digitized_profile_line2dt = None
         try:
-            self.canvas_end_profile_line()
+            self.rubberband.reset()
         except:
             pass
 
-        try:
-            self.clear_rubberband()
-        except:
-            pass
+    def refresh_rubberband(self, xy_list):
 
+        self.rubberband.reset(QGis.Line)
+        for x, y in xy_list:
+            self.rubberband.addPoint(QgsPoint(x, y))
 
+    def canvas_refresh_profile_line(self, position):
 
-    def get_line_layer_params(self, dialog):
+        if len(self.profile_canvas_points) == 0:
+            return
 
-        line_layer = dialog.line_shape
-        order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
+        x, y = xy_from_canvas(self.canvas, position)
+        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
 
-        return line_layer, order_field_ndx
+    def profile_add_point(self, position):
 
+        x, y = xy_from_canvas(self.canvas, position)
+        self.profile_canvas_points.append([x, y])
 
-    def get_point_list(self, dialog):
-        raw_point_string = dialog.point_list_qtextedit.toPlainText()
-        raw_point_list = raw_point_string.split("\n")
-        raw_point_list = map(lambda unicode_txt: clean_string(str(unicode_txt)), raw_point_list)
-        data_list = filter(lambda rp: rp != "", raw_point_list)
+    def canvas_end_profile_line(self):
 
-        point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
-        line2d = xytuple_list_to_Line(point_list)
+        def restore_previous_map_tool():
 
-        return line2d
+            self.canvas.unsetMapTool(self.digitize_maptool)
+            self.canvas.setMapTool(self.previous_maptool)
 
-    def load_point_list(self):
+        self.refresh_rubberband(self.profile_canvas_points)
 
-        dialog = LoadPointListDialog(self.plugin_name)
-
-        if dialog.exec_():
-            line2d = self.get_point_list(dialog)
+        if len(self.profile_canvas_points) > 1:
+            self.digitized_profile_line2dt = Line(
+                [Point(x, y) for x, y in self.profile_canvas_points])
         else:
-            warn(self,
-                 self.plugin_name,
-                 "No defined line source")
-            return
-        try:
-            npts = line2d.num_pts
-            if npts < 2:
-                warn(self,
-                     self.plugin_name,
-                     "Defined line source with less than two points")
-                return
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "No defined line source")
-            return
+            self.digitized_profile_line2dt = None
 
-        self.dem_source_profile_line2dt = line2d
+        self.profile_canvas_points = []
+
+        restore_previous_map_tool()
 
     def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs):
 
@@ -843,92 +1084,6 @@ class qprof_QWidget(QWidget):
             cellsizeNS_prj_crs = cellsizeNS
 
         return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
-
-
-    def stop_profile_digitize_tool(self):
-
-        try:
-            self.disconnect_digitize_maptool()
-        except:
-            pass
-
-        try:
-            self.canvas.setMapTool(self.previous_maptool)
-        except:
-            pass
-
-    def reset_rubber_band(self):
-
-        try:
-            self.rubberband.reset(QGis.Line)
-        except:
-            pass
-
-
-    def reset_profile_defs(self):
-
-        self.dem_source_profile_line2dt = None
-        self.reset_rubber_band()
-        self.stop_profile_digitize_tool()
-
-
-    def load_line_layer(self):
-
-        current_line_layers = loaded_line_layers()
-
-        if len(current_line_layers) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No available line layers")
-            return
-
-        dialog = SourceLineLayerDialog(self.plugin_name,
-                                       current_line_layers)
-
-        if dialog.exec_():
-            line_layer, order_field_ndx = self.get_line_layer_params(dialog)
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No defined line source")
-            return
-
-        line_fld_ndx = int(order_field_ndx) - 1
-        # get profile path from input line layer
-        success, result = self.get_line_trace(line_layer, line_fld_ndx)
-        if not success:
-            raise VectorIOException(result)
-
-        profile_orig_lines, mergeorder_ids = result
-
-        profile_processed_line2d = merge_lines(profile_orig_lines, mergeorder_ids)
-
-        # process input line layer
-        profile_projected_line_2d = self.create_line_in_project_crs(profile_processed_line2d,
-                                                                    line_layer.crs(),
-                                                                    self.on_the_fly_projection,
-                                                                    self.project_crs)
-
-        self.dem_source_profile_line2dt = profile_projected_line_2d.remove_coincident_points()
-
-
-    def get_line_trace(self, line_shape, order_field_ndx):
-
-        try:
-            profile_orig_lines, mergeorder_ids = line_geoms_with_id(line_shape, order_field_ndx)
-        except VectorInputException as error_msg:
-            return False, error_msg
-        return True, (profile_orig_lines, mergeorder_ids)
-
-
-    def create_line_in_project_crs(self, profile_processed_line, line_layer_crs, on_the_fly_projection,
-                                   project_crs):
-
-        if not on_the_fly_projection:
-            return profile_processed_line
-        else:
-            return profile_processed_line.crs_project(line_layer_crs, project_crs)
-
 
     def define_source_DEMs(self):
 
@@ -1023,10 +1178,21 @@ class qprof_QWidget(QWidget):
             min_dem_proposed_resolution = min_dem_resolution
         self.qledProfileDensifyDistance.setText(str(min_dem_proposed_resolution))
 
-
     def define_dem_sources(self):
 
         def create_topo_profiles():
+
+            def stop_rubberband():
+
+                try:
+                    self.canvas_end_profile_line()
+                except:
+                    pass
+
+                try:
+                    self.clear_rubberband()
+                except:
+                    pass
 
             selected_dems = None
             selected_dem_parameters = None
@@ -1065,7 +1231,7 @@ class qprof_QWidget(QWidget):
                     else:
                         source_profile_line2dt = self.digitized_profile_line2dt
                 else:
-                    self.stop_rubberband()
+                    stop_rubberband()
                     try:
                         source_profile_line2dt = dialog.dem_source_profile_line2dt
                     except:
@@ -1080,7 +1246,7 @@ class qprof_QWidget(QWidget):
                         return
 
             elif topo_source_type == self.gpxfile_source:
-                self.stop_rubberband()
+                stop_rubberband()
                 try:
                     source_gpx_path = unicode(dialog.input_gpx_lineEdit.text())
                     if source_gpx_path == '':
@@ -1167,87 +1333,80 @@ class qprof_QWidget(QWidget):
                  "No topographic source defined")
             return
 
-    def clear_rubberband(self):
+    def plot_topo_profiles(self):
 
-        self.profile_canvas_points = []
-        self.digitized_profile_line2dt = None
-        try:
-            self.rubberband.reset()
-        except:
-            pass
+        def get_profile_plot_params(dialog):
 
+            profile_params = {}
 
-    def digitize_line(self):
+            # get profile plot parameters
 
-        qprof_QWidget.map_digitations += 1
+            try:
+                profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
+            except:
+                profile_params['plot_min_elevation_user'] = None
 
-        self.clear_rubberband()
-        self.profile_canvas_points = []
+            try:
+                profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
+            except:
+                profile_params['plot_max_elevation_user'] = None
 
-        if qprof_QWidget.map_digitations == 1:
-            info(self,
-                 self.plugin_name,
-                 "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+            try:
+                profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
+                assert profile_params['vertical_exaggeration'] > 0
+            except:
+                profile_params['vertical_exaggeration'] = 1
 
-        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
-        self.digitize_maptool = MapDigitizeTool(self.canvas)  # mouse listener
-        self.canvas.setMapTool(self.digitize_maptool)
-        self.connect_digitize_maptool()
+            profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
+            profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
+            profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
+            profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
+            profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
+            profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
+            profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
 
-        self.rubberband = QgsRubberBand(self.canvas)
-        self.rubberband.setWidth(2)
-        self.rubberband.setColor(QColor(Qt.red))
+            try:
+                profile_params['visible_elev_lyrs'] = dialog.visible_layers
+            except:
+                profile_params['visible_elev_lyrs'] = self.profile_elements.profile_elevations.surface_names
 
-    def connect_digitize_maptool(self):
+            try:
+                profile_params['elev_lyr_colors'] = dialog.layer_colors
+            except:
+                profile_params['elev_lyr_colors'] = [qcolor2rgbmpl(QColor('red'))] * len(self.profile_elements.profile_elevations.surface_names)
 
-        QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
-        QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+            return profile_params
 
-    def disconnect_digitize_maptool(self):
-
-        QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-        QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
-        QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
-
-
-    def refresh_rubberband(self, xy_list):
-
-        self.rubberband.reset(QGis.Line)
-        for x, y in xy_list:
-            self.rubberband.addPoint(QgsPoint(x, y))
-
-    def canvas_refresh_profile_line(self, position):
-
-        if len(self.profile_canvas_points) == 0:
+        if not self.check_pre_profile():
             return
 
-        x, y = xy_from_canvas(self.canvas, position)
-        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
+        natural_elev_min, natural_elev_max = self.profile_elements.profile_elevations.natural_elev_range
+        profile_length = self.profile_elements.profile_elevations.profile_length
+        surface_names = self.profile_elements.profile_elevations.surface_names
+        dialog = PlotTopoProfileDialog(self.plugin_name,
+                                       profile_length,
+                                       natural_elev_min,
+                                       natural_elev_max,
+                                       surface_names)
 
-    def profile_add_point(self, position):
-
-        x, y = xy_from_canvas(self.canvas, position)
-        self.profile_canvas_points.append([x, y])
-
-    def canvas_end_profile_line(self):
-
-        self.refresh_rubberband(self.profile_canvas_points)
-
-        if len(self.profile_canvas_points) > 1:
-            self.digitized_profile_line2dt = Line(
-                [Point(x, y) for x, y in self.profile_canvas_points])
+        if dialog.exec_():
+            self.profile_elements.plot_params = get_profile_plot_params(dialog)
         else:
-            self.digitized_profile_line2dt = None
+            return
 
-        self.profile_canvas_points = []
+        self.profile_elements.profile_elevations.profile_created = True
 
-        self.restore_previous_map_tool()
+        # plot profiles
 
-    def restore_previous_map_tool(self):
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        self.canvas.unsetMapTool(self.digitize_maptool)
-        self.canvas.setMapTool(self.previous_maptool)
+        profile_window = plot_profile_elements(self.profile_elements,
+                                               plot_addit_params)
+        self.profile_windows.append(profile_window)
 
     def do_export_topo_profiles(self):
 
@@ -1586,65 +1745,6 @@ class qprof_QWidget(QWidget):
                  self.plugin_name,
                  "Line intersections saved")
 
-    def save_rubberband(self):
-
-        def get_format_type():
-
-            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
-                return "shapefile - line"
-            elif dialog.outtype_csv_QRadioButton.isChecked():
-                return "csv"
-            else:
-                return ""
-
-        if self.digitized_profile_line2dt is None:
-            warn(self,
-                     self.plugin_name,
-                     "No available line to save [1]")
-            return
-        elif self.digitized_profile_line2dt.num_pts < 2:
-            warn(self,
-                 self.plugin_name,
-                 "No available line to save [2]")
-            return
-
-        dialog = LineDataExportDialog(self.plugin_name)
-        if dialog.exec_():
-            output_format = get_format_type()
-            if output_format == "":
-                warn(self,
-                     self.plugin_name,
-                     "Error in output format")
-                return
-            output_filepath = dialog.outpath_QLineEdit.text()
-            if len(output_filepath) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output path")
-                return
-            add_to_project = dialog.load_output_checkBox.isChecked()
-        else:
-            warn(self,
-                     self.plugin_name,
-                     "No export defined")
-            return
-
-        # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
-
-        self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts, project_crs_osr)
-
-        # add theme to QGis project
-        if output_format == "shapefile - line" and add_to_project:
-            try:
-                digitized_line_layer = QgsVectorLayer(output_filepath,
-                                                      QFileInfo(output_filepath).baseName(),
-                                                      "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(digitized_line_layer)
-            except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
-                return
-
     def output_profile_line(self, output_format, output_filepath, pts2dt, proj_sr):
 
         points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
@@ -1794,55 +1894,6 @@ class qprof_QWidget(QWidget):
                         self.choose_message,
                         [layer.name() for layer in self.current_line_layers])
 
-
-    def calculate_profile_statistics(self):
-
-        def check_pre_statistics():
-
-            if self.topo_profiles is None:
-                warn(self,
-                     self.plugin_name,
-                     "Source profile not yet defined")
-                return False
-
-            return True
-        
-        if not check_pre_statistics():
-            return
-
-        """
-        profile_elements = Profile_Elements()
-        #profile_elements.profile_source_type = topo_source_type
-        #profile_elements.topoline_colors = topoline_colors
-        profile_elements.source_profile_line = source_profile_line2dt
-        profile_elements.sample_distance = sample_distance
-        profile_elements.set_topo_profiles(topo_profiles)
-        """
-            
-        #topo_profiles = self.profile_elements.topo_profiles
-        self.topo_profiles.statistics_elev = map(lambda p: get_statistics(p), self.topo_profiles.profile_zs)
-        self.topo_profiles.statistics_dirslopes = map(lambda p: get_statistics(p), self.topo_profiles.profile_dirslopes)
-        self.topo_profiles.statistics_slopes = map(lambda p: get_statistics(p), np.absolute(self.topo_profiles.profile_dirslopes))
-
-        self.topo_profiles.profile_length = self.topo_profiles.profile_s[-1] - self.topo_profiles.profile_s[0]
-        statistics_elev = self.topo_profiles.statistics_elev
-        self.topo_profiles.natural_elev_range = (np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
-                                                                  np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
-
-        dialog = StatisticsDialog(self.plugin_name,
-                                  self.topo_profiles)
-        dialog.exec_()
-
-        self.topo_profiles.statistics_calculated = True
-
-        self.profile_elements = ProfileElements()
-        #profile_elements.profile_source_type = topo_source_type
-        #profile_elements.topoline_colors = topoline_colors
-        #profile_elements.source_profile_line = source_profile_line2dt
-        #profile_elements.sample_distance = sample_distance
-        self.profile_elements.set_topo_profiles(self.topo_profiles)
-
-
     def check_pre_profile(self):
         
         """
@@ -1863,94 +1914,6 @@ class qprof_QWidget(QWidget):
             return False
 
         return True
-
-    def check_post_profile(self):
-
-        if not self.check_pre_profile():
-            return False
-
-        if not self.topo_profiles.profile_created:
-            warn(self,
-                     self.plugin_name,
-                     "Topographic profile not yet created")
-            return False
-
-        return True
-
-    def plot_topo_profiles(self):
-
-        def get_profile_plot_params(dialog):
-
-            profile_params = {}
-
-            # get profile plot parameters
-
-            try:
-                profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
-            except:
-                profile_params['plot_min_elevation_user'] = None
-
-            try:
-                profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
-            except:
-                profile_params['plot_max_elevation_user'] = None
-
-            try:
-                profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
-                assert profile_params['vertical_exaggeration'] > 0
-            except:
-                profile_params['vertical_exaggeration'] = 1
-
-            profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
-            profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
-            profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
-            profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
-            profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
-            profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
-            profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
-
-            try:
-                profile_params['visible_elev_lyrs'] = dialog.visible_layers
-            except:
-                profile_params['visible_elev_lyrs'] = self.profile_elements.profile_elevations.surface_names
-
-            try:
-                profile_params['elev_lyr_colors'] = dialog.layer_colors
-            except:
-                profile_params['elev_lyr_colors'] = [qcolor2rgbmpl(QColor('red'))] * len(self.profile_elements.profile_elevations.surface_names)
-
-            return profile_params
-
-        if not self.check_pre_profile():
-            return
-
-        natural_elev_min, natural_elev_max = self.profile_elements.profile_elevations.natural_elev_range
-        profile_length = self.profile_elements.profile_elevations.profile_length
-        surface_names = self.profile_elements.profile_elevations.surface_names
-        dialog = PlotTopoProfileDialog(self.plugin_name,
-                                       profile_length,
-                                       natural_elev_min,
-                                       natural_elev_max,
-                                       surface_names)
-
-        if dialog.exec_():
-            self.profile_elements.plot_params = get_profile_plot_params(dialog)
-        else:
-            return
-
-        self.profile_elements.profile_elevations.profile_created = True
-
-        # plot profiles
-
-        plot_addit_params = dict()
-        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
-        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
-        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
-        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
-
-        profile_window = plot_profile_elements(self.profile_elements,
-                                               plot_addit_params)
-        self.profile_windows.append(profile_window)
 
     def export_parse_DEM_results(self, profiles_elements):
 
@@ -2118,21 +2081,6 @@ class qprof_QWidget(QWidget):
                  self.plugin_name,
                  "Profile export completed")
 
-
-    def gpx_profile_check_parameters(self):
-
-        source_gpx_path = unicode(self.qlneInputGPXFile.text())
-        if source_gpx_path == '':
-            return False, 'Source GPX file is not defined'
-
-        plot_height_choice = self.GPX_plot_height_checkbox.isChecked()
-        plot_slope_choice = self.GPX_plot_slope_checkbox.isChecked()
-
-        if not (plot_height_choice or plot_slope_choice):
-            return False, 'One of height or slope plot options are to be chosen'
-
-        return True, 'OK'
-
     def export_parse_gpx_results(self):
 
         # definition of output results
@@ -2246,7 +2194,20 @@ class qprof_QWidget(QWidget):
 
     def check_for_struc_process(self):
 
-        if not self.check_post_profile():
+        def check_post_profile():
+
+            if not self.check_pre_profile():
+                return False
+
+            if not self.topo_profiles.profile_created:
+                warn(self,
+                     self.plugin_name,
+                     "Topographic profile not yet created")
+                return False
+
+            return True
+
+        if not check_post_profile():
             return False
 
         # check that section is made up of only two points
@@ -2930,8 +2891,39 @@ class qprof_QWidget(QWidget):
 
     def closeEvent(self, event):
 
+        def reset_profile_defs():
+
+            def reset_rubber_band():
+
+                try:
+                    self.rubberband.reset(QGis.Line)
+                except:
+                    pass
+
+            def stop_profile_digitize_tool():
+
+                def disconnect_digitize_maptool():
+
+                    QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
+                    QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
+                    QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+
+                try:
+                    disconnect_digitize_maptool()
+                except:
+                    pass
+
+                try:
+                    self.canvas.setMapTool(self.previous_maptool)
+                except:
+                    pass
+
+            self.dem_source_profile_line2dt = None
+            reset_rubber_band()
+            stop_profile_digitize_tool()
+
         try:
-            self.reset_profile_defs()
+            reset_profile_defs()
         except:
             pass
 

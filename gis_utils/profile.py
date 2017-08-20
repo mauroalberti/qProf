@@ -28,7 +28,6 @@ class ProfileElements(object):
         self.sample_distance = None  # max spacing along profile; float
         self.resampled_line = None
 
-        #self.topoline_colors = None
         self.plot_params = None
 
         self.profile_elevations = None

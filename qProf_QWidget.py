@@ -58,7 +58,7 @@ class qprof_QWidget(QWidget):
         self.digitized_profile_line2dt = None
         self.polygon_classification_colors = None
 
-        self.topo_profiles = None
+        #self.topo_profiles = None
         self.profile_elements = None
 
         self.profile_windows = []
@@ -137,7 +137,7 @@ class qprof_QWidget(QWidget):
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
-                         "Input DEMs definition not correct: {}".format(e.message))
+                         "Input DEMs definition not correct")
                     return
 
                 try:
@@ -2287,7 +2287,7 @@ class qprof_QWidget(QWidget):
             if not self.check_pre_profile():
                 return False
 
-            if not self.topo_profiles.profile_created:
+            if not self.profile_elements.profile_elevations.profile_created:
                 warn(self,
                      self.plugin_name,
                      "Topographic profile not yet created")

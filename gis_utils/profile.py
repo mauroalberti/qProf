@@ -4,8 +4,6 @@ from __future__ import division
 import copy
 import xml.dom.minidom
 
-from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis, QgsCoordinateTransform, QgsPoint, QgsRaster
-
 from .features import Line, xytuple_l2_to_MultiLine
 
 from .qgs_tools import *
@@ -15,10 +13,47 @@ from .geodetic import TrackPointGPX
 from .errors import GPXIOException
 
 
-class ProfileElements(object):
+class GeoProfilesSet(object):
+    """
+    Represents a set of ProfileElements instances,
+    stored as a list
+    """
+
+    def __init__(self, name=""):
+
+        self.name = name
+        self.geoprofiles = []
+
+    def append(self, geoprofile):
+
+        self.geoprofiles += geoprofile
+
+    def insert(self, ndx, geoprofile):
+
+        self.geoprofiles.insert(ndx, geoprofile)
+
+    def move(self, ndx_init, ndx_final):
+
+        geoprofile = self.geoprofiles.pop(ndx_init)
+        self.insert(ndx_final, geoprofile)
+
+    def move_up(self, ndx):
+
+        self.move(ndx, ndx -1)
+
+    def move_down(self, ndx):
+
+        self.move(ndx, ndx + 1)
+
+    def remove(self, ndx):
+
+        _ = self.geoprofiles.pop(ndx)
+
+
+class GeoProfile(object):
     """
     Class representing the topographic and geological elements
-    embodying a single profile.
+    embodying a single geological profile.
     """
 
     def __init__(self):
@@ -30,7 +65,7 @@ class ProfileElements(object):
 
         self.plot_params = None
 
-        self.profile_elevations = None
+        self.profile_elevations = None  # instance of ProfileElevations
         self.geoplane_attitudes = []
         self.geosurfaces = []
         self.geosurfaces_ids = []
@@ -118,14 +153,6 @@ class ProfileElements(object):
         self.geosurfaces_ids.append(lIds)
 
 
-class DEMParams(object):
-
-    def __init__(self, layer, params):
-
-        self.layer = layer
-        self.params = params
-
-
 class ProfileElevations(object):
 
     def __init__(self):
@@ -142,8 +169,7 @@ class ProfileElevations(object):
         self.profile_s = None
 
         self.surface_names = []
-        #self.surface_visibility = []  # list of Booleans
-        #self.surface_colors = []
+
         self.profile_s3ds = []
         self.profile_zs = []
         self.profile_dirslopes = []
@@ -153,20 +179,30 @@ class ProfileElevations(object):
         self.statistics_calculated = False
         self.profile_created = False
 
-
-
     def max_s(self):
+
         return self.profile_s[-1]
 
     def min_z(self):
+
         return min(map(np.nanmin, self.profile_zs))
 
     def max_z(self):
+
         return max(map(np.nanmax, self.profile_zs))
 
     @property
     def absolute_slopes(self):
+
         return map(np.fabs, self.profile_dirslopes)
+
+
+class DEMParams(object):
+
+    def __init__(self, layer, params):
+
+        self.layer = layer
+        self.params = params
 
 
 class PlaneAttitude(object):

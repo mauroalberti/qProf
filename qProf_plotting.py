@@ -102,7 +102,7 @@ def plot_topo_profile_lines(profile_elements, subplot_code, profile_window, topo
 
     topo_profiles = profile_elements.profile_elevations
     topoline_colors = profile_elements.plot_params['elev_lyr_colors']
-    topoline_visibility = profile_elements.plot_params['visible_elev_lyrs']
+    topoline_visibilities = profile_elements.plot_params['visible_elev_lyrs']
 
     axes = create_axes(
         subplot_code,
@@ -125,20 +125,23 @@ def plot_topo_profile_lines(profile_elements, subplot_code, profile_window, topo
 
     s = topo_profiles.profile_s
 
-    for y, topoline_color in zip(ys, topoline_colors):
-        if filled_choice:
-            plot_filled_line(
+    for y, topoline_color, topoline_visibility in zip(ys, topoline_colors, topoline_visibilities):
+
+        if topoline_visibility:
+
+            if filled_choice:
+                plot_filled_line(
+                    axes,
+                    s,
+                    y,
+                    plot_y_min,
+                    topoline_color)
+
+            plot_line(
                 axes,
                 s,
                 y,
-                plot_y_min,
                 topoline_color)
-
-        plot_line(
-            axes,
-            s,
-            y,
-            topoline_color)
 
     return axes
 

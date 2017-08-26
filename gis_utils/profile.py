@@ -21,20 +21,34 @@ class GeoProfilesSet(object):
 
     def __init__(self, name=""):
 
-        self.name = name
-        self.geoprofiles = []
+        self._name = name
+        self._geoprofiles = []  # a list of ProfileElements instances
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+
+        self._name = new_name
+
+    @property
+    def geoprofiles(self):
+
+        return self._geoprofiles
 
     def append(self, geoprofile):
 
-        self.geoprofiles += geoprofile
+        self._geoprofiles += geoprofile
 
     def insert(self, ndx, geoprofile):
 
-        self.geoprofiles.insert(ndx, geoprofile)
+        self._geoprofiles.insert(ndx, geoprofile)
 
     def move(self, ndx_init, ndx_final):
 
-        geoprofile = self.geoprofiles.pop(ndx_init)
+        geoprofile = self._geoprofiles.pop(ndx_init)
         self.insert(ndx_final, geoprofile)
 
     def move_up(self, ndx):
@@ -47,7 +61,7 @@ class GeoProfilesSet(object):
 
     def remove(self, ndx):
 
-        _ = self.geoprofiles.pop(ndx)
+        _ = self._geoprofiles.pop(ndx)
 
 
 class GeoProfile(object):

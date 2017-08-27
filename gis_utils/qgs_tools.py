@@ -151,13 +151,13 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
 
     lines = []
     progress_ids = []
-    dummy_progressive = 0
 
     if line_layer.selectedFeatureCount() > 0:
         features = line_layer.selectedFeatures()
     else:
         features = line_layer.getFeatures()
 
+    dummy_progressive = 0
     for feature in features:
         try:
             progress_ids.append(int(feature[curr_field_ndx]))

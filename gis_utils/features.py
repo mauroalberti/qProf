@@ -649,6 +649,24 @@ def xytuple_l2_to_MultiLine(xytuple_list2):
     return MultiLine(lines_list)
 
 
+def merge_line(line):
+    """
+    line: a list of (x,y,z) tuples for line
+    """
+
+    line_type, line_geometry = line
+
+    if line_type == 'multiline':
+        path_line = xytuple_l2_to_MultiLine(line_geometry).to_line()
+    elif line_type == 'line':
+        path_line = xytuple_list_to_Line(line_geometry)
+    else:
+        raise Exception("unknown line type")
+
+    # transformed into a single Line
+
+    return MultiLine([path_line]).to_line().remove_coincident_points()
+
 
 def merge_lines(lines, progress_ids):
     """

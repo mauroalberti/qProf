@@ -11,9 +11,9 @@ from .gsf.geometry import Plane, GPlane, GAxis
 from .gsf.array_utils import to_float
 
 from .gis_utils.features import Segment, MultiLine, Line, \
-    merge_lines, ParamLine3D, xytuple_list_to_Line
+    merge_line, merge_lines, ParamLine3D, xytuple_list_to_Line
 from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from .gis_utils.profile import GeoProfile, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
+from .gis_utils.profile import GeoProfilesSet, GeoProfile, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
     intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
     extract_multiline2d_list, profile_polygon_intersection, calculate_projected_3d_pts
 from .gis_utils.qgs_tools import *
@@ -58,7 +58,7 @@ class qprof_QWidget(QWidget):
         self.digitized_profile_line2dt = None
         self.polygon_classification_colors = None
 
-        self.geoprofile = None
+        self.input_geoprofiles = GeoProfilesSet()
 
         self.profile_windows = []
 
@@ -115,7 +115,7 @@ class qprof_QWidget(QWidget):
             selected_dem_parameters = None
 
             sample_distance = None
-            source_profile_line2dt = None
+            source_profile_lines = None
 
             if self.qrbtDEMDataType.isChecked():
                 topo_source_type = self.demline_source
@@ -124,8 +124,10 @@ class qprof_QWidget(QWidget):
             else:
                 warn(self,
                      self.plugin_name,
-                     "Debug: no source data type definition")
+                     "Debug: source data type undefined")
                 return
+
+            self.input_geoprofiles = GeoProfilesSet()
 
             if topo_source_type == self.demline_source:
 
@@ -155,17 +157,17 @@ class qprof_QWidget(QWidget):
                              "No digitized line available")
                         return
                     else:
-                        source_profile_line2dt = self.digitized_profile_line2dt
+                        source_profile_lines = [self.digitized_profile_line2dt]
                 else:
                     stop_rubberband()
                     try:
-                        source_profile_line2dt = self.dem_source_profile_line2dt
+                        source_profile_lines = self.dem_source_lines
                     except:
                         warn(self,
                              self.plugin_name,
                              "DEM-line profile source not correctly created [1]")
                         return
-                    if source_profile_line2dt is None:
+                    if source_profile_lines is None:
                         warn(self,
                              self.plugin_name,
                              "DEM-line profile source not correctly created [2]")
@@ -197,18 +199,35 @@ class qprof_QWidget(QWidget):
             invert_profile = self.qcbxInvertProfile.isChecked()
 
             if topo_source_type == self.demline_source:  # sources are DEM(s) and line
-                try:
-                    topo_profiles = topoprofiles_from_dems(self.canvas,
-                                                            source_profile_line2dt,
-                                                            sample_distance,
-                                                            selected_dems,
-                                                            selected_dem_parameters,
-                                                            invert_profile)
-                except Exception as e:
-                     warn(self,
-                         self.plugin_name,
-                         e.message)
-                     return
+
+                for profile_line in source_profile_lines:
+
+                    try:
+                        topo_profiles = topoprofiles_from_dems(self.canvas,
+                                                               profile_line,
+                                                               sample_distance,
+                                                               selected_dems,
+                                                               selected_dem_parameters,
+                                                               invert_profile)
+                    except Exception as e:
+                         warn(self,
+                             self.plugin_name,
+                             e.message)
+                         return
+
+                    if topo_profiles is None:
+                        warn(self,
+                             self.plugin_name,
+                             "Debug: profile not created")
+                        return
+
+                    geoprofile = GeoProfile()
+                    geoprofile.source_data_type = topo_source_type
+                    geoprofile.original_line = profile_line
+                    geoprofile.sample_distance = sample_distance
+                    geoprofile.set_topo_profiles(topo_profiles)
+
+                    self.input_geoprofiles.append(geoprofile)
 
             elif topo_source_type == self.gpxfile_source:  # source is GPX file
 
@@ -221,25 +240,26 @@ class qprof_QWidget(QWidget):
                          self.plugin_name,
                          "Error with profile calculation from GPX file: {}".format(e.message))
                     return
+
+                if topo_profiles is None:
+                    warn(self,
+                         self.plugin_name,
+                         "Debug: profile not created")
+                    return
+
+                geoprofile = GeoProfile()
+                geoprofile.source_data_type = topo_source_type
+                geoprofile.original_line = source_profile_lines
+                geoprofile.sample_distance = sample_distance
+                geoprofile.set_topo_profiles(topo_profiles)
+
+                self.input_geoprofiles.append(geoprofile)
+
             else:  # source error
                 error(self,
                       self.plugin_name,
                      "Algorithm error: profile calculation not defined")
                 return
-
-            if topo_profiles is None:
-                warn(self,
-                     self.plugin_name,
-                     "Debug: profile not created")
-                return
-
-            profile_elements = GeoProfile()
-            profile_elements.source_data_type = topo_source_type
-            profile_elements.original_line = source_profile_line2dt
-            profile_elements.sample_distance = sample_distance
-            profile_elements.set_topo_profiles(topo_profiles)
-
-            self.geoprofile = profile_elements
 
             info(self,
                  self.plugin_name,
@@ -398,10 +418,16 @@ class qprof_QWidget(QWidget):
 
             def check_pre_statistics():
 
-                if self.geoprofile is None:
+                if self.input_geoprofiles is None:
                     warn(self,
                          self.plugin_name,
                          "Source profile not yet defined")
+                    return False
+
+                if self.input_geoprofiles.geoprofiles_num == 0:
+                    warn(self,
+                         self.plugin_name,
+                         "No defined profile")
                     return False
 
                 return True
@@ -409,23 +435,33 @@ class qprof_QWidget(QWidget):
             if not check_pre_statistics():
                 return
 
-            self.geoprofile.profile_elevations.statistics_elev = map(lambda p: get_statistics(p), self.geoprofile.profile_elevations.profile_zs)
-            self.geoprofile.profile_elevations.statistics_dirslopes = map(lambda p: get_statistics(p),
-                                                                          self.geoprofile.profile_elevations.profile_dirslopes)
-            self.geoprofile.profile_elevations.statistics_slopes = map(lambda p: get_statistics(p),
-                                                                       np.absolute(self.geoprofile.profile_elevations.profile_dirslopes))
+            for ndx in range(self.input_geoprofiles.geoprofiles_num):
 
-            self.geoprofile.profile_elevations.profile_length = self.geoprofile.profile_elevations.profile_s[-1] - self.geoprofile.profile_elevations.profile_s[0]
-            statistics_elev = self.geoprofile.profile_elevations.statistics_elev
-            self.geoprofile.profile_elevations.natural_elev_range = (
-            np.nanmin(np.array(map(lambda ds_stats: ds_stats["min"], statistics_elev))),
-            np.nanmax(np.array(map(lambda ds_stats: ds_stats["max"], statistics_elev))))
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev = map(
+                    lambda p: get_statistics(p),
+                    self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_zs)
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_dirslopes = map(
+                    lambda p: get_statistics(p),
+                    self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes)
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_slopes = map(
+                    lambda p: get_statistics(p),
+                    np.absolute(self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes))
+
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_length = self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[-1] - self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[0]
+                statistics_elev = self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.natural_elev_range = (
+                    np.nanmin(np.array(map(
+                        lambda ds_stats: ds_stats["min"],
+                        statistics_elev))),
+                    np.nanmax(np.array(map(
+                        lambda ds_stats: ds_stats["max"],
+                        statistics_elev))))
 
             dialog = StatisticsDialog(self.plugin_name,
-                                      self.geoprofile.profile_elevations)
+                                      self.input_geoprofiles)
             dialog.exec_()
 
-            self.geoprofile.profile_elevations.statistics_calculated = True
+            self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_calculated = True
 
         def load_line_layer():
 
@@ -437,7 +473,7 @@ class qprof_QWidget(QWidget):
                 else:
                     return profile_processed_line.crs_project(line_layer_crs, project_crs)
 
-            def get_line_trace(line_shape, order_field_ndx):
+            def get_line_traces(line_shape, order_field_ndx):
 
                 try:
                     profile_orig_lines, mergeorder_ids = line_geoms_with_id(line_shape, order_field_ndx)
@@ -445,13 +481,15 @@ class qprof_QWidget(QWidget):
                     return False, error_msg
                 return True, (profile_orig_lines, mergeorder_ids)
 
-            def get_line_layer_params(dialog):
+            def line_layer_params(dialog):
 
                 line_layer = dialog.line_shape
+                multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
                 order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
-                return line_layer, order_field_ndx
+                return line_layer, multiple_profiles, order_field_ndx
 
+            #multiple_profiles = self.qrbtLineIsMultiProfile.isChecked()
             current_line_layers = loaded_line_layers()
 
             if len(current_line_layers) == 0:
@@ -464,7 +502,7 @@ class qprof_QWidget(QWidget):
                                            current_line_layers)
 
             if dialog.exec_():
-                line_layer, order_field_ndx = get_line_layer_params(dialog)
+                line_layer, multiple_profiles, order_field_ndx = line_layer_params(dialog)
             else:
                 warn(self,
                      self.plugin_name,
@@ -472,22 +510,31 @@ class qprof_QWidget(QWidget):
                 return
 
             line_fld_ndx = int(order_field_ndx) - 1
+
             # get profile path from input line layer
-            success, result = get_line_trace(line_layer, line_fld_ndx)
+
+            success, result = get_line_traces(line_layer, line_fld_ndx)
             if not success:
                 raise VectorIOException(result)
 
             profile_orig_lines, mergeorder_ids = result
 
-            profile_processed_line2d = merge_lines(profile_orig_lines, mergeorder_ids)
+            processed_lines = []
+            if multiple_profiles:
+                for orig_line in profile_orig_lines:
+                    processed_lines.append(merge_line(orig_line))
+            else:
+                processed_lines.append(merge_lines(profile_orig_lines, mergeorder_ids))
 
             # process input line layer
-            profile_projected_line_2d = create_line_in_project_crs(profile_processed_line2d,
-                                                                   line_layer.crs(),
-                                                                   self.on_the_fly_projection,
-                                                                   self.project_crs)
+            projected_lines = []
+            for processed_line in processed_lines:
+                projected_lines.append(create_line_in_project_crs(processed_line,
+                                                               line_layer.crs(),
+                                                               self.on_the_fly_projection,
+                                                               self.project_crs))
 
-            self.dem_source_profile_line2dt = profile_projected_line_2d.remove_coincident_points()
+            self.dem_source_lines = map(lambda line: line.remove_coincident_points(), projected_lines)
 
         def load_point_list():
 
@@ -525,7 +572,7 @@ class qprof_QWidget(QWidget):
                      "No defined line source")
                 return
 
-            self.dem_source_profile_line2dt = line2d
+            self.dem_source_lines = [line2d]
 
         def digitize_line():
 
@@ -639,10 +686,7 @@ class qprof_QWidget(QWidget):
 
         self.qpbtDefineLineLayer = QPushButton(self.tr("Choose layer"))
         self.qpbtDefineLineLayer.clicked.connect(load_line_layer)
-        qlytInputLine.addWidget(self.qpbtDefineLineLayer, 1, 1, 1, 2)
-
-        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Multi-profile"))
-        qlytInputLine.addWidget(self.qrbtLineIsMultiProfile, 1, 3, 1, 1)
+        qlytInputLine.addWidget(self.qpbtDefineLineLayer, 1, 1, 1, 3)
 
         self.qrbtPointListforLine = QRadioButton(self.tr("Point list"))
         qlytInputLine.addWidget(self.qrbtPointListforLine, 2, 0, 1, 1)
@@ -691,19 +735,19 @@ class qprof_QWidget(QWidget):
         qwgtDoTopoDataRead = QWidget()
         qlytDoTopoDataRead = QGridLayout()
 
-        self.qpbtReadData = QPushButton("Read source data")
-        self.qpbtReadData.clicked.connect(create_topo_profiles)
-        qlytDoTopoDataRead.addWidget(self.qpbtReadData, 0, 0, 1, 2)
-
-        self.qrbtDEMDataType = QRadioButton("DEM")
+        self.qrbtDEMDataType = QRadioButton("DEM input")
         self.qrbtDEMDataType.setChecked(True)
-        qlytDoTopoDataRead.addWidget(self.qrbtDEMDataType, 0, 2, 1, 1)
+        qlytDoTopoDataRead.addWidget(self.qrbtDEMDataType, 0, 0, 1, 1)
 
-        self.qrbtGPXDataType = QRadioButton("GPX")
-        qlytDoTopoDataRead.addWidget(self.qrbtGPXDataType, 0, 3, 1, 1)
+        self.qrbtGPXDataType = QRadioButton("GPX input")
+        qlytDoTopoDataRead.addWidget(self.qrbtGPXDataType, 0, 1, 1, 1)
 
         self.qcbxInvertProfile = QCheckBox("Invert orientation")
-        qlytDoTopoDataRead.addWidget(self.qcbxInvertProfile, 1, 2, 1, 2)
+        qlytDoTopoDataRead.addWidget(self.qcbxInvertProfile, 0, 2, 1, 1)
+
+        self.qpbtReadData = QPushButton("Read source data")
+        self.qpbtReadData.clicked.connect(create_topo_profiles)
+        qlytDoTopoDataRead.addWidget(self.qpbtReadData, 1, 0, 1, 3)
 
         qwgtDoTopoDataRead.setLayout(qlytDoTopoDataRead)
 
@@ -2919,10 +2963,13 @@ class SourceLineLayerDialog(QDialog):
         layout.addWidget(self.LineLayers_comboBox, 0, 1, 1, 3)
         self.refresh_input_profile_layer_combobox()
 
-        layout.addWidget(QLabel(self.tr("Line order field:")), 1, 0, 1, 1)
+        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer has multiple profiles"))
+        layout.addWidget(self.qrbtLineIsMultiProfile, 1, 0, 1, 4)
+
+        layout.addWidget(QLabel(self.tr("Line order field:")), 2, 0, 1, 1)
 
         self.Trace2D_order_field_comboBox = QComboBox()
-        layout.addWidget(self.Trace2D_order_field_comboBox, 1, 1, 1, 3)
+        layout.addWidget(self.Trace2D_order_field_comboBox, 2, 1, 1, 3)
 
         self.refresh_order_field_combobox()
 
@@ -2936,7 +2983,7 @@ class SourceLineLayerDialog(QDialog):
         buttonLayout.addWidget(okButton)
         buttonLayout.addWidget(cancelButton)
 
-        layout.addLayout(buttonLayout, 2, 0, 1, 3)
+        layout.addLayout(buttonLayout, 3, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3848,28 +3895,35 @@ class LineDataExportDialog(QDialog):
 
 class StatisticsDialog(QDialog):
 
-    def __init__(self, plugin_name, profile_elevations, parent=None):
+    def __init__(self, plugin_name, geoprofile_set, parent=None):
 
         super(StatisticsDialog, self).__init__(parent)
 
         self.plugin_name = plugin_name
-
-        profiles_stats = zip(profile_elevations.surface_names,
-                             zip(profile_elevations.statistics_elev,
-                                 profile_elevations.statistics_dirslopes,
-                                 profile_elevations.statistics_slopes))
 
         layout = QVBoxLayout()
 
         self.text_widget = QTextEdit()
         self.text_widget.setReadOnly(True)
 
-        stat_report = "General statistics\n"
-        stat_report += "\nProfile length: %f\n" % profile_elevations.profile_length
-        stat_report += "\nTopographic elevations\n"
-        stat_report += " - min: {}\n".format(profile_elevations.natural_elev_range[0])
-        stat_report += " - max: {}\n\n".format(profile_elevations.natural_elev_range[1])
-        stat_report += self.report_stats(profiles_stats)
+        num_profiles = geoprofile_set.geoprofiles_num
+        stat_report = "\nGeneral statistics for {} profiles\n".format(num_profiles)
+
+        for ndx in range(num_profiles):
+
+            profile_elevations = geoprofile_set.geoprofile(ndx).profile_elevations
+
+            profiles_stats = zip(profile_elevations.surface_names,
+                                 zip(profile_elevations.statistics_elev,
+                                     profile_elevations.statistics_dirslopes,
+                                     profile_elevations.statistics_slopes))
+
+            stat_report += "\nStatistics for Line {}\n".format(ndx+1)
+            stat_report += "\nProfile length: %f\n" % profile_elevations.profile_length
+            stat_report += "\nTopographic elevations\n"
+            stat_report += " - min: {}\n".format(profile_elevations.natural_elev_range[0])
+            stat_report += " - max: {}\n\n".format(profile_elevations.natural_elev_range[1])
+            stat_report += self.report_stats(profiles_stats)
 
         self.text_widget.setPlainText(stat_report)
 

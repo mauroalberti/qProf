@@ -38,9 +38,18 @@ class GeoProfilesSet(object):
 
         return self._geoprofiles
 
+    @property
+    def geoprofiles_num(self):
+
+        return len(self._geoprofiles)
+
+    def geoprofile(self, ndx):
+
+        return self._geoprofiles[ndx]
+
     def append(self, geoprofile):
 
-        self._geoprofiles += geoprofile
+        self._geoprofiles.append(geoprofile)
 
     def insert(self, ndx, geoprofile):
 

@@ -58,9 +58,9 @@ class qprof_QWidget(QWidget):
         self.digitized_profile_line2dt = None
         self.polygon_classification_colors = None
 
-        self.input_geoprofiles = GeoProfilesSet()
+        self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
 
-        self.profile_windows = []
+        self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
 
         self.plane_attitudes_colors = []
         self.curve_colors = []
@@ -127,7 +127,7 @@ class qprof_QWidget(QWidget):
                      "Debug: source data type undefined")
                 return
 
-            self.input_geoprofiles = GeoProfilesSet()
+            self.input_geoprofiles = GeoProfilesSet()  # reset any previous created profiles
 
             if topo_source_type == self.demline_source:
 
@@ -414,25 +414,10 @@ class qprof_QWidget(QWidget):
                     QMessageBox.critical(self, "Result", "Unable to load layer in project")
                     return
 
+
         def calculate_profile_statistics():
 
-            def check_pre_statistics():
-
-                if self.input_geoprofiles is None:
-                    warn(self,
-                         self.plugin_name,
-                         "Source profile not yet defined")
-                    return False
-
-                if self.input_geoprofiles.geoprofiles_num == 0:
-                    warn(self,
-                         self.plugin_name,
-                         "No defined profile")
-                    return False
-
-                return True
-
-            if not check_pre_statistics():
+            if not self.check_pre_statistics():
                 return
 
             for ndx in range(self.input_geoprofiles.geoprofiles_num):
@@ -457,11 +442,11 @@ class qprof_QWidget(QWidget):
                         lambda ds_stats: ds_stats["max"],
                         statistics_elev))))
 
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_calculated = True
+
             dialog = StatisticsDialog(self.plugin_name,
                                       self.input_geoprofiles)
             dialog.exec_()
-
-            self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_calculated = True
 
         def load_line_layer():
 
@@ -1257,6 +1242,36 @@ class qprof_QWidget(QWidget):
 
         return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
+    def check_pre_statistics(self):
+
+        if self.input_geoprofiles is None:
+            warn(self,
+                 self.plugin_name,
+                 "Source profile not yet defined")
+            return False
+
+        if self.input_geoprofiles.geoprofiles_num == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No defined profile")
+            return False
+
+        return True
+
+    def check_pre_profile(self):
+
+        if not self.check_pre_statistics():
+            return
+
+        for geoprofile in self.input_geoprofiles.geoprofiles:
+            if not geoprofile.profile_elevations.statistics_calculated:
+                warn(self,
+                     self.plugin_name,
+                     "Profile statistics not yet calculated")
+                return False
+
+        return True
+
     def plot_topo_profiles(self):
 
         def get_profile_plot_params(dialog):
@@ -1304,13 +1319,21 @@ class qprof_QWidget(QWidget):
         if not self.check_pre_profile():
             return
 
-        natural_elev_min, natural_elev_max = self.geoprofile.profile_elevations.natural_elev_range
-        profile_length = self.geoprofile.profile_elevations.profile_length
-        surface_names = self.geoprofile.profile_elevations.surface_names
+        natural_elev_min_set = []
+        natural_elev_max_set = []
+        profile_length_set = []
+        for geoprofile in self.input_geoprofiles.geoprofiles:
+            natural_elev_min, natural_elev_max = geoprofile.profile_elevations.natural_elev_range
+            natural_elev_min_set.append(natural_elev_min)
+            natural_elev_max_set.append(natural_elev_max_set)
+            profile_length_set.append(self.geoprofile.profile_elevations.profile_length)
+
+        surface_names = geoprofile.profile_elevations.surface_names
+
         dialog = PlotTopoProfileDialog(self.plugin_name,
-                                       profile_length,
-                                       natural_elev_min,
-                                       natural_elev_max,
+                                       profile_length_set,
+                                       natural_elev_min_set,
+                                       natural_elev_max_set,
                                        surface_names)
 
         if dialog.exec_():
@@ -1817,23 +1840,6 @@ class qprof_QWidget(QWidget):
         update_ComboBox(self.inters_input_line_comboBox,
                         self.choose_message,
                         [layer.name() for layer in self.current_line_layers])
-
-    def check_pre_profile(self):
-
-        if self.geoprofile is None or \
-                self.geoprofile.profile_elevations is None:
-            warn(self,
-                 self.plugin_name,
-                 "Profile not yet calculated")
-            return False
-
-        if not self.geoprofile.profile_elevations.statistics_calculated:
-            warn(self,
-                 self.plugin_name,
-                 "Profile statistics not yet calculated")
-            return False
-
-        return True
 
     def export_parse_DEM_results(self, profiles_elements):
 
@@ -3188,7 +3194,7 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
 class PlotTopoProfileDialog(QDialog):
 
-    def __init__(self, plugin_name, profile_length, natural_elev_min, natural_elev_max, elevation_layer_names, parent=None):
+    def __init__(self, plugin_name, profile_length_set, natural_elev_min_set, natural_elev_max_set, elevation_layer_names, parent=None):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
 

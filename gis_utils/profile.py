@@ -23,6 +23,8 @@ class GeoProfilesSet(object):
 
         self._name = name
         self._geoprofiles = []  # a list of ProfileElements instances
+        self.profiles_created = False
+        self.plot_params = None
 
     @property
     def name(self):
@@ -86,7 +88,7 @@ class GeoProfile(object):
         self.sample_distance = None  # max spacing along profile; float
         self.resampled_line = None
 
-        self.plot_params = None
+        #self.plot_params = None
 
         self.profile_elevations = None  # instance of ProfileElevations
         self.geoplane_attitudes = []

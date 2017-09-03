@@ -25,7 +25,7 @@ from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
 
-from qProf_plotting import plot_profile_elements
+from qProf_plotting import plot_geoprofile
 from qProf_export import write_intersection_polygon_lnshp, write_topography_allDEMs_csv, write_topography_singleDEM_csv, \
           write_generic_csv, write_line_csv, write_topography_allDEMs_ptshp, write_topography_allDEMs_lnshp, \
           write_geological_attitudes_ptshp, write_profile_lnshp, write_topography_GPX_lnshp, write_topography_singleDEM_lnshp, \
@@ -1304,15 +1304,16 @@ class qprof_QWidget(QWidget):
             profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
             profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
 
+            surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
             try:
                 profile_params['visible_elev_lyrs'] = dialog.visible_layers
             except:
-                profile_params['visible_elev_lyrs'] = self.geoprofile.profile_elevations.surface_names
+                profile_params['visible_elev_lyrs'] = surface_names
 
             try:
                 profile_params['elev_lyr_colors'] = dialog.layer_colors
             except:
-                profile_params['elev_lyr_colors'] = [qcolor2rgbmpl(QColor('red'))] * len(self.geoprofile.profile_elevations.surface_names)
+                profile_params['elev_lyr_colors'] = [qcolor2rgbmpl(QColor('red'))] * len(surface_names)
 
             return profile_params
 
@@ -1325,8 +1326,8 @@ class qprof_QWidget(QWidget):
         for geoprofile in self.input_geoprofiles.geoprofiles:
             natural_elev_min, natural_elev_max = geoprofile.profile_elevations.natural_elev_range
             natural_elev_min_set.append(natural_elev_min)
-            natural_elev_max_set.append(natural_elev_max_set)
-            profile_length_set.append(self.geoprofile.profile_elevations.profile_length)
+            natural_elev_max_set.append(natural_elev_max)
+            profile_length_set.append(geoprofile.profile_elevations.profile_length)
 
         surface_names = geoprofile.profile_elevations.surface_names
 
@@ -1337,11 +1338,11 @@ class qprof_QWidget(QWidget):
                                        surface_names)
 
         if dialog.exec_():
-            self.geoprofile.plot_params = get_profile_plot_params(dialog)
+            self.input_geoprofiles.plot_params = get_profile_plot_params(dialog)
         else:
             return
 
-        self.geoprofile.profile_elevations.profile_created = True
+        self.input_geoprofiles.profiles_created = True
 
         # plot profiles
 
@@ -1351,8 +1352,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_profile_elements(self.geoprofile,
-                                               plot_addit_params)
+        profile_window = plot_geoprofile(self.input_geoprofiles,
+                                         plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def do_export_topo_profiles(self):
@@ -2125,7 +2126,7 @@ class qprof_QWidget(QWidget):
             if not self.check_pre_profile():
                 return False
 
-            if not self.geoprofile.profile_elevations.profile_created:
+            if not self.input_geoprofiles.profiles_created:
                 warn(self,
                      self.plugin_name,
                      "Topographic profile not yet created")
@@ -2235,8 +2236,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_profile_elements(self.geoprofile,
-                                               plot_addit_params)
+        profile_window = plot_geoprofile(self.geoprofile,
+                                         plot_addit_params)
         self.profile_windows.append(profile_window)
 
 
@@ -2390,8 +2391,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_profile_elements(self.geoprofile,
-                                               plot_addit_params)
+        profile_window = plot_geoprofile(self.geoprofile,
+                                         plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def reset_structural_lines_projection(self):
@@ -2609,8 +2610,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_profile_elements(self.geoprofile,
-                                               plot_addit_params)
+        profile_window = plot_geoprofile(self.geoprofile,
+                                         plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def classification_colors(self, dialog):
@@ -2686,8 +2687,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_profile_elements(self.geoprofile,
-                                               plot_addit_params)
+        profile_window = plot_geoprofile(self.geoprofile,
+                                         plot_addit_params)
         self.profile_windows.append(profile_window)
 
 
@@ -3200,6 +3201,12 @@ class PlotTopoProfileDialog(QDialog):
 
         self.plugin_name = plugin_name
         self.elevation_layer_names = elevation_layer_names
+
+        # pre-process input data to account for multi.profiles
+
+        profile_length = max(profile_length_set)
+        natural_elev_min = min(natural_elev_min_set)
+        natural_elev_max = max(natural_elev_max_set)
 
         # pre-process elevation values
 

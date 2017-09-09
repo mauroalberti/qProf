@@ -164,7 +164,8 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
 
     profile_window = MplWidget()
 
-    num_subplots = (plot_height_choice + 1)*geoprofiles.geoprofiles_num
+    num_subplots = (plot_height_choice + plot_slope_choice)*geoprofiles.geoprofiles_num
+
     ndx_subplot = 0
     for ndx in range(geoprofiles.geoprofiles_num):
 
@@ -173,6 +174,7 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:
+
             # defines slope value lists and the min and max values
             if plot_params['plot_slope_absolute']:
                 slopes = geoprofile.profile_elevations.absolute_slopes
@@ -185,6 +187,8 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
             delta_slope = profiles_slope_max - profiles_slope_min
             plot_slope_min, plot_slope_max = profiles_slope_min - delta_slope * slope_padding, profiles_slope_max + delta_slope * slope_padding
 
+        # plot topographic profile elevations
+
         if plot_height_choice:
             ndx_subplot += 1
             axes_elevation = plot_topo_profile_lines(ndx_subplot,
@@ -192,8 +196,9 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
                                                      (plot_s_min, plot_s_max),
                                                      (plot_z_min, plot_z_max),
                                                      plot_params['filled_height'])
-
             axes_elevation.set_aspect(vertical_exaggeration)
+
+        # plot topographic profile slopes
 
         if plot_slope_choice:
             ndx_subplot += 1
@@ -203,11 +208,15 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
                                     (plot_slope_min, plot_slope_max),
                                     plot_params['filled_slope'])
 
+        # plot geological outcrop intersections
+
         if len(geoprofile.outcrops) > 0:
             for line_intersection_value in geoprofile.outcrops:
                 plot_profile_polygon_intersection_line(plot_addit_params,
                                                        axes_elevation,
                                                        line_intersection_value)
+
+        # plot geological attitudes intersections
 
         if len(geoprofile.geoplane_attitudes) > 0:
             for plane_attitude_set, color in zip(geoprofile.geoplane_attitudes, plot_addit_params["plane_attitudes_colors"]):
@@ -218,11 +227,15 @@ def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
                                          plane_attitude_set,
                                          color)
 
+        # plot geological traces projections
+
         if len(geoprofile.geosurfaces) > 0:
             for curve_set, labels in zip(geoprofile.geosurfaces, geoprofile.geosurfaces_ids):
                 plot_projected_line_set(axes_elevation,
                                         curve_set,
                                         labels)
+
+        # plot line-profile intersections
 
         if len(geoprofile.lineaments) > 0:
             plot_profile_lines_intersection_points(axes_elevation,

@@ -439,7 +439,7 @@ class Line(object):
         lSlopes = []
         for ndx in range(self.num_pts - 1):
             vector = Segment(self.pts[ndx], self.pts[ndx + 1]).vector()
-            lSlopes.append(vector.slope)
+            lSlopes.append(-vector.slope)  # minus because vector convetion is positive downward
         lSlopes.append(np.nan)  # slope value for last point is unknown
 
         return lSlopes

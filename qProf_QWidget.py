@@ -212,7 +212,7 @@ class qprof_QWidget(QWidget):
                     except Exception as e:
                          warn(self,
                              self.plugin_name,
-                             e.message)
+                             "Error with data source read: {}".format(e.message))
                          return
 
                     if topo_profiles is None:
@@ -1205,11 +1205,12 @@ class qprof_QWidget(QWidget):
 
         self.refresh_rubberband(self.profile_canvas_points)
 
+        self.digitized_profile_line2dt = None
         if len(self.profile_canvas_points) > 1:
-            self.digitized_profile_line2dt = Line(
-                [Point(x, y) for x, y in self.profile_canvas_points])
-        else:
-            self.digitized_profile_line2dt = None
+            raw_line = Line(
+                [Point(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+            if raw_line.num_pts > 1:
+                self.digitized_profile_line2dt = raw_line
 
         self.profile_canvas_points = []
 

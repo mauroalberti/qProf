@@ -233,7 +233,7 @@ class Line(object):
 
     def clone(self):
 
-        return Line(self.pts)
+        return Line(map(lambda pt: pt.clone(), self.pts))
 
     def add_pt(self, pt):
         """

@@ -3,8 +3,6 @@
 import os
 import unicodedata
 
-from pprint import pprint
-
 from qgis.core import QgsGeometry, QgsVectorLayer
 
 from .gsf.geometry import Plane, GPlane, GAxis
@@ -1282,39 +1280,41 @@ class qprof_QWidget(QWidget):
             # get profile plot parameters
 
             try:
-                profile_params['plot_min_elevation_user'] = float(dialog.plot_min_value_QLineedit.text())
+                profile_params['plot_min_elevation_user'] = float(dialog.qledtPlotMinValue.text())
             except:
                 profile_params['plot_min_elevation_user'] = None
 
             try:
-                profile_params['plot_max_elevation_user'] = float(dialog.plot_max_value_QLineedit.text())
+                profile_params['plot_max_elevation_user'] = float(dialog.qledtPlotMaxValue.text())
             except:
                 profile_params['plot_max_elevation_user'] = None
 
+            profile_params['set_vertical_exaggeration'] = dialog.qcbxSetVerticalExaggeration.isChecked()
             try:
-                profile_params['vertical_exaggeration'] = float(dialog.DEM_exageration_ratio_Qlineedit.text())
+                profile_params['vertical_exaggeration'] = float(dialog.qledtDemExagerationRatio.text())
                 assert profile_params['vertical_exaggeration'] > 0
             except:
                 profile_params['vertical_exaggeration'] = 1
 
-            profile_params['filled_height'] = dialog.plotProfile_height_filled_checkbox.isChecked()
-            profile_params['filled_slope'] = dialog.plotProfile_slope_filled_checkbox.isChecked()
-            profile_params['plot_height_choice'] = dialog.plotProfile_height_checkbox.isChecked()
-            profile_params['plot_slope_choice'] = dialog.plotProfile_slope_checkbox.isChecked()
-            profile_params['plot_slope_absolute'] = dialog.plotProfile_slope_absolute_qradiobutton.isChecked()
-            profile_params['plot_slope_directional'] = dialog.plotProfile_slope_directional_qradiobutton.isChecked()
-            profile_params['invert_xaxis'] = dialog.plotProfile_invert_xaxis_checkbox.isChecked()
+            profile_params['filled_height'] = dialog.qcbxPlotFilledHeight.isChecked()
+            profile_params['filled_slope'] = dialog.qcbxPlotFilledSlope.isChecked()
+            profile_params['plot_height_choice'] = dialog.qcbxPlotProfileHeight.isChecked()
+            profile_params['plot_slope_choice'] = dialog.qcbxPlotProfileSlope.isChecked()
+            profile_params['plot_slope_absolute'] = dialog.qrbtPlotAbsoluteSlope.isChecked()
+            profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
+            profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
 
             surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
+
             try:
-                profile_params['visible_elev_lyrs'] = dialog.visible_layers
+                profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
             except:
                 profile_params['visible_elev_lyrs'] = surface_names
 
             try:
-                profile_params['elev_lyr_colors'] = dialog.layer_colors
+                profile_params['elev_lyr_colors'] = dialog.elevation_layer_colors
             except:
-                profile_params['elev_lyr_colors'] = [qcolor2rgbmpl(QColor('red'))] * len(surface_names)
+                profile_params['elev_lyr_colors'] = [QColor('red')] * len(surface_names)
 
             return profile_params
 
@@ -1331,12 +1331,17 @@ class qprof_QWidget(QWidget):
             profile_length_set.append(geoprofile.profile_elevations.profile_length)
 
         surface_names = geoprofile.profile_elevations.surface_names
+        if self.input_geoprofiles.plot_params is None:
+            surface_colors = None
+        else:
+            surface_colors = self.input_geoprofiles.plot_params.get('elev_lyr_colors')
 
         dialog = PlotTopoProfileDialog(self.plugin_name,
                                        profile_length_set,
                                        natural_elev_min_set,
                                        natural_elev_max_set,
-                                       surface_names)
+                                       surface_names,
+                                       surface_colors)
 
         if dialog.exec_():
             self.input_geoprofiles.plot_params = get_profile_plot_params(dialog)
@@ -3065,7 +3070,7 @@ class LoadPointListDialog(QDialog):
 
 class ElevationLineStyleDialog(QDialog):
 
-    def __init__(self, plugin_name, layer_names, parent=None):
+    def __init__(self, plugin_name, layer_names, layer_colors, parent=None):
 
         super(ElevationLineStyleDialog, self).__init__(parent)
 
@@ -3088,7 +3093,7 @@ class ElevationLineStyleDialog(QDialog):
         self.qtwdElevationLayers.setSelectionMode(QAbstractItemView.SingleSelection)
         self.qtwdElevationLayers.setTextElideMode(Qt.ElideLeft)
 
-        self.populate_elevation_layer_treewidget(layer_names)
+        self.populate_elevation_layer_treewidget(layer_names, layer_colors)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3112,16 +3117,23 @@ class ElevationLineStyleDialog(QDialog):
 
         self.setWindowTitle("Define elevation line style")
 
-    def populate_elevation_layer_treewidget(self, layer_names):
+    def populate_elevation_layer_treewidget(self, layer_names, layer_colors):
 
         self.qtwdElevationLayers.clear()
 
-        for layer_name in layer_names:
-            tree_item = QTreeWidgetItem(self.qtwdElevationLayers)
+        if layer_colors is None:
+            num_available_colors = 0
+        else:
+            num_available_colors = len(layer_colors)
 
+        for ndx, layer_name in enumerate(layer_names):
+            tree_item = QTreeWidgetItem(self.qtwdElevationLayers)
             tree_item.setText(1, layer_name)
             color_button = QgsColorButtonV2()
-            color_button.setColor(QColor('red'))
+            if ndx < num_available_colors:
+                color_button.setColor(layer_colors[ndx])
+            else:
+                color_button.setColor(QColor('red'))
             self.qtwdElevationLayers.setItemWidget(tree_item, 2, color_button)
             tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
             tree_item.setCheckState(0, 2)
@@ -3196,12 +3208,13 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
 class PlotTopoProfileDialog(QDialog):
 
-    def __init__(self, plugin_name, profile_length_set, natural_elev_min_set, natural_elev_max_set, elevation_layer_names, parent=None):
+    def __init__(self, plugin_name, profile_length_set, natural_elev_min_set, natural_elev_max_set, elevation_layer_names, elevation_layer_colors, parent=None):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
 
         self.plugin_name = plugin_name
         self.elevation_layer_names = elevation_layer_names
+        self.elevation_layer_colors = elevation_layer_colors
 
         # pre-process input data to account for multi.profiles
 
@@ -3243,23 +3256,25 @@ class PlotTopoProfileDialog(QDialog):
 
         qlytAxisSettings = QGridLayout()
 
-        qlytAxisSettings.addWidget(QLabel(self.tr("Vertical exaggeration")), 0, 0, 1, 1)
-        self.DEM_exageration_ratio_Qlineedit = QLineEdit()
-        self.DEM_exageration_ratio_Qlineedit.setText("%f" % sugg_ve)
-        qlytAxisSettings.addWidget(self.DEM_exageration_ratio_Qlineedit, 0, 1, 1, 1)
+        self.qcbxSetVerticalExaggeration = QCheckBox("Set vertical exaggeration")
+        self.qcbxSetVerticalExaggeration.setChecked(True)
+        qlytAxisSettings.addWidget(self.qcbxSetVerticalExaggeration)
+        self.qledtDemExagerationRatio = QLineEdit()
+        self.qledtDemExagerationRatio.setText("%f" % sugg_ve)
+        qlytAxisSettings.addWidget(self.qledtDemExagerationRatio, 0, 1, 1, 1)
 
         qlytAxisSettings.addWidget(QLabel(self.tr("Plot z max value")), 0, 2, 1, 1)
-        self.plot_max_value_QLineedit = QLineEdit()
-        self.plot_max_value_QLineedit.setText("%f" % plot_z_max)
-        qlytAxisSettings.addWidget(self.plot_max_value_QLineedit, 0, 3, 1, 1)
+        self.qledtPlotMaxValue = QLineEdit()
+        self.qledtPlotMaxValue.setText("%f" % plot_z_max)
+        qlytAxisSettings.addWidget(self.qledtPlotMaxValue, 0, 3, 1, 1)
 
-        self.plotProfile_invert_xaxis_checkbox = QCheckBox(self.tr("Flip x-axis direction"))
-        qlytAxisSettings.addWidget(self.plotProfile_invert_xaxis_checkbox, 1, 0, 1, 2)
+        self.qcbxInvertXAxisProfile = QCheckBox(self.tr("Flip x-axis direction"))
+        qlytAxisSettings.addWidget(self.qcbxInvertXAxisProfile, 1, 0, 1, 2)
 
         qlytAxisSettings.addWidget(QLabel(self.tr("Plot z min value")), 1, 2, 1, 1)
-        self.plot_min_value_QLineedit = QLineEdit()
-        self.plot_min_value_QLineedit.setText("%f" % plot_z_min)
-        qlytAxisSettings.addWidget(self.plot_min_value_QLineedit, 1, 3, 1, 1)
+        self.qledtPlotMinValue = QLineEdit()
+        self.qledtPlotMinValue.setText("%f" % plot_z_min)
+        qlytAxisSettings.addWidget(self.qledtPlotMinValue, 1, 3, 1, 1)
 
         qgbxPlotSettings.setLayout(qlytAxisSettings)
 
@@ -3271,19 +3286,19 @@ class PlotTopoProfileDialog(QDialog):
 
         qlytYVariables = QGridLayout()
 
-        self.plotProfile_height_checkbox = QCheckBox(self.tr("Height"))
-        self.plotProfile_height_checkbox.setChecked(True)
-        qlytYVariables.addWidget(self.plotProfile_height_checkbox, 0, 0, 1, 1)
+        self.qcbxPlotProfileHeight = QCheckBox(self.tr("Height"))
+        self.qcbxPlotProfileHeight.setChecked(True)
+        qlytYVariables.addWidget(self.qcbxPlotProfileHeight, 0, 0, 1, 1)
 
-        self.plotProfile_slope_checkbox = QCheckBox(self.tr("Slope (degrees)"))
-        qlytYVariables.addWidget(self.plotProfile_slope_checkbox, 1, 0, 1, 1)
+        self.qcbxPlotProfileSlope = QCheckBox(self.tr("Slope (degrees)"))
+        qlytYVariables.addWidget(self.qcbxPlotProfileSlope, 1, 0, 1, 1)
 
-        self.plotProfile_slope_absolute_qradiobutton = QRadioButton(self.tr("absolute"))
-        self.plotProfile_slope_absolute_qradiobutton.setChecked(True);
-        qlytYVariables.addWidget(self.plotProfile_slope_absolute_qradiobutton, 1, 1, 1, 1)
+        self.qrbtPlotAbsoluteSlope = QRadioButton(self.tr("absolute"))
+        self.qrbtPlotAbsoluteSlope.setChecked(True);
+        qlytYVariables.addWidget(self.qrbtPlotAbsoluteSlope, 1, 1, 1, 1)
 
-        self.plotProfile_slope_directional_qradiobutton = QRadioButton(self.tr("directional"))
-        qlytYVariables.addWidget(self.plotProfile_slope_directional_qradiobutton, 1, 2, 1, 1)
+        self.qrbtPlotDirectionalSlope = QRadioButton(self.tr("directional"))
+        qlytYVariables.addWidget(self.qrbtPlotDirectionalSlope, 1, 2, 1, 1)
 
         qlytYVariables.addWidget(QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"), 2, 0, 1, 3)
 
@@ -3297,11 +3312,11 @@ class PlotTopoProfileDialog(QDialog):
 
         qlyStyleParameters = QGridLayout()
 
-        self.plotProfile_height_filled_checkbox = QCheckBox(self.tr("Filled height"))
-        qlyStyleParameters.addWidget(self.plotProfile_height_filled_checkbox, 0, 0, 1, 1)
+        self.qcbxPlotFilledHeight = QCheckBox(self.tr("Filled height"))
+        qlyStyleParameters.addWidget(self.qcbxPlotFilledHeight, 0, 0, 1, 1)
 
-        self.plotProfile_slope_filled_checkbox = QCheckBox(self.tr("Filled slope"))
-        qlyStyleParameters.addWidget(self.plotProfile_slope_filled_checkbox, 0, 1, 1, 1)
+        self.qcbxPlotFilledSlope = QCheckBox(self.tr("Filled slope"))
+        qlyStyleParameters.addWidget(self.qcbxPlotFilledSlope, 0, 1, 1, 1)
 
         self.qpbtDefineTopoColors = QPushButton(self.tr("Elevation line visibility and colors"))
         self.qpbtDefineTopoColors.clicked.connect(self.define_profile_colors)
@@ -3347,15 +3362,11 @@ class PlotTopoProfileDialog(QDialog):
                     layer_visibilities.append(True)
                 else:
                     layer_visibilities.append(False)
-
-                qcolor = dialog.qtwdElevationLayers.itemWidget(curr_item, 2).color()
-                mpl_color = qcolor2rgbmpl(qcolor)
-                layer_colors.append(mpl_color)
+                layer_colors.append(dialog.qtwdElevationLayers.itemWidget(curr_item, 2).color())
 
             return layer_visibilities, layer_colors
 
-        self.visible_layers = []
-        self.layer_colors = []
+        #self.visible_elevation_layers = []
 
         if len(self.elevation_layer_names) == 0:
             warn(self,
@@ -3365,21 +3376,22 @@ class PlotTopoProfileDialog(QDialog):
 
         dialog = ElevationLineStyleDialog(
             self.plugin_name,
-            self.elevation_layer_names)
+            self.elevation_layer_names,
+            self.elevation_layer_colors)
 
         if dialog.exec_():
-            visible_layers, layer_colors = layer_styles(dialog)
+            visible_elevation_layers, layer_colors = layer_styles(dialog)
         else:
             return
 
-        if len(visible_layers) == 0:
+        if len(visible_elevation_layers) == 0:
             warn(self,
                  self.plugin_name,
                  "No visible layer")
             return
         else:
-            self.visible_layers = visible_layers
-            self.layer_colors = layer_colors
+            self.visible_elevation_layers = visible_elevation_layers
+            self.elevation_layer_colors = layer_colors
 
 
 class FigureExportDialog(QDialog):

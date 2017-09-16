@@ -12,6 +12,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import \
     NavigationToolbar2QT as NavigationToolbar  # changed for Matplotlib 1.5.0 API break
 from matplotlib.figure import Figure
+from matplotlib import pyplot
 
 from PyQt4.QtGui import *
 
@@ -24,12 +25,14 @@ class MplCanvas(FigureCanvas):
     """
 
     def __init__(self):
+
         self.set_rcParams()
 
         self.fig = Figure()
         FigureCanvas.__init__(self, self.fig)
 
     def set_rcParams(self):
+
         rcParams["font.size"] = 9.0
         rcParams["xtick.direction"] = 'out'
         rcParams["ytick.direction"] = 'out'
@@ -44,6 +47,7 @@ class MplCanvas(FigureCanvas):
         rcParams["figure.facecolor"] = 'white'
 
 # from: http://stackoverflow.com/questions/12695678/how-to-modify-the-navigation-toolbar-easily-in-a-matplotlib-figure-window
+
 class NavigatioToolbarModif(NavigationToolbar):
 
     toolitems = [t for t in NavigationToolbar.toolitems if
@@ -51,7 +55,9 @@ class NavigatioToolbarModif(NavigationToolbar):
 
 
 class MplWidget(QWidget):
-    def __init__(self, window_title='Profile'):
+
+    def __init__(self, window_title):
+
         # initialization of Qt MainWindow widget
         QWidget.__init__(self)
         self.setWindowTitle(window_title)
@@ -84,6 +90,7 @@ class MplWidget(QWidget):
 
 
 def plot_line(axes, x_list, y_list, linecolor, name="", linewidth=1):
+
     line, = axes.plot(x_list, y_list, '-', color=linecolor, linewidth=linewidth)
 
     if name is not None and name != "":
@@ -97,6 +104,7 @@ def plot_line(axes, x_list, y_list, linecolor, name="", linewidth=1):
 
 
 def plot_filled_line(axes, x_list, y_list, plot_y_min, facecolor, alpha=0.1):
+
     y_values_array = np.array(y_list)
     x_values_array = np.array(x_list)
     for val_int in valid_intervals(y_values_array):

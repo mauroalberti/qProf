@@ -87,7 +87,7 @@ def plot_profile_polygon_intersection_line(plot_addit_params, axes, intersection
     plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
 
-def plot_geoprofile(geoprofiles, plot_addit_params, slope_padding=0.2):
+def plot_geoprofiles(geoprofiles, plot_addit_params, slope_padding=0.2):
 
     def plot_topo_profile_lines(grid_spec, ndx_subplot, topo_type, plot_x_range, plot_y_range, filled_choice):
 

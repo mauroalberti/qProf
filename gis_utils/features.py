@@ -11,6 +11,10 @@ MINIMUM_VECTOR_MAGNITUDE = 1e-10
 
 
 class Segment(object):
+    """
+    Segment is a geometric object defined by a straight line between 
+    two points.
+    """
     
     def __init__(self, start_pt, end_pt):
 

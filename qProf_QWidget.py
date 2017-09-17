@@ -23,7 +23,7 @@ from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
 
-from qProf_plotting import plot_geoprofile
+from qProf_plotting import plot_geoprofiles
 from qProf_export import write_intersection_polygon_lnshp, write_topography_allDEMs_csv, write_topography_singleDEM_csv, \
           write_generic_csv, write_line_csv, write_topography_allDEMs_ptshp, write_topography_allDEMs_lnshp, \
           write_geological_attitudes_ptshp, write_profile_lnshp, write_topography_GPX_lnshp, write_topography_singleDEM_lnshp, \
@@ -61,7 +61,7 @@ class qprof_QWidget(QWidget):
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
 
         self.plane_attitudes_colors = []
-        self.curve_colors = []
+        #self.curve_colors = []
 
         self.setup_gui()
 
@@ -790,45 +790,49 @@ class qprof_QWidget(QWidget):
         ### Point project toolbox
 
         xs_point_proj_QWidget = QWidget()
-        xs_point_proj_Layout = QVBoxLayout()
+        qlytXsPointProj = QVBoxLayout()
 
         ## input section
 
-        xs_input_point_proj_QGroupBox = QGroupBox(xs_point_proj_QWidget)
-        xs_input_point_proj_QGroupBox.setTitle('Input')
+        qgbxXsInputPointProj = QGroupBox(xs_point_proj_QWidget)
+        qgbxXsInputPointProj.setTitle('Input')
 
-        xs_input_point_proj_Layout = QGridLayout()
+        qlytXsInputPointProj = QGridLayout()
 
         # input point geological layer
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Layer "), 0, 0, 1, 1)
+        qlytXsInputPointProj.addWidget(QLabel("Layer "), 0, 0, 1, 1)
         self.prj_struct_point_comboBox = QComboBox()
         self.prj_struct_point_comboBox.currentIndexChanged[int].connect(self.update_point_layers_boxes)
 
-        xs_input_point_proj_Layout.addWidget(self.prj_struct_point_comboBox, 0, 1, 1, 6)
+        qlytXsInputPointProj.addWidget(self.prj_struct_point_comboBox, 0, 1, 1, 6)
         self.struct_point_refresh_lyr_combobox()
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Fields:"), 1, 0, 1, 1)
+        qlytXsInputPointProj.addWidget(QLabel("Fields:"), 1, 0, 1, 1)
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Id"), 1, 1, 1, 1)
+        qlytXsInputPointProj.addWidget(QLabel("Id"), 1, 1, 1, 1)
 
         self.proj_point_id_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget(self.proj_point_id_fld_comboBox, 1, 2, 1, 1)
+        qlytXsInputPointProj.addWidget(self.proj_point_id_fld_comboBox, 1, 2, 1, 1)
 
-        self.plot_prj_use_rhrstrike_QRadioButt = QRadioButton("RHR str.")
-        self.plot_prj_use_rhrstrike_QRadioButt.setChecked(True)
-        self.plot_prj_use_dipdire_QRadioButt = QRadioButton("Dip dir.")
-        xs_input_point_proj_Layout.addWidget(self.plot_prj_use_rhrstrike_QRadioButt, 1, 3, 1, 1)
-        xs_input_point_proj_Layout.addWidget(self.plot_prj_use_dipdire_QRadioButt, 2, 3, 1, 1)
-        self.proj_point_orient_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget(self.proj_point_orient_fld_comboBox, 1, 4, 1, 1)
 
-        xs_input_point_proj_Layout.addWidget(QLabel("Dip"), 1, 5, 1, 1)
-        self.proj_point_dipang_fld_comboBox = QComboBox()
-        xs_input_point_proj_Layout.addWidget(self.proj_point_dipang_fld_comboBox, 1, 6, 1, 1)
 
-        xs_input_point_proj_QGroupBox.setLayout(xs_input_point_proj_Layout)
-        xs_point_proj_Layout.addWidget(xs_input_point_proj_QGroupBox)
+        self.qrbtPlotPrjUseDipDir = QRadioButton("Dip dir.")
+        self.qrbtPlotPrjUseDipDir.setChecked(True)
+        qlytXsInputPointProj.addWidget(self.qrbtPlotPrjUseDipDir, 1, 3, 1, 1)
+
+        self.qrbtPlotPrjUseRhrStrike = QRadioButton("RHR str.")
+        qlytXsInputPointProj.addWidget(self.qrbtPlotPrjUseRhrStrike, 2, 3, 1, 1)
+
+        self.qcbxProjPointOrientFld = QComboBox()
+        qlytXsInputPointProj.addWidget(self.qcbxProjPointOrientFld, 1, 4, 1, 1)
+
+        qlytXsInputPointProj.addWidget(QLabel("Dip"), 1, 5, 1, 1)
+        self.qcbxProjPointDipAngFld = QComboBox()
+        qlytXsInputPointProj.addWidget(self.qcbxProjPointDipAngFld, 1, 6, 1, 1)
+
+        qgbxXsInputPointProj.setLayout(qlytXsInputPointProj)
+        qlytXsPointProj.addWidget(qgbxXsInputPointProj)
 
         ## interpolation method
 
@@ -869,7 +873,7 @@ class qprof_QWidget(QWidget):
         xs_method_point_proj_Layout.addWidget(self.proj_point_indivax_plunge_fld_comboBox, 2, 3, 1, 1)
 
         xs_method_point_proj_QGroupBox.setLayout(xs_method_point_proj_Layout)
-        xs_point_proj_Layout.addWidget(xs_method_point_proj_QGroupBox)
+        qlytXsPointProj.addWidget(xs_method_point_proj_QGroupBox)
 
         ## Plot groupbox
 
@@ -902,17 +906,17 @@ class qprof_QWidget(QWidget):
         xs_plot_proj_Layout.addWidget(self.reset_point_pushbutton, 1, 3, 1, 2)
 
         xs_plot_proj_QGroupBox.setLayout(xs_plot_proj_Layout)
-        xs_point_proj_Layout.addWidget(xs_plot_proj_QGroupBox)
+        qlytXsPointProj.addWidget(xs_plot_proj_QGroupBox)
 
         self.flds_prj_point_comboBoxes = [self.proj_point_id_fld_comboBox,
-                                          self.proj_point_orient_fld_comboBox,
-                                          self.proj_point_dipang_fld_comboBox,
+                                          self.qcbxProjPointOrientFld,
+                                          self.qcbxProjPointDipAngFld,
                                           self.proj_point_indivax_trend_fld_comboBox,
                                           self.proj_point_indivax_plunge_fld_comboBox]
 
         ##
 
-        xs_point_proj_QWidget.setLayout(xs_point_proj_Layout)
+        xs_point_proj_QWidget.setLayout(qlytXsPointProj)
         geology_toolbox.addItem(xs_point_proj_QWidget,
                                 "Project geological attitudes")
 
@@ -1045,7 +1049,7 @@ class qprof_QWidget(QWidget):
         inters_line_do_Layout.addWidget(self.inters_line_do_pushbutton, 1, 0, 1, 4)
 
         self.line_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections"))
-        self.line_inters_reset_pushbutton.clicked.connect(self.line_intersection_reset)
+        self.line_inters_reset_pushbutton.clicked.connect(self.reset_lineaments_intersections)
         inters_line_do_Layout.addWidget(self.line_inters_reset_pushbutton, 2, 0, 1, 4)
 
         inters_line_do_QGroupBox.setLayout(inters_line_do_Layout)
@@ -1101,7 +1105,7 @@ class qprof_QWidget(QWidget):
         inters_polygon_do_Layout.addWidget(self.inters_polygon_do_pushbutton, 1, 0, 1, 4)
 
         self.polygon_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections"))
-        self.polygon_inters_reset_pushbutton.clicked.connect(self.polygon_intersection_reset)
+        self.polygon_inters_reset_pushbutton.clicked.connect(self.reset_polygon_intersections)
         inters_polygon_do_Layout.addWidget(self.polygon_inters_reset_pushbutton, 2, 0, 1, 4)
 
         inters_polygon_do_QGroupBox.setLayout(inters_polygon_do_Layout)
@@ -1306,14 +1310,14 @@ class qprof_QWidget(QWidget):
 
             surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
 
-            try:
+            if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
                 profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
-            except:
+            else:
                 profile_params['visible_elev_lyrs'] = surface_names
 
-            try:
+            if hasattr(dialog, 'elevation_layer_colors') and dialog.elevation_layer_colors is not None:
                 profile_params['elev_lyr_colors'] = dialog.elevation_layer_colors
-            except:
+            else:
                 profile_params['elev_lyr_colors'] = [QColor('red')] * len(surface_names)
 
             return profile_params
@@ -1358,8 +1362,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofile(self.input_geoprofiles,
-                                         plot_addit_params)
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def do_export_topo_profiles(self):
@@ -1387,14 +1391,15 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            self.geoprofile.profile_elevations.profile_s
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            geoprofile.profile_elevations.profile_s
         except:
             warn(self,
                  self.plugin_name,
                  "Profile not yet calculated")
             return
 
-        selected_dems_params = self.geoprofile.profile_elevations.dem_params
+        selected_dems_params = geoprofile.profile_elevations.dem_params
         dialog = TopographicProfileExportDialog(self.plugin_name,
                                                 selected_dems_params)
 
@@ -1470,7 +1475,8 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_plane_attitudes_sets = len(self.geoprofile.plane_attitudes)
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_plane_attitudes_sets = len(geoprofile.geoplane_attitudes)
         except:
             warn(self,
                  self.plugin_name,
@@ -1538,8 +1544,9 @@ class qprof_QWidget(QWidget):
                        'trc_dipangle',
                        'trc_dipdir']
 
+        geoprofile = self.input_geoprofiles.geoprofile(0)
         parsed_geologicalattitudes_results = self.export_parse_geologicalattitudes_results(
-            self.geoprofile.plane_attitudes)
+            geoprofile.geoplane_attitudes)
 
         # output for csv file
         if output_format == "csv":
@@ -1568,7 +1575,8 @@ class qprof_QWidget(QWidget):
     def do_export_project_geol_lines(self):
 
         try:
-            num_proj_lines_sets = len(self.geoprofile.curves)
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_proj_lines_sets = len(geoprofile.geosurfaces)
         except:
             warn(self,
                  self.plugin_name,
@@ -1613,7 +1621,8 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_intersection_pts = len(self.geoprofile.intersection_pts)
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_intersection_pts = len(geoprofile.lineaments)
         except:
             warn(self,
                  self.plugin_name,
@@ -1673,7 +1682,8 @@ class qprof_QWidget(QWidget):
                        'y',
                        'z']
 
-        parsed_profilelineintersections = self.export_parse_lineintersections(self.geoprofile.intersection_pts)
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        parsed_profilelineintersections = self.export_parse_lineintersections(geoprofile.lineaments)
 
         # output for csv file
         if output_format == "csv":
@@ -1742,7 +1752,8 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
-            num_intersection_lines = len(self.geoprofile.intersection_lines)
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_intersection_lines = len(geoprofile.intersection_lines)
         except:
             warn(self,
                      self.plugin_name,
@@ -1801,15 +1812,25 @@ class qprof_QWidget(QWidget):
                        'y',
                        'z']
 
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        intersection_lines = geoprofile.intersection_lines
+
         # output for csv file
         if output_format == "csv":
-            success, msg = write_line_csv(output_filepath, header_list, self.geoprofile.intersection_lines)
+            success, msg = write_line_csv(
+                output_filepath,
+                header_list,
+                intersection_lines)
             if not success:
                 warn(self,
                      self.plugin_name,
                      msg)
         elif output_format == "shapefile - line":
-            success, msg = write_intersection_polygon_lnshp(output_filepath, header_list, self.geoprofile.intersection_lines, sr)
+            success, msg = write_intersection_polygon_lnshp(
+                output_filepath,
+                header_list,
+                intersection_lines,
+                sr)
             if not success:
                 warn(self,
                      self.plugin_name,
@@ -1879,14 +1900,15 @@ class qprof_QWidget(QWidget):
 
     def export_topography_all_dems(self, out_format, outfile_path, proj_sr):
 
-        if self.geoprofile.source_data_type != self.demline_source:
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        if geoprofile.source_data_type != self.demline_source:
             warn(self,
                  self.plugin_name,
                  "No DEM-derived profile defined")
             return
 
             # process results for data export
-        dem_names, export_data = self.export_parse_DEM_results(self.geoprofile)
+        dem_names, export_data = self.export_parse_DEM_results(geoprofile)
 
         # definition of field names
         dem_headers = []
@@ -1930,14 +1952,15 @@ class qprof_QWidget(QWidget):
 
     def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
 
-        if self.geoprofile.source_data_type != self.demline_source:
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        if geoprofile.source_data_type != self.demline_source:
             warn(self,
                  self.plugin_name,
                  "No DEM-derived profile defined")
             return
 
         # process results for data export
-        _, export_data = self.export_parse_DEM_results(self.geoprofile)
+        _, export_data = self.export_parse_DEM_results(geoprofile)
 
         # definition of field names         
         header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "dirslop"]
@@ -1973,7 +1996,8 @@ class qprof_QWidget(QWidget):
 
     def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
 
-        if self.geoprofile.source_data_type != self.gpxfile_source:
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        if geoprofile.source_data_type != self.gpxfile_source:
             warn(self,
                      self.plugin_name,
                      "No GPX-derived profile defined")
@@ -2017,7 +2041,8 @@ class qprof_QWidget(QWidget):
     def export_parse_gpx_results(self):
 
         # definition of output results
-        topo_profile = self.geoprofile.profile_elevations
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        topo_profile = geoprofile.profile_elevations
         lat_list = topo_profile.lats
         lon_list = topo_profile.lons
         time_list = topo_profile.times
@@ -2098,7 +2123,8 @@ class qprof_QWidget(QWidget):
 
     def calculate_section_data(self):
 
-        sect_pt_1, sect_pt_2 = self.geoprofile.original_line.pts
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        sect_pt_1, sect_pt_2 = geoprofile.original_line.pts
 
         section_init_pt = Point(sect_pt_1.x, sect_pt_1.y, 0.0)
         section_final_pt = Point(sect_pt_2.x, sect_pt_2.y, 0.0)
@@ -2125,7 +2151,7 @@ class qprof_QWidget(QWidget):
                     'trend field': unicode(self.proj_point_indivax_trend_fld_comboBox.currentText()),
                     'plunge field': unicode(self.proj_point_indivax_plunge_fld_comboBox.currentText())}
 
-    def check_for_struc_process(self):
+    def check_for_struc_process(self, single_segment_constrain=True):
 
         def check_post_profile():
 
@@ -2143,15 +2169,29 @@ class qprof_QWidget(QWidget):
         if not check_post_profile():
             return False
 
-        # check that section is made up of only two points
-        if self.geoprofile.original_line.num_pts != 2:
+        # check that just one profile is set
+
+        if self.input_geoprofiles.geoprofiles_num != 1:
             warn(self,
                  self.plugin_name,
-                 "Profile not made up by only two points")
+                 "Profile lines must be one and just one")
             return False
 
-        # check dem number is 1
-        if len(self.geoprofile.profile_elevations.profile_s3ds) > 1:
+
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+
+        # check that section is made up of only two points
+
+        if single_segment_constrain:
+            if geoprofile.original_line.num_pts != 2:
+                warn(self,
+                     self.plugin_name,
+                     "For projection, profile must be made up by just two points")
+                return False
+
+        # check that source dem is just one
+
+        if len(geoprofile.profile_elevations.profile_s3ds) != 1:
             warn(self,
                  self.plugin_name,
                  "One (and only) topographic surface has to be used in the profile section")
@@ -2187,7 +2227,7 @@ class qprof_QWidget(QWidget):
         structural_layer = self.pointLayers[prj_struct_point_qgis_ndx]
         structural_layer_crs = structural_layer.crs()
         structural_field_list = self.get_current_combobox_values(self.flds_prj_point_comboBoxes)
-        isRHRStrike = self.plot_prj_use_rhrstrike_QRadioButt.isChecked()
+        isRHRStrike = self.qrbtPlotPrjUseRhrStrike.isChecked()
 
         # retrieve selected structural points with their attributes
         structural_pts_attrs = pt_geoms_attrs(structural_layer, structural_field_list)
@@ -2207,10 +2247,11 @@ class qprof_QWidget(QWidget):
                  "Check defined fields for possible errors")
             return
 
+        geoprofile = self.input_geoprofiles.geoprofile(0)
         struct_pts_3d = calculate_projected_3d_pts(self.canvas,
                                                    struct_pts_in_orig_crs,
                                                    structural_layer_crs,
-                                                   self.geoprofile.profile_elevations.dem_params[0])
+                                                   geoprofile.profile_elevations.dem_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2231,7 +2272,7 @@ class qprof_QWidget(QWidget):
             mapping_method['individual_axes_values'] = vect_attrs(structural_layer,
                                                                   [trend_field_name, plunge_field_name])
 
-        self.geoprofile.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
+        geoprofile.add_plane_attitudes(map_struct_pts_on_section(structural_data, self.section_data, mapping_method))
         self.plane_attitudes_colors.append(color)
 
         # plot profiles
@@ -2242,15 +2283,16 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofile(self.geoprofile,
-                                         plot_addit_params)
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
         self.profile_windows.append(profile_window)
 
 
     def reset_struct_point_projection(self):
 
         try:
-            self.geoprofile.plane_attitudes = []
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            geoprofile.geoplane_attitudes = []
             self.plane_attitudes_colors = []
         except:
             pass
@@ -2291,8 +2333,9 @@ class qprof_QWidget(QWidget):
             return
 
         # input dem parameters
-        demLayer =self.geoprofile.profile_elevations.dem_params[0].layer
-        demParams =self.geoprofile.profile_elevations.dem_params[0].params
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        demLayer = geoprofile.profile_elevations.dem_params[0].layer
+        demParams = geoprofile.profile_elevations.dem_params[0].params
 
         # get line structural layer
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2387,7 +2430,7 @@ class qprof_QWidget(QWidget):
                 multiline_2d_list.append(Line(line_2d_pts_list))
             curves_2d_list.append(MultiLine(multiline_2d_list))
 
-        self.geoprofile.add_curves(curves_2d_list, id_list)
+        geoprofile.add_curves(curves_2d_list, id_list)
 
         # plot profiles
 
@@ -2397,18 +2440,19 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofile(self.geoprofile,
-                                         plot_addit_params)
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def reset_structural_lines_projection(self):
 
         try:
-            self.geoprofile.curves = []
-            self.geoprofile.curves_ids = []
-            self.curve_colors = []
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            geoprofile.geosurfaces = []
+            geoprofile.geosurfaces_ids = []
         except:
             pass
+
 
     def export_parse_geologicalattitudes_results(self, plane_attitudes_datasets):
 
@@ -2440,7 +2484,8 @@ class qprof_QWidget(QWidget):
     def export_parse_geologicalcurves(self):
 
         data_list = []
-        for curve_set, id_set in zip(self.geoprofile.geosurfaces, self.geoprofile.geosurfaces_ids):
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        for curve_set, id_set in zip(geoprofile.geosurfaces, geoprofile.geosurfaces_ids):
             for curve, rec_id in zip(curve_set, id_set):
                 for line in curve.lines:
                     for pt in line.pts:
@@ -2458,15 +2503,20 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
-    def line_intersection_reset(self):
+    def reset_lineaments_intersections(self):
 
-        if self.geoprofile is not None:
-            self.geoprofile.intersection_pts = []
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        if geoprofile is not None:
+            geoprofile.lineaments = []
 
-    def polygon_intersection_reset(self):
+    def reset_polygon_intersections(self):
 
-        if self.geoprofile is not None:
-            self.geoprofile.intersection_lines = []
+        try:
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            if geoprofile is not None:
+                geoprofile.outcrops = []
+        except:
+            pass
 
     def check_intersection_polygon_inputs(self):
 
@@ -2505,11 +2555,12 @@ class qprof_QWidget(QWidget):
             return
 
         # get dem parameters
-        demLayer =self.geoprofile.profile_elevations.dem_params[0].layer
-        demParams =self.geoprofile.profile_elevations.dem_params[0].params
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        demLayer = geoprofile.profile_elevations.dem_params[0].layer
+        demParams = geoprofile.profile_elevations.dem_params[0].params
 
         # profile line2d, in project CRS and densified 
-        profile_line2d_prjcrs_densif = self.geoprofile.original_line.densify_2d_line(self.geoprofile.sample_distance)
+        profile_line2d_prjcrs_densif = geoprofile.original_line.densify_2d_line(geoprofile.sample_distance)
 
         # polygon layer
         intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2561,7 +2612,7 @@ class qprof_QWidget(QWidget):
         # create Point lists from intersection with source DEM
 
         polygon_classification_set = set()
-        sect_pt_1, sect_pt_2 = self.geoprofile.original_line.pts
+        sect_pt_1, sect_pt_2 = geoprofile.original_line.pts
         formation_list = []
         intersection_line3d_list = []
         intersection_polygon_s_list2 = []
@@ -2607,7 +2658,7 @@ class qprof_QWidget(QWidget):
         else:
             self.polygon_classification_colors = None
 
-        self.geoprofile.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
+        geoprofile.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
 
         # plot profiles
         plot_addit_params = dict()
@@ -2616,8 +2667,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofile(self.geoprofile,
-                                         plot_addit_params)
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
         self.profile_windows.append(profile_window)
 
     def classification_colors(self, dialog):
@@ -2643,8 +2694,9 @@ class qprof_QWidget(QWidget):
         color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButtonV2.color())
 
         # get dem parameters
-        demLayer = self.geoprofile.profile_elevations.dem_params[0].layer
-        demParams = self.geoprofile.profile_elevations.dem_params[0].params
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        demLayer = geoprofile.profile_elevations.dem_params[0].layer
+        demParams = geoprofile.profile_elevations.dem_params[0].params
 
         # get line structural layer
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2669,21 +2721,21 @@ class qprof_QWidget(QWidget):
         # calculated Point intersection list
         intersection_point_id_list = calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
                                                                           id_list,
-                                                                          self.geoprofile.original_line)
+                                                                          geoprofile.original_line)
 
         # sort intersection points by spat_distance from profile start point
-        distances_from_profile_start_list = intersection_distances_by_profile_start_list(self.geoprofile.original_line,
+        lstDistancesFromProfileStart = intersection_distances_by_profile_start_list(geoprofile.original_line,
                                                                                          intersection_point_id_list)
 
         # create CartesianPoint from intersection with source DEM
-        intersection_point_list = [pt2d for pt2d, _ in intersection_point_id_list]
-        intersection_id_list = [id for _, id in intersection_point_id_list]
-        intersection_point3d_list = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
-                                                            intersection_point_list)
-        intersection_colors = [color] * len(intersection_point_list)
+        lstIntersectionPoints = [pt2d for pt2d, _ in intersection_point_id_list]
+        lstIntersectionIds = [id for _, id in intersection_point_id_list]
+        lstIntersectionPoints3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
+                                                            lstIntersectionPoints)
+        lstIntersectionColors = [color] * len(lstIntersectionPoints)
 
-        self.geoprofile.add_intersections_pts(
-            zip(distances_from_profile_start_list, intersection_point3d_list, intersection_id_list, intersection_colors))
+        geoprofile.add_intersections_pts(
+            zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors))
 
         # plot profiles
 
@@ -2693,8 +2745,8 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofile(self.geoprofile,
-                                         plot_addit_params)
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
         self.profile_windows.append(profile_window)
 
 
@@ -3365,8 +3417,6 @@ class PlotTopoProfileDialog(QDialog):
                 layer_colors.append(dialog.qtwdElevationLayers.itemWidget(curr_item, 2).color())
 
             return layer_visibilities, layer_colors
-
-        #self.visible_elevation_layers = []
 
         if len(self.elevation_layer_names) == 0:
             warn(self,

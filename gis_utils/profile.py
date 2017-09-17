@@ -454,7 +454,7 @@ def calculate_profile_lines_intersection(multilines2d_list, id_list, profile_lin
     return intersection_list
 
 
-def intersection_distances_by_profile_start_list(profile_line, intersection_list):
+def intersection_distances_by_profile_start_list(profile_line, intersections):
 
     # convert the profile line
     # from a CartesianLine2DT to a CartesianSegment2DT
@@ -466,8 +466,8 @@ def intersection_distances_by_profile_start_list(profile_line, intersection_list
     # determine distances for each point in intersection list
     # creating a list of float values
     distance_from_profile_start_list = []
-    for intersection_res in intersection_list:
-        distance_from_profile_start_list.append(profile_segment2d.start_pt.dist_2d(intersection_res[0]))
+    for intersection in intersections:
+        distance_from_profile_start_list.append(profile_segment2d.start_pt.dist_2d(intersection[0]))
 
     return distance_from_profile_start_list
 

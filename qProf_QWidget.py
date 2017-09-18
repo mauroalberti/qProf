@@ -23,11 +23,13 @@ from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
 
+from .config.output import dem_header_common, dem_single_dem_header, gpx_header
+
 from qProf_plotting import plot_geoprofiles
-from qProf_export import write_intersection_polygon_lnshp, write_topography_allDEMs_csv, write_topography_singleDEM_csv, \
-          write_generic_csv, write_line_csv, write_topography_allDEMs_ptshp, write_topography_allDEMs_lnshp, \
-          write_geological_attitudes_ptshp, write_profile_lnshp, write_topography_GPX_lnshp, write_topography_singleDEM_lnshp, \
-          write_topography_singleDEM_ptshp, write_topography_GPX_ptshp, write_intersection_line_ptshp
+from qProf_export import write_intersection_polygon_lnshp, write_topography_multidems_csv, write_topography_singledem_csv, \
+          write_generic_csv, write_intersection_line_csv, write_topography_multidems_ptshp, write_topography_multidems_lnshp, \
+          write_geological_attitudes_ptshp, write_rubberband_profile_lnshp, write_topography_gpx_lnshp, write_topography_singledem_lnshp, \
+          write_topography_singledem_ptshp, write_topography_gpx_ptshp, write_intersection_line_ptshp
 
 
 class qprof_QWidget(QWidget):
@@ -354,6 +356,38 @@ class qprof_QWidget(QWidget):
 
         def save_rubberband():
 
+            def output_profile_line(output_format, output_filepath, pts2dt, proj_sr):
+
+                points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
+                if output_format == "csv":
+                    success, msg = write_generic_csv(output_filepath,
+                                                     ['id', 'x', 'y'],
+                                                     points)
+                    if not success:
+                        warn(self,
+                             self.plugin_name,
+                             msg)
+                elif output_format == "shapefile - line":
+                    success, msg = write_rubberband_profile_lnshp(
+                        output_filepath,
+                        ['id'],
+                        points,
+                        proj_sr)
+                    if not success:
+                        warn(self,
+                             self.plugin_name,
+                             msg)
+                else:
+                    error(self,
+                          self.plugin_name,
+                          "Debug: error in export format")
+                    return
+
+                if success:
+                    info(self,
+                         self.plugin_name,
+                         "Line saved")
+
             def get_format_type():
 
                 if dialog.outtype_shapefile_line_QRadioButton.isChecked():
@@ -398,8 +432,11 @@ class qprof_QWidget(QWidget):
             # get project CRS information
             project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
-            self.output_profile_line(output_format, output_filepath, self.digitized_profile_line2dt.pts,
-                                     project_crs_osr)
+            output_profile_line(
+                output_format,
+                output_filepath,
+                self.digitized_profile_line2dt.pts,
+                project_crs_osr)
 
             # add theme to QGis project
             if output_format == "shapefile - line" and add_to_project:
@@ -411,7 +448,6 @@ class qprof_QWidget(QWidget):
                 except:
                     QMessageBox.critical(self, "Result", "Unable to load layer in project")
                     return
-
 
         def calculate_profile_statistics():
 
@@ -600,6 +636,97 @@ class qprof_QWidget(QWidget):
                                      file_name)
                 self.qlneInputGPXFile.setText(file_name)
 
+        def plot_topo_profiles():
+
+            def get_profile_plot_params(dialog):
+
+                profile_params = {}
+
+                # get profile plot parameters
+
+                try:
+                    profile_params['plot_min_elevation_user'] = float(dialog.qledtPlotMinValue.text())
+                except:
+                    profile_params['plot_min_elevation_user'] = None
+
+                try:
+                    profile_params['plot_max_elevation_user'] = float(dialog.qledtPlotMaxValue.text())
+                except:
+                    profile_params['plot_max_elevation_user'] = None
+
+                profile_params['set_vertical_exaggeration'] = dialog.qcbxSetVerticalExaggeration.isChecked()
+                try:
+                    profile_params['vertical_exaggeration'] = float(dialog.qledtDemExagerationRatio.text())
+                    assert profile_params['vertical_exaggeration'] > 0
+                except:
+                    profile_params['vertical_exaggeration'] = 1
+
+                profile_params['filled_height'] = dialog.qcbxPlotFilledHeight.isChecked()
+                profile_params['filled_slope'] = dialog.qcbxPlotFilledSlope.isChecked()
+                profile_params['plot_height_choice'] = dialog.qcbxPlotProfileHeight.isChecked()
+                profile_params['plot_slope_choice'] = dialog.qcbxPlotProfileSlope.isChecked()
+                profile_params['plot_slope_absolute'] = dialog.qrbtPlotAbsoluteSlope.isChecked()
+                profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
+                profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
+
+                surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
+
+                if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
+                    profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
+                else:
+                    profile_params['visible_elev_lyrs'] = surface_names
+
+                if hasattr(dialog, 'elevation_layer_colors') and dialog.elevation_layer_colors is not None:
+                    profile_params['elev_lyr_colors'] = dialog.elevation_layer_colors
+                else:
+                    profile_params['elev_lyr_colors'] = [QColor('red')] * len(surface_names)
+
+                return profile_params
+
+            if not self.check_pre_profile():
+                return
+
+            natural_elev_min_set = []
+            natural_elev_max_set = []
+            profile_length_set = []
+            for geoprofile in self.input_geoprofiles.geoprofiles:
+                natural_elev_min, natural_elev_max = geoprofile.profile_elevations.natural_elev_range
+                natural_elev_min_set.append(natural_elev_min)
+                natural_elev_max_set.append(natural_elev_max)
+                profile_length_set.append(geoprofile.profile_elevations.profile_length)
+
+            surface_names = geoprofile.profile_elevations.surface_names
+            if self.input_geoprofiles.plot_params is None:
+                surface_colors = None
+            else:
+                surface_colors = self.input_geoprofiles.plot_params.get('elev_lyr_colors')
+
+            dialog = PlotTopoProfileDialog(self.plugin_name,
+                                           profile_length_set,
+                                           natural_elev_min_set,
+                                           natural_elev_max_set,
+                                           surface_names,
+                                           surface_colors)
+
+            if dialog.exec_():
+                self.input_geoprofiles.plot_params = get_profile_plot_params(dialog)
+            else:
+                return
+
+            self.input_geoprofiles.profiles_created = True
+
+            # plot profiles
+
+            plot_addit_params = dict()
+            plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+            plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+            plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+            plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
+
+            profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                              plot_addit_params)
+            self.profile_windows.append(profile_window)
+
         qwdgTopoProfile = QWidget()
         qlytTopoProfile = QVBoxLayout()
 
@@ -766,7 +893,7 @@ class qprof_QWidget(QWidget):
         qlytPlotProfile = QGridLayout()
 
         self.qpbtPlotProfileCreate = QPushButton(self.tr("Create topographic profile"))
-        self.qpbtPlotProfileCreate.clicked.connect(self.plot_topo_profiles)
+        self.qpbtPlotProfileCreate.clicked.connect(plot_topo_profiles)
 
         qlytPlotProfile.addWidget(self.qpbtPlotProfileCreate, 0, 0, 1, 4)
 
@@ -1129,6 +1256,493 @@ class qprof_QWidget(QWidget):
 
     def setup_export_section_tab(self):
 
+        def do_export_image():
+
+            try:
+                profile_window = self.profile_windows[-1]
+            except:
+                warn(self,
+                     self.plugin_name,
+                     "Profile not yet calculated")
+                return
+
+            dialog = FigureExportDialog(self.plugin_name)
+
+            if dialog.exec_():
+
+                try:
+                    fig_width_inches = float(dialog.figure_width_inches_QLineEdit.text())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure width value")
+                    return
+
+                try:
+                    fig_resolution_dpi = int(dialog.figure_resolution_dpi_QLineEdit.text())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure resolution value")
+                    return
+
+                try:
+                    fig_font_size_pts = float(dialog.figure_fontsize_pts_QLineEdit.text())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in font size value")
+
+                try:
+                    fig_outpath = unicode(dialog.figure_outpath_QLineEdit.text())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure output path")
+                    return
+
+                try:
+                    top_space_value = float(dialog.top_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure top space value")
+                    return
+
+                try:
+                    left_space_value = float(dialog.left_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure left space value")
+                    return
+
+                try:
+                    right_space_value = float(dialog.right_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure right space value")
+                    return
+
+                try:
+                    bottom_space_value = float(dialog.bottom_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure bottom space value")
+                    return
+
+                try:
+                    blank_width_space = float(dialog.blank_width_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure blank widht space value")
+                    return
+
+                try:
+                    blank_height_space = float(dialog.blank_height_space_value_QDoubleSpinBox.value())
+                except:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in figure blank height space value")
+                    return
+
+            else:
+
+                warn(self,
+                     self.plugin_name,
+                     "No export figure defined")
+                return
+
+            figure = profile_window.canvas.fig
+
+            fig_current_width, fig_current_height = figure.get_size_inches()
+            fig_scale_factor = fig_width_inches / fig_current_width
+            figure.set_size_inches(fig_width_inches, fig_scale_factor * fig_current_height)
+
+            for axis in figure.axes:
+                for label in (axis.get_xticklabels() + axis.get_yticklabels()):
+                    label.set_fontsize(fig_font_size_pts)
+
+            figure.subplots_adjust(wspace=blank_width_space, hspace=blank_height_space, left=left_space_value,
+                                   right=right_space_value, top=top_space_value, bottom=bottom_space_value)
+
+            try:
+                figure.savefig(str(fig_outpath), dpi=fig_resolution_dpi)
+            except:
+                warn(self,
+                     self.plugin_name,
+                     "Error with image saving")
+            else:
+                info(self,
+                     self.plugin_name,
+                     "Image saved")
+
+        def do_export_topo_profiles():
+
+            def get_source_type():
+
+                if dialog.src_allselecteddems_QRadioButton.isChecked():
+                    return ["all_dems"]
+                elif dialog.src_singledem_QRadioButton.isChecked():
+                    return ["single_dem", dialog.src_singledemlist_QComboBox.currentIndex()]
+                elif dialog.src_singlegpx_QRadioButton.isChecked():
+                    return ["gpx_file"]
+                else:
+                    return []
+
+            def get_format_type():
+
+                if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                    return "shapefile - line"
+                elif dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                    return "shapefile - point"
+                elif dialog.outtype_csv_QRadioButton.isChecked():
+                    return "csv"
+                else:
+                    return ""
+
+            def export_topography():
+
+                def export_parse_geoprofile_DEM_results(geoprofile):
+
+                    # definition of output results
+
+                    xs = geoprofile.profile_elevations.planar_xs
+                    ys = geoprofile.profile_elevations.planar_ys
+                    elev_list = geoprofile.profile_elevations.profile_zs
+                    cumdist2Ds = geoprofile.profile_elevations.profile_s
+                    cumdist3Ds = geoprofile.profile_elevations.profile_s3ds
+                    slopes = geoprofile.profile_elevations.profile_dirslopes
+
+                    elevs_zipped = zip(*elev_list)
+                    cumdist3Ds_zipped = zip(*cumdist3Ds)
+                    slopes_zipped = zip(*slopes)
+
+                    result_data = []
+                    rec_id = 0
+                    for x, y, cum_2d_dist, zs, cum3d_dists, slopes \
+                            in zip(
+                        xs,
+                        ys,
+                        cumdist2Ds,
+                        elevs_zipped,
+                        cumdist3Ds_zipped,
+                        slopes_zipped):
+
+                        rec_id += 1
+                        record = [rec_id, x, y, cum_2d_dist]
+                        for z, cum3d_dist, slope in zip(zs, cum3d_dists, slopes):
+                            if isnan(z): z = ''
+                            if isnan(cum3d_dist): cum3d_dist = ''
+                            if isnan(slope): slope = ''
+                            record += [z, cum3d_dist, slope]
+                        result_data.append(record)
+
+                    return result_data
+
+                def export_topography_all_dems(out_format, outfile_path, proj_sr):
+
+                    geoprofile = self.input_geoprofiles.geoprofile(0)
+                    if geoprofile.source_data_type != self.demline_source:
+                        warn(self,
+                             self.plugin_name,
+                             "No DEM-derived profile defined")
+                        return
+
+                    # definition of field names
+
+                    dem_names = geoprofile.get_current_dem_names()
+
+                    dem_headers = []
+                    cum3ddist_headers = []
+                    slopes_headers = []
+                    for ndx in range(len(dem_names)):
+                        dem_headers.append(
+                            unicodedata.normalize('NFKD', unicode(dem_names[ndx][:10])).encode('ascii', 'ignore'))
+                        cum3ddist_headers.append("cds3d_" + str(ndx + 1))
+                        slopes_headers.append("slopd_" + str(ndx + 1))
+
+                    multi_dem_header_list = dem_header_common + [name for sublist in
+                                                                 zip(dem_headers, cum3ddist_headers, slopes_headers) for
+                                                                 name in
+                                                                 sublist]
+
+                    # extraction of results
+
+                    geoprofiles_topography_data = []
+                    for geoprofile in self.input_geoprofiles.geoprofiles:
+                        geoprofiles_topography_data.append(export_parse_geoprofile_DEM_results(geoprofile))
+
+                    if out_format == "csv":
+                        success, msg = write_topography_multidems_csv(
+                            outfile_path,
+                            multi_dem_header_list,
+                            geoprofiles_topography_data)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - point":
+                        success, msg = write_topography_multidems_ptshp(
+                            outfile_path,
+                            multi_dem_header_list,
+                            dem_names,
+                            geoprofiles_topography_data,
+                            proj_sr)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - line":
+                        success, msg = write_topography_multidems_lnshp(
+                            outfile_path,
+                            multi_dem_header_list,
+                            dem_names,
+                            geoprofiles_topography_data,
+                            proj_sr)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    else:
+                        error("Debug: error in export all DEMs")
+                        return
+
+                    if success:
+                        info(self,
+                             self.plugin_name,
+                             "Profiles export completed")
+
+                def export_topography_single_dem(out_format, ndx_dem_to_export, outfile_path, prj_srs):
+
+                    geoprofile = self.input_geoprofiles.geoprofile(0)
+                    if geoprofile.source_data_type != self.demline_source:
+                        warn(self,
+                             self.plugin_name,
+                             "No DEM-derived profile defined")
+                        return
+
+                    # process results for data export
+
+                    geoprofiles_topography_data = []
+                    for geoprofile in self.input_geoprofiles.geoprofiles:
+                        geoprofiles_topography_data.append(export_parse_geoprofile_DEM_results(geoprofile))
+
+                    # definition of field names
+                    header_list = dem_header_common + dem_single_dem_header
+
+                    if out_format == "csv":
+                        success, msg = write_topography_singledem_csv(
+                            outfile_path,
+                            header_list,
+                            geoprofiles_topography_data,
+                            ndx_dem_to_export)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - point":
+                        success, msg = write_topography_singledem_ptshp(
+                            outfile_path,
+                            header_list,
+                            geoprofiles_topography_data,
+                            ndx_dem_to_export,
+                            prj_srs)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - line":
+                        success, msg = write_topography_singledem_lnshp(
+                            outfile_path,
+                            header_list,
+                            geoprofiles_topography_data,
+                            ndx_dem_to_export,
+                            prj_srs)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    else:
+                        error(self,
+                              self.plugin_name,
+                              "Debug: error in export single DEM")
+                        return
+
+                    if success:
+                        info(self,
+                             self.plugin_name,
+                             "Profile export completed")
+
+                def export_topography_gpx_data(out_format, output_filepath, prj_srs):
+
+                    def export_parse_gpx_results():
+
+                        # definition of output results
+
+                        geoprofile = self.input_geoprofiles.geoprofile(0)
+                        topo_profile = geoprofile.profile_elevations
+                        lats = topo_profile.lats
+                        lons = topo_profile.lons
+                        times = topo_profile.times
+                        cumdist2Ds = topo_profile.profile_s
+                        elevs = topo_profile.profile_zs[0]  # [0] required for compatibility with DEM processing
+                        cumdist3Ds = topo_profile.profile_s3ds[0]  # [0] required for compatibility with DEM processing
+                        dirslopes = topo_profile.profile_dirslopes[
+                            0]  # [0] required for compatibility with DEM processing
+
+                        result_data = []
+                        rec_id = 0
+                        for lat, lon, time, elev, cumdist_2D, cumdist_3D, slope in \
+                                zip(lats,
+                                    lons,
+                                    times,
+                                    elevs,
+                                    cumdist2Ds,
+                                    cumdist3Ds,
+                                    dirslopes):
+
+                            rec_id += 1
+                            if isnan(elev):
+                                elev = ''
+                            if isnan(cumdist_3D):
+                                cumdist_3D = ''
+                            if isnan(slope):
+                                slope = ''
+                            record = [rec_id, lat, lon, time, elev, cumdist_2D, cumdist_3D, slope]
+                            result_data.append(record)
+
+                        return result_data
+
+                    geoprofile = self.input_geoprofiles.geoprofile(0)
+                    if geoprofile.source_data_type != self.gpxfile_source:
+                        warn(self,
+                             self.plugin_name,
+                             "No GPX-derived profile defined")
+                        return
+
+                    # process results from export
+                    gpx_parsed_results = export_parse_gpx_results()
+
+                    # definition of field names
+                    gpx_header = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "dirslop"]
+
+                    if out_format == "csv":
+                        success, msg = write_generic_csv(
+                            output_filepath,
+                            gpx_header,
+                            gpx_parsed_results)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - point":
+                        success, msg = write_topography_gpx_ptshp(
+                            output_filepath,
+                            gpx_header,
+                            gpx_parsed_results,
+                            prj_srs)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    elif out_format == "shapefile - line":
+                        success, msg = write_topography_gpx_lnshp(
+                            output_filepath,
+                            gpx_header,
+                            gpx_parsed_results,
+                            prj_srs)
+                        if not success:
+                            warn(self,
+                                 self.plugin_name,
+                                 msg)
+                    else:
+                        error(self,
+                              self.plugin_name,
+                              "Debug: error in export single DEM")
+                        return
+
+                    if success:
+                        info(self,
+                             self.plugin_name,
+                             "Profile export completed")
+
+                if output_source[0] == "all_dems":
+                    export_topography_all_dems(output_format, output_filepath, project_crs_osr)
+                elif output_source[0] == "single_dem":
+                    ndx_dem_to_export = output_source[1]
+                    export_topography_single_dem(output_format, ndx_dem_to_export, output_filepath, project_crs_osr)
+                elif output_source[0] == "gpx_file":
+                    export_topography_gpx_data(output_format, output_filepath, project_crs_osr)
+                else:
+                    error(self,
+                          self.plugin_name,
+                          "Debug: output choice not correctly defined")
+                    return
+
+            try:
+                geoprofile = self.input_geoprofiles.geoprofile(0)
+                geoprofile.profile_elevations.profile_s
+            except:
+                warn(self,
+                     self.plugin_name,
+                     "Profiles not yet calculated")
+                return
+
+            selected_dems_params = geoprofile.profile_elevations.dem_params
+            dialog = TopographicProfileExportDialog(self.plugin_name,
+                                                    selected_dems_params)
+
+            if dialog.exec_():
+
+                output_source = get_source_type()
+                if not output_source:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in output source")
+                    return
+
+                output_format = get_format_type()
+                if output_format == "":
+                    warn(self,
+                         self.plugin_name,
+                         "Error in output format")
+                    return
+
+                output_filepath = dialog.outpath_QLineEdit.text()
+                if len(output_filepath) == 0:
+                    warn(self,
+                         self.plugin_name,
+                         "Error in output path")
+                    return
+                add_to_project = dialog.load_output_checkBox.isChecked()
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No export defined")
+                return
+
+            # get project CRS information
+
+            project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+            export_topography()
+
+            # add theme to QGis project
+
+            if 'shapefile' in output_format and add_to_project:
+                try:
+                    layer = QgsVectorLayer(output_filepath,
+                                           QFileInfo(output_filepath).baseName(),
+                                           "ogr")
+                    QgsMapLayerRegistry.instance().addMapLayer(layer)
+                except:
+                    QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                    return
+
         qwdtImportExport = QWidget()
         qlytImportExport = QVBoxLayout()
 
@@ -1141,11 +1755,11 @@ class qprof_QWidget(QWidget):
 
         self.qpbtExportImage = QPushButton("Figure")
         qlytExport.addWidget(self.qpbtExportImage, 1, 0, 1, 4)
-        self.qpbtExportImage.clicked.connect(self.do_export_image)
+        self.qpbtExportImage.clicked.connect(do_export_image)
 
         self.qpbtExportTopographicProfile = QPushButton("Topographic profile data")
         qlytExport.addWidget(self.qpbtExportTopographicProfile, 2, 0, 1, 4)
-        self.qpbtExportTopographicProfile.clicked.connect(self.do_export_topo_profiles)
+        self.qpbtExportTopographicProfile.clicked.connect(do_export_topo_profiles)
 
         self.qpbtExportProjectGeolAttitudes = QPushButton("Projected geological attitude data")
         qlytExport.addWidget(self.qpbtExportProjectGeolAttitudes, 3, 0, 1, 4)
@@ -1153,7 +1767,7 @@ class qprof_QWidget(QWidget):
 
         self.qpbtExportProjectGeolLines = QPushButton("Projected geological line data")
         qlytExport.addWidget(self.qpbtExportProjectGeolLines, 4, 0, 1, 4)
-        self.qpbtExportProjectGeolLines.clicked.connect(self.do_export_project_geol_lines)
+        self.qpbtExportProjectGeolLines.clicked.connect(self.do_export_project_geol_traces)
 
         self.qpbtExportLineIntersections = QPushButton("Line intersection data")
         qlytExport.addWidget(self.qpbtExportLineIntersections, 5, 0, 1, 4)
@@ -1218,6 +1832,7 @@ class qprof_QWidget(QWidget):
 
         restore_previous_map_tool()
 
+    """
     def get_dem_resolution_in_prj_crs(self, dem, dem_params, on_the_fly_projection, prj_crs):
 
         def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
@@ -1244,6 +1859,7 @@ class qprof_QWidget(QWidget):
             cellsizeNS_prj_crs = cellsizeNS
 
         return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
+    """
 
     def check_pre_statistics(self):
 
@@ -1275,84 +1891,239 @@ class qprof_QWidget(QWidget):
 
         return True
 
-    def plot_topo_profiles(self):
+    def reset_lineaments_intersections(self):
 
-        def get_profile_plot_params(dialog):
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        if geoprofile is not None:
+            geoprofile.lineaments = []
 
-            profile_params = {}
+    def reset_polygon_intersections(self):
 
-            # get profile plot parameters
+        try:
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            if geoprofile is not None:
+                geoprofile.outcrops = []
+        except:
+            pass
 
-            try:
-                profile_params['plot_min_elevation_user'] = float(dialog.qledtPlotMinValue.text())
-            except:
-                profile_params['plot_min_elevation_user'] = None
+    def check_intersection_polygon_inputs(self):
 
-            try:
-                profile_params['plot_max_elevation_user'] = float(dialog.qledtPlotMaxValue.text())
-            except:
-                profile_params['plot_max_elevation_user'] = None
+        if not self.check_for_struc_process():
+            return False
 
-            profile_params['set_vertical_exaggeration'] = dialog.qcbxSetVerticalExaggeration.isChecked()
-            try:
-                profile_params['vertical_exaggeration'] = float(dialog.qledtDemExagerationRatio.text())
-                assert profile_params['vertical_exaggeration'] > 0
-            except:
-                profile_params['vertical_exaggeration'] = 1
+        # polygon layer with parameter fields
+        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
+        if intersection_polygon_qgis_ndx < 0:
+            warn(self,
+                 self.plugin_name,
+                 "No defined polygon layer")
+            return False
 
-            profile_params['filled_height'] = dialog.qcbxPlotFilledHeight.isChecked()
-            profile_params['filled_slope'] = dialog.qcbxPlotFilledSlope.isChecked()
-            profile_params['plot_height_choice'] = dialog.qcbxPlotProfileHeight.isChecked()
-            profile_params['plot_slope_choice'] = dialog.qcbxPlotProfileSlope.isChecked()
-            profile_params['plot_slope_absolute'] = dialog.qrbtPlotAbsoluteSlope.isChecked()
-            profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
-            profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
+        return True
 
-            surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
+    def check_intersection_line_inputs(self):
 
-            if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
-                profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
-            else:
-                profile_params['visible_elev_lyrs'] = surface_names
+        if not self.check_for_struc_process():
+            return False
 
-            if hasattr(dialog, 'elevation_layer_colors') and dialog.elevation_layer_colors is not None:
-                profile_params['elev_lyr_colors'] = dialog.elevation_layer_colors
-            else:
-                profile_params['elev_lyr_colors'] = [QColor('red')] * len(surface_names)
+        # line structural layer with parameter fields
+        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
+        if intersection_line_qgis_ndx < 0:
+            warn(self,
+                 self.plugin_name,
+                 "No defined geological line layer")
+            return False
 
-            return profile_params
+        return True
 
-        if not self.check_pre_profile():
+    def do_polygon_intersection(self):
+
+        # check input values
+        if not self.check_intersection_polygon_inputs():
             return
 
-        natural_elev_min_set = []
-        natural_elev_max_set = []
-        profile_length_set = []
-        for geoprofile in self.input_geoprofiles.geoprofiles:
-            natural_elev_min, natural_elev_max = geoprofile.profile_elevations.natural_elev_range
-            natural_elev_min_set.append(natural_elev_min)
-            natural_elev_max_set.append(natural_elev_max)
-            profile_length_set.append(geoprofile.profile_elevations.profile_length)
+        # get dem parameters
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        demLayer = geoprofile.profile_elevations.dem_params[0].layer
+        demParams = geoprofile.profile_elevations.dem_params[0].params
 
-        surface_names = geoprofile.profile_elevations.surface_names
-        if self.input_geoprofiles.plot_params is None:
-            surface_colors = None
+        # profile line2d, in project CRS and densified
+        profile_line2d_prjcrs_densif = geoprofile.original_line.densify_2d_line(geoprofile.sample_distance)
+
+        # polygon layer
+        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
+        inters_polygon_classifaction_field_ndx = self.inters_polygon_classifaction_field_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
+        polygon_layer = self.current_polygon_layers[intersection_polygon_qgis_ndx]
+        polygon_layer_crs = polygon_layer.crs()
+
+        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
+
+        if on_the_fly_projection and polygon_layer_crs != project_crs:
+            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif.crs_project(project_crs,
+                                                                                     polygon_layer_crs)
         else:
-            surface_colors = self.input_geoprofiles.plot_params.get('elev_lyr_colors')
+            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
 
-        dialog = PlotTopoProfileDialog(self.plugin_name,
-                                       profile_length_set,
-                                       natural_elev_min_set,
-                                       natural_elev_max_set,
-                                       surface_names,
-                                       surface_colors)
+        profile_qgsgeometry = QgsGeometry.fromPolyline(
+            [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
-        if dialog.exec_():
-            self.input_geoprofiles.plot_params = get_profile_plot_params(dialog)
-        else:
+        success, return_data = profile_polygon_intersection(profile_qgsgeometry,
+                                                            polygon_layer,
+                                                            inters_polygon_classifaction_field_ndx)
+
+        if not success:
+            error(self,
+                  self.plugin_name,
+                  return_data)
             return
 
-        self.input_geoprofiles.profiles_created = True
+        lIntersectPolylinePolygonCrs = return_data
+
+        if len(lIntersectPolylinePolygonCrs) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No intersection found")
+            return
+
+        # transform polyline intersections into prj crs line2d & classification list
+        lIntersLine2dPrjCrs = []
+        for intersection_polyline_polygon_crs in lIntersectPolylinePolygonCrs:
+            rec_classification, xy_tuple_list = intersection_polyline_polygon_crs
+            intersection_polygon_crs_line2d = xytuple_list_to_Line(xy_tuple_list)
+            if on_the_fly_projection and polygon_layer_crs != project_crs:
+                intersection_prj_crs_line2d = intersection_polygon_crs_line2d.crs_project(polygon_layer_crs,
+                                                                                          project_crs)
+            else:
+                intersection_prj_crs_line2d = intersection_polygon_crs_line2d
+            lIntersLine2dPrjCrs.append([rec_classification, intersection_prj_crs_line2d])
+
+        # create Point lists from intersection with source DEM
+
+        polygon_classification_set = set()
+        sect_pt_1, sect_pt_2 = geoprofile.original_line.pts
+        formation_list = []
+        intersection_line3d_list = []
+        intersection_polygon_s_list2 = []
+        for polygon_classification, line2d in lIntersLine2dPrjCrs:
+            polygon_classification_set.add(polygon_classification)
+
+            lptIntersPts3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts)
+            lineIntersectionLine3d = Line(lptIntersPts3d)
+
+            s0_list = lineIntersectionLine3d.incremental_length_2d()
+            s_start = sect_pt_1.dist_2d(lineIntersectionLine3d.pts[0])
+            s_list = [s + s_start for s in s0_list]
+
+            formation_list.append(polygon_classification)
+            intersection_line3d_list.append(lineIntersectionLine3d)
+            intersection_polygon_s_list2.append(s_list)
+
+        if len(intersection_polygon_s_list2) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No reprojected intersection")
+            return
+
+        # create windows for user_definition of intersection colors in profile
+        if polygon_classification_set != set() and polygon_classification_set != set([None]):
+
+            dialog = PolygonIntersectionRepresentationDialog(self.plugin_name,
+                                                             polygon_classification_set)
+            if dialog.exec_():
+                polygon_classification_colors_dict = self.classification_colors(dialog)
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No color chosen")
+                return
+            if len(polygon_classification_colors_dict) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No defined colors")
+                return
+            else:
+                self.polygon_classification_colors = polygon_classification_colors_dict
+        else:
+            self.polygon_classification_colors = None
+
+        geoprofile.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
+
+        # plot profiles
+        plot_addit_params = dict()
+        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
+        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
+        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
+
+        profile_window = plot_geoprofiles(self.input_geoprofiles,
+                                          plot_addit_params)
+        self.profile_windows.append(profile_window)
+
+    def classification_colors(self, dialog):
+
+        polygon_classification_colors_dict = dict()
+        for classification_ndx in range(dialog.polygon_classifications_treeWidget.topLevelItemCount()):
+            class_itemwidget = dialog.polygon_classifications_treeWidget.topLevelItem(classification_ndx)
+            classification = unicode(class_itemwidget.text(0))
+            # get color
+            color = qcolor2rgbmpl(dialog.polygon_classifications_treeWidget.itemWidget(class_itemwidget, 1).color())
+            polygon_classification_colors_dict[classification] = color
+
+        return polygon_classification_colors_dict
+
+
+    def do_line_intersection(self):
+
+        # check input values
+        if not self.check_intersection_line_inputs():
+            return
+
+        # get color for projected points
+        color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButtonV2.color())
+
+        # get dem parameters
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        demLayer = geoprofile.profile_elevations.dem_params[0].layer
+        demParams = geoprofile.profile_elevations.dem_params[0].params
+
+        # get line structural layer
+        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
+
+        # get id field
+        intersection_line_id_field_ndx = self.inters_input_id_fld_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
+
+        # define structural layer
+        structural_line_layer = self.current_line_layers[intersection_line_qgis_ndx]
+
+        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
+
+        # read structural line values
+        if intersection_line_id_field_ndx == -1:
+            id_list = None
+        else:
+            id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
+
+        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
+                                                                       project_crs)
+
+        # calculated Point intersection list
+        intersection_point_id_list = calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
+                                                                          id_list,
+                                                                          geoprofile.original_line)
+
+        # sort intersection points by spat_distance from profile start point
+        lstDistancesFromProfileStart = intersection_distances_by_profile_start_list(geoprofile.original_line,
+                                                                                         intersection_point_id_list)
+
+        # create CartesianPoint from intersection with source DEM
+        lstIntersectionPoints = [pt2d for pt2d, _ in intersection_point_id_list]
+        lstIntersectionIds = [id for _, id in intersection_point_id_list]
+        lstIntersectionPoints3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
+                                                            lstIntersectionPoints)
+        lstIntersectionColors = [color] * len(lstIntersectionPoints)
+
+        geoprofile.add_intersections_pts(
+            zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors))
 
         # plot profiles
 
@@ -1365,484 +2136,6 @@ class qprof_QWidget(QWidget):
         profile_window = plot_geoprofiles(self.input_geoprofiles,
                                           plot_addit_params)
         self.profile_windows.append(profile_window)
-
-    def do_export_topo_profiles(self):
-
-        def get_source_type():
-
-            if dialog.src_allselecteddems_QRadioButton.isChecked():
-                return ["all_dems"]
-            elif dialog.src_singledem_QRadioButton.isChecked():
-                return ["single_dem", dialog.src_singledemlist_QComboBox.currentIndex()]
-            elif dialog.src_singlegpx_QRadioButton.isChecked():
-                return ["gpx_file"]
-            else:
-                return []
-
-        def get_format_type():
-
-            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
-                return "shapefile - line"
-            elif dialog.outtype_shapefile_point_QRadioButton.isChecked():
-                return "shapefile - point"
-            elif dialog.outtype_csv_QRadioButton.isChecked():
-                return "csv"
-            else:
-                return ""
-
-        try:
-            geoprofile = self.input_geoprofiles.geoprofile(0)
-            geoprofile.profile_elevations.profile_s
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "Profile not yet calculated")
-            return
-
-        selected_dems_params = geoprofile.profile_elevations.dem_params
-        dialog = TopographicProfileExportDialog(self.plugin_name,
-                                                selected_dems_params)
-
-        if dialog.exec_():
-
-            output_source = get_source_type()
-            if not output_source:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output source")
-                return
-
-            output_format = get_format_type()
-            if output_format == "":
-                warn(self,
-                     self.plugin_name,
-                     "Error in output format")
-                return
-
-            output_filepath = dialog.outpath_QLineEdit.text()
-            if len(output_filepath) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output path")
-                return
-            add_to_project = dialog.load_output_checkBox.isChecked()
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No export defined")
-            return
-
-        # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
-
-        self.output_topography(output_source, output_format, output_filepath, project_crs_osr)
-
-        # add theme to QGis project
-        if 'shapefile' in output_format and add_to_project:
-            try:
-                layer = QgsVectorLayer(output_filepath,
-                                      QFileInfo(output_filepath).baseName(),
-                                      "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
-            except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
-                return
-
-    def output_topography(self, output_source, output_format, output_filepath, project_crs_osr):
-
-        if output_source[0] == "all_dems":
-            self.export_topography_all_dems(output_format, output_filepath, project_crs_osr)
-        elif output_source[0] == "single_dem":
-            ndx_dem_to_export = output_source[1]
-            self.export_topography_single_dem(output_format, ndx_dem_to_export, output_filepath, project_crs_osr)
-        elif output_source[0] == "gpx_file":
-            self.export_topography_gpx_data(output_format, output_filepath, project_crs_osr)
-        else:
-            error(self,
-                  self.plugin_name,
-                  "Debug: output choice not correctly defined")
-            return
-
-    def do_export_project_geol_attitudes(self):
-
-        def get_format_type():
-
-            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
-                return "shapefile - point"
-            elif dialog.outtype_csv_QRadioButton.isChecked():
-                return "csv"
-            else:
-                return ""
-
-        try:
-            geoprofile = self.input_geoprofiles.geoprofile(0)
-            num_plane_attitudes_sets = len(geoprofile.geoplane_attitudes)
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "No available geological attitudes")
-            return
-        else:
-            if num_plane_attitudes_sets == 0:
-                warn(self,
-                     self.plugin_name,
-                     "No available geological attitudes")
-                return
-
-        dialog = PointDataExportDialog(self.plugin_name)
-
-        if dialog.exec_():
-
-            output_format = get_format_type()
-            if output_format == "":
-                warn(self,
-                     self.plugin_name,
-                     "Error in output format")
-                return
-            output_filepath = dialog.outpath_QLineEdit.text()
-            if len(output_filepath) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output path")
-                return
-            add_to_project = dialog.load_output_checkBox.isChecked()
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No export defined")
-            return
-
-        # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
-
-        self.output_geological_attitudes(output_format, output_filepath, project_crs_osr)
-
-        # add theme to QGis project
-        if 'shapefile' in output_format and add_to_project:
-            try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
-            except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
-                return
-
-    def output_geological_attitudes(self, output_format, output_filepath, project_crs_osr):
-
-        # definition of field names
-        header_list = ['id',
-                       'or_strpt_x',
-                       'or_strpt_y',
-                       'or_strpt_z',
-                       'prj_strpt_x',
-                       'prj_strpt_y',
-                       'prj_strpt_z',
-                       's',
-                       'or_dipdir',
-                       'or_dipangle',
-                       'trc_dipangle',
-                       'trc_dipdir']
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        parsed_geologicalattitudes_results = self.export_parse_geologicalattitudes_results(
-            geoprofile.geoplane_attitudes)
-
-        # output for csv file
-        if output_format == "csv":
-            success, msg = write_generic_csv(output_filepath, header_list, parsed_geologicalattitudes_results)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif output_format == "shapefile - point":
-            success, msg = write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error(self,
-                  self.plugin_name,
-                  "Debug: error in export format")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Projected attitudes saved")
-
-    def do_export_project_geol_lines(self):
-
-        try:
-            geoprofile = self.input_geoprofiles.geoprofile(0)
-            num_proj_lines_sets = len(geoprofile.geosurfaces)
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "No available geological traces")
-            return
-        else:
-            if num_proj_lines_sets == 0:
-                warn(self,
-                     self.plugin_name,
-                     "No available geological traces to save")
-                return
-
-        fileName = QFileDialog.getSaveFileName(self,
-                                               self.tr("Save results"),
-                                               "*.csv",
-                                               self.tr("csv (*.csv)"))
-
-        if fileName is None or fileName == '':
-            warn(self,
-                 self.plugin_name,
-                 "No output file has been defined")
-            return
-
-        parsed_curves_for_export = self.export_parse_geologicalcurves()
-        header_list = ['id', 's', 'z']
-
-        write_generic_csv(fileName, header_list, parsed_curves_for_export)
-
-        info(self,
-             self.plugin_name,
-             "Projected lines saved")
-
-    def do_export_line_intersections(self):
-
-        def get_format_type():
-
-            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
-                return "shapefile - point"
-            elif dialog.outtype_csv_QRadioButton.isChecked():
-                return "csv"
-            else:
-                return ""
-
-        try:
-            geoprofile = self.input_geoprofiles.geoprofile(0)
-            num_intersection_pts = len(geoprofile.lineaments)
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "No available profile-line intersections")
-            return
-        else:
-            if num_intersection_pts == 0:
-                warn(self,
-                     self.plugin_name,
-                     "No available profile-line intersections")
-                return
-
-        dialog = PointDataExportDialog(self.plugin_name)
-
-        if dialog.exec_():
-            output_format = get_format_type()
-            if output_format == "":
-                warn(self,
-                     self.plugin_name,
-                     "Error in output format")
-                return
-            output_filepath = dialog.outpath_QLineEdit.text()
-            if len(output_filepath) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output path")
-                return
-            add_to_project = dialog.load_output_checkBox.isChecked()
-        else:
-            warn(self,
-                     self.plugin_name,
-                     "No export defined")
-            return
-
-        # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
-
-        self.output_profile_lines_intersections(output_format, output_filepath, project_crs_osr)
-
-        # add theme to QGis project
-        if 'shapefile' in output_format and add_to_project:
-            try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
-            except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
-                return
-
-    def output_profile_lines_intersections(self, output_format, output_filepath, project_crs_osr):
-
-        # definition of field names
-        header_list = ['id',
-                       's',
-                       'x',
-                       'y',
-                       'z']
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        parsed_profilelineintersections = self.export_parse_lineintersections(geoprofile.lineaments)
-
-        # output for csv file
-        if output_format == "csv":
-            success, msg = write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif output_format == "shapefile - point":
-            success, msg = write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error(self,
-                  self.plugin_name,
-                  "Debug: error in export format")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Line intersections saved")
-
-    def output_profile_line(self, output_format, output_filepath, pts2dt, proj_sr):
-
-        points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
-        if output_format == "csv":
-            success, msg = write_generic_csv(output_filepath,
-                                             ['id', 'x', 'y'],
-                                             points)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif output_format == "shapefile - line":
-            success, msg = write_profile_lnshp(output_filepath,
-                                               ['id'],
-                                               points,
-                                               proj_sr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error(self,
-                  self.plugin_name,
-                  "Debug: error in export format")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Line saved")
-
-    def do_export_polygon_intersections(self):
-
-        def get_format_type():
-
-            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
-                return "shapefile - line"
-            elif dialog.outtype_csv_QRadioButton.isChecked():
-                return "csv"
-            else:
-                return ""
-
-        try:
-            geoprofile = self.input_geoprofiles.geoprofile(0)
-            num_intersection_lines = len(geoprofile.intersection_lines)
-        except:
-            warn(self,
-                     self.plugin_name,
-                     "No available profile-polygon intersections")
-            return
-        else:
-            if num_intersection_lines == 0:
-                warn(self,
-                     self.plugin_name,
-                     "No available profile-polygon intersections")
-                return
-
-        dialog = LineDataExportDialog(self.plugin_name)
-        if dialog.exec_():
-            output_format = get_format_type()
-            if output_format == "":
-                warn(self,
-                     self.plugin_name,
-                     "Error in output format")
-                return
-            output_filepath = dialog.outpath_QLineEdit.text()
-            if len(output_filepath) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "Error in output path")
-                return
-            add_to_project = dialog.load_output_checkBox.isChecked()
-        else:
-            warn(self,
-                     self.plugin_name,
-                     "No export defined")
-            return
-
-        # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
-
-        self.output_profile_polygons_intersections(output_format, output_filepath, project_crs_osr)
-
-        # add theme to QGis project
-        if 'shapefile' in output_format and add_to_project:
-            try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
-            except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
-                return
-
-    def output_profile_polygons_intersections(self, output_format, output_filepath, sr):
-
-        # definition of field names
-        header_list = ['class_fld',
-                       's',
-                       'x',
-                       'y',
-                       'z']
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        intersection_lines = geoprofile.intersection_lines
-
-        # output for csv file
-        if output_format == "csv":
-            success, msg = write_line_csv(
-                output_filepath,
-                header_list,
-                intersection_lines)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif output_format == "shapefile - line":
-            success, msg = write_intersection_polygon_lnshp(
-                output_filepath,
-                header_list,
-                intersection_lines,
-                sr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error("Debug: error in export format")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Polygon intersections saved")
 
     def struct_point_refresh_lyr_combobox(self):
 
@@ -1868,204 +2161,6 @@ class qprof_QWidget(QWidget):
         update_ComboBox(self.inters_input_line_comboBox,
                         self.choose_message,
                         [layer.name() for layer in self.current_line_layers])
-
-    def export_parse_DEM_results(self, profiles_elements):
-
-        # definition of output results         
-        x_list = profiles_elements.profile_elevations.planar_xs
-        y_list = profiles_elements.profile_elevations.planar_ys
-        elev_list = profiles_elements.profile_elevations.profile_zs
-        cumdist_2D_list = profiles_elements.profile_elevations.profile_s
-        cumdist_3d_list = profiles_elements.profile_elevations.profile_s3ds
-        slopes = profiles_elements.profile_elevations.profile_dirslopes
-
-        elev_list_zip = zip(*elev_list)
-        cumdist_3d_list_zip = zip(*cumdist_3d_list)
-        slope_list_zip = zip(*slopes)
-
-        result_data = []
-        rec_id = 0
-        for x, y, cum_2d_dist, zs, cum3d_dists, slopes in zip(x_list, y_list, cumdist_2D_list, elev_list_zip,
-                                                              cumdist_3d_list_zip, slope_list_zip):
-            rec_id += 1
-            record = [rec_id, x, y, cum_2d_dist]
-            for z, cum3d_dist, slope in zip(zs, cum3d_dists, slopes):
-                if isnan(z): z = ''
-                if isnan(cum3d_dist): cum3d_dist = ''
-                if isnan(slope): slope = ''
-                record += [z, cum3d_dist, slope]
-            result_data.append(record)
-
-        return profiles_elements.get_current_dem_names(), result_data
-
-    def export_topography_all_dems(self, out_format, outfile_path, proj_sr):
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        if geoprofile.source_data_type != self.demline_source:
-            warn(self,
-                 self.plugin_name,
-                 "No DEM-derived profile defined")
-            return
-
-            # process results for data export
-        dem_names, export_data = self.export_parse_DEM_results(geoprofile)
-
-        # definition of field names
-        dem_headers = []
-        cum3ddist_headers = []
-        slopes_headers = []
-        for ndx in range(len(dem_names)):
-            dem_headers.append(unicodedata.normalize('NFKD', unicode(dem_names[ndx][:10])).encode('ascii', 'ignore'))
-            cum3ddist_headers.append("cds3d_" + str(ndx + 1))
-            slopes_headers.append("slopd_" + str(ndx + 1))
-
-        header_list = ["id", "x", "y", "cds2d"] + [name for sublist in
-                                                   zip(dem_headers, cum3ddist_headers, slopes_headers) for name in
-                                                   sublist]
-
-        if out_format == "csv":
-            success, msg = write_topography_allDEMs_csv(outfile_path, header_list, export_data)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - point":
-            success, msg = write_topography_allDEMs_ptshp(outfile_path, header_list, dem_names, export_data, proj_sr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - line":
-            success, msg = write_topography_allDEMs_lnshp(outfile_path, header_list, dem_names, export_data, proj_sr)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error("Debug: error in export all DEMs")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Profile export completed")
-
-    def export_topography_single_dem(self, out_format, ndx_dem_to_export, outfile_path, prj_srs):
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        if geoprofile.source_data_type != self.demline_source:
-            warn(self,
-                 self.plugin_name,
-                 "No DEM-derived profile defined")
-            return
-
-        # process results for data export
-        _, export_data = self.export_parse_DEM_results(geoprofile)
-
-        # definition of field names         
-        header_list = ["id", "x", "y", "cds2d", "z", "cds3d", "dirslop"]
-
-        if out_format == "csv":
-            success, msg = write_topography_singleDEM_csv(outfile_path, header_list, export_data, ndx_dem_to_export)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - point":
-            success, msg = write_topography_singleDEM_ptshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - line":
-            success, msg = write_topography_singleDEM_lnshp(outfile_path, header_list, export_data, ndx_dem_to_export, prj_srs)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error(self,
-                  self.plugin_name,
-                 "Debug: error in export single DEM")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Profile export completed")
-
-    def export_topography_gpx_data(self, out_format, output_filepath, prj_srs):
-
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        if geoprofile.source_data_type != self.gpxfile_source:
-            warn(self,
-                     self.plugin_name,
-                     "No GPX-derived profile defined")
-            return
-
-        # process results from export
-        gpx_parsed_results = self.export_parse_gpx_results()
-
-        # definition of field names        
-        header_list = ["id", "lat", "lon", "time", "elev", "cds2d", "cds3d", "dirslop"]
-
-        if out_format == "csv":
-            success, msg = write_generic_csv(output_filepath, header_list, gpx_parsed_results)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - point":
-            success, msg = write_topography_GPX_ptshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        elif out_format == "shapefile - line":
-            success, msg = write_topography_GPX_lnshp(output_filepath, header_list, gpx_parsed_results, prj_srs)
-            if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
-        else:
-            error(self,
-                  self.plugin_name,
-                 "Debug: error in export single DEM")
-            return
-
-        if success:
-            info(self,
-                 self.plugin_name,
-                 "Profile export completed")
-
-    def export_parse_gpx_results(self):
-
-        # definition of output results
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        topo_profile = geoprofile.profile_elevations
-        lat_list = topo_profile.lats
-        lon_list = topo_profile.lons
-        time_list = topo_profile.times
-        cumdist_2D_list = topo_profile.profile_s
-        elev_list = topo_profile.profile_zs[0]  # [0] required for compatibility with DEM processing
-        cumdist_3d_list = topo_profile.profile_s3ds[0]  # [0] required for compatibility with DEM processing
-        dirslope_list = topo_profile.profile_dirslopes[0]  # [0] required for compatibility with DEM processing
-
-        result_data = []
-        rec_id = 0
-        for lat, lon, time, elev, cumdist_2D, cumdist_3D, slope in zip(lat_list, lon_list, time_list, elev_list,
-                                                                       cumdist_2D_list, cumdist_3d_list, dirslope_list):
-            rec_id += 1
-            if isnan(elev):
-                elev = ''
-            if isnan(cumdist_3D):
-                cumdist_3D = ''
-            if isnan(slope):
-                slope = ''
-            record = [rec_id, lat, lon, time, elev, cumdist_2D, cumdist_3D, slope]
-            result_data.append(record)
-
-        return result_data
 
     def update_point_layers_boxes(self):
 
@@ -2453,6 +2548,70 @@ class qprof_QWidget(QWidget):
         except:
             pass
 
+    def do_export_project_geol_attitudes(self):
+
+        def get_format_type():
+
+            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                return "shapefile - point"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
+
+        try:
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_plane_attitudes_sets = len(geoprofile.geoplane_attitudes)
+        except:
+            warn(self,
+                 self.plugin_name,
+                 "No available geological attitudes")
+            return
+        else:
+            if num_plane_attitudes_sets == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No available geological attitudes")
+                return
+
+        dialog = PointDataExportDialog(self.plugin_name)
+
+        if dialog.exec_():
+
+            output_format = get_format_type()
+            if output_format == "":
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
+                return
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
+                return
+            add_to_project = dialog.load_output_checkBox.isChecked()
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No export defined")
+            return
+
+        # get project CRS information
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+        self.output_geological_attitudes(output_format, output_filepath, project_crs_osr)
+
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
 
     def export_parse_geologicalattitudes_results(self, plane_attitudes_datasets):
 
@@ -2481,7 +2640,188 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
-    def export_parse_geologicalcurves(self):
+    def output_geological_attitudes(self, output_format, output_filepath, project_crs_osr):
+
+        # definition of field names
+        header_list = ['id',
+                       'or_strpt_x',
+                       'or_strpt_y',
+                       'or_strpt_z',
+                       'prj_strpt_x',
+                       'prj_strpt_y',
+                       'prj_strpt_z',
+                       's',
+                       'or_dipdir',
+                       'or_dipangle',
+                       'trc_dipangle',
+                       'trc_dipdir']
+
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        parsed_geologicalattitudes_results = self.export_parse_geologicalattitudes_results(
+            geoprofile.geoplane_attitudes)
+
+        # output for csv file
+        if output_format == "csv":
+            success, msg = write_generic_csv(output_filepath, header_list, parsed_geologicalattitudes_results)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
+        elif output_format == "shapefile - point":
+            success, msg = write_geological_attitudes_ptshp(output_filepath, parsed_geologicalattitudes_results, project_crs_osr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
+        else:
+            error(self,
+                  self.plugin_name,
+                  "Debug: error in export format")
+            return
+
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Projected attitudes saved")
+
+    def do_export_project_geol_traces(self):
+
+        try:
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_proj_lines_sets = len(geoprofile.geosurfaces)
+        except:
+            warn(self,
+                 self.plugin_name,
+                 "No available geological traces")
+            return
+        else:
+            if num_proj_lines_sets == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No available geological traces to save")
+                return
+
+        fileName = QFileDialog.getSaveFileName(self,
+                                               self.tr("Save results"),
+                                               "*.csv",
+                                               self.tr("csv (*.csv)"))
+
+        if fileName is None or fileName == '':
+            warn(self,
+                 self.plugin_name,
+                 "No output file has been defined")
+            return
+
+        parsed_curves_for_export = self.export_parse_projected_geological_traces()
+        header_list = ['id', 's', 'z']
+
+        write_generic_csv(fileName, header_list, parsed_curves_for_export)
+
+        info(self,
+             self.plugin_name,
+             "Projected lines saved")
+
+    def do_export_line_intersections(self):
+
+        def get_format_type():
+
+            if dialog.outtype_shapefile_point_QRadioButton.isChecked():
+                return "shapefile - point"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
+
+        try:
+            geoprofile = self.input_geoprofiles.geoprofile(0)
+            num_intersection_pts = len(geoprofile.lineaments)
+        except:
+            warn(self,
+                 self.plugin_name,
+                 "No available profile-line intersections")
+            return
+        else:
+            if num_intersection_pts == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No available profile-line intersections")
+                return
+
+        dialog = PointDataExportDialog(self.plugin_name)
+
+        if dialog.exec_():
+            output_format = get_format_type()
+            if output_format == "":
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
+                return
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
+                return
+            add_to_project = dialog.load_output_checkBox.isChecked()
+        else:
+            warn(self,
+                     self.plugin_name,
+                     "No export defined")
+            return
+
+        # get project CRS information
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+        self.output_profile_lines_intersections(output_format, output_filepath, project_crs_osr)
+
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    def output_profile_lines_intersections(self, output_format, output_filepath, project_crs_osr):
+
+        # definition of field names
+        header_list = ['id',
+                       's',
+                       'x',
+                       'y',
+                       'z']
+
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        parsed_profilelineintersections = self.export_parse_lineintersections(geoprofile.lineaments)
+
+        # output for csv file
+        if output_format == "csv":
+            success, msg = write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
+        elif output_format == "shapefile - point":
+            success, msg = write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
+        else:
+            error(self,
+                  self.plugin_name,
+                  "Debug: error in export format")
+            return
+
+        if success:
+            info(self,
+                 self.plugin_name,
+                 "Line intersections saved")
+
+    def export_parse_projected_geological_traces(self):
 
         data_list = []
         geoprofile = self.input_geoprofiles.geoprofile(0)
@@ -2503,376 +2843,109 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
-    def reset_lineaments_intersections(self):
+    def do_export_polygon_intersections(self):
 
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        if geoprofile is not None:
-            geoprofile.lineaments = []
+        def get_format_type():
 
-    def reset_polygon_intersections(self):
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
 
         try:
             geoprofile = self.input_geoprofiles.geoprofile(0)
-            if geoprofile is not None:
-                geoprofile.outcrops = []
-        except:
-            pass
-
-    def check_intersection_polygon_inputs(self):
-
-        if not self.check_for_struc_process():
-            return False
-
-        # polygon layer with parameter fields
-        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
-        if intersection_polygon_qgis_ndx < 0:
-            warn(self,
-                 self.plugin_name,
-                 "No defined polygon layer")
-            return False
-
-        return True
-
-    def check_intersection_line_inputs(self):
-
-        if not self.check_for_struc_process():
-            return False
-
-        # line structural layer with parameter fields
-        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
-        if intersection_line_qgis_ndx < 0:
-            warn(self,
-                 self.plugin_name,
-                 "No defined geological line layer")
-            return False
-
-        return True
-
-    def do_polygon_intersection(self):
-
-        # check input values
-        if not self.check_intersection_polygon_inputs():
-            return
-
-        # get dem parameters
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        demLayer = geoprofile.profile_elevations.dem_params[0].layer
-        demParams = geoprofile.profile_elevations.dem_params[0].params
-
-        # profile line2d, in project CRS and densified 
-        profile_line2d_prjcrs_densif = geoprofile.original_line.densify_2d_line(geoprofile.sample_distance)
-
-        # polygon layer
-        intersection_polygon_qgis_ndx = self.inters_input_polygon_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
-        inters_polygon_classifaction_field_ndx = self.inters_polygon_classifaction_field_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
-        polygon_layer = self.current_polygon_layers[intersection_polygon_qgis_ndx]
-        polygon_layer_crs = polygon_layer.crs()
-
-        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
-
-        if on_the_fly_projection and polygon_layer_crs != project_crs:
-            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif.crs_project(project_crs,
-                                                                                     polygon_layer_crs)
-        else:
-            profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
-
-        profile_qgsgeometry = QgsGeometry.fromPolyline(
-            [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
-
-        success, return_data = profile_polygon_intersection(profile_qgsgeometry,
-                                                            polygon_layer,
-                                                            inters_polygon_classifaction_field_ndx)
-
-        if not success:
-            error(self,
-                  self.plugin_name,
-                  return_data)
-            return
-
-        lIntersectPolylinePolygonCrs = return_data
-
-        if len(lIntersectPolylinePolygonCrs) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No intersection found")
-            return
-
-        # transform polyline intersections into prj crs line2d & classification list
-        lIntersLine2dPrjCrs = []
-        for intersection_polyline_polygon_crs in lIntersectPolylinePolygonCrs:
-            rec_classification, xy_tuple_list = intersection_polyline_polygon_crs
-            intersection_polygon_crs_line2d = xytuple_list_to_Line(xy_tuple_list)
-            if on_the_fly_projection and polygon_layer_crs != project_crs:
-                intersection_prj_crs_line2d = intersection_polygon_crs_line2d.crs_project(polygon_layer_crs,
-                                                                                          project_crs)
-            else:
-                intersection_prj_crs_line2d = intersection_polygon_crs_line2d
-            lIntersLine2dPrjCrs.append([rec_classification, intersection_prj_crs_line2d])
-
-        # create Point lists from intersection with source DEM
-
-        polygon_classification_set = set()
-        sect_pt_1, sect_pt_2 = geoprofile.original_line.pts
-        formation_list = []
-        intersection_line3d_list = []
-        intersection_polygon_s_list2 = []
-        for polygon_classification, line2d in lIntersLine2dPrjCrs:
-            polygon_classification_set.add(polygon_classification)
-
-            lptIntersPts3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, line2d.pts)
-            lineIntersectionLine3d = Line(lptIntersPts3d)
-
-            s0_list = lineIntersectionLine3d.incremental_length_2d()
-            s_start = sect_pt_1.dist_2d(lineIntersectionLine3d.pts[0])
-            s_list = [s + s_start for s in s0_list]
-
-            formation_list.append(polygon_classification)
-            intersection_line3d_list.append(lineIntersectionLine3d)
-            intersection_polygon_s_list2.append(s_list)
-
-        if len(intersection_polygon_s_list2) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No reprojected intersection")
-            return
-
-        # create windows for user_definition of intersection colors in profile
-        if polygon_classification_set != set() and polygon_classification_set != set([None]):
-
-            dialog = PolygonIntersectionRepresentationDialog(self.plugin_name,
-                                                             polygon_classification_set)
-            if dialog.exec_():
-                polygon_classification_colors_dict = self.classification_colors(dialog)
-            else:
-                warn(self,
-                     self.plugin_name,
-                     "No color chosen")
-                return
-            if len(polygon_classification_colors_dict) == 0:
-                warn(self,
-                     self.plugin_name,
-                     "No defined colors")
-                return
-            else:
-                self.polygon_classification_colors = polygon_classification_colors_dict
-        else:
-            self.polygon_classification_colors = None
-
-        geoprofile.add_intersections_lines(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
-
-        # plot profiles
-        plot_addit_params = dict()
-        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
-        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
-        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
-        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
-
-        profile_window = plot_geoprofiles(self.input_geoprofiles,
-                                          plot_addit_params)
-        self.profile_windows.append(profile_window)
-
-    def classification_colors(self, dialog):
-
-        polygon_classification_colors_dict = dict()
-        for classification_ndx in range(dialog.polygon_classifications_treeWidget.topLevelItemCount()):
-            class_itemwidget = dialog.polygon_classifications_treeWidget.topLevelItem(classification_ndx)
-            classification = unicode(class_itemwidget.text(0))
-            # get color
-            color = qcolor2rgbmpl(dialog.polygon_classifications_treeWidget.itemWidget(class_itemwidget, 1).color())
-            polygon_classification_colors_dict[classification] = color
-
-        return polygon_classification_colors_dict
-
-
-    def do_line_intersection(self):
-
-        # check input values
-        if not self.check_intersection_line_inputs():
-            return
-
-        # get color for projected points
-        color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButtonV2.color())
-
-        # get dem parameters
-        geoprofile = self.input_geoprofiles.geoprofile(0)
-        demLayer = geoprofile.profile_elevations.dem_params[0].layer
-        demParams = geoprofile.profile_elevations.dem_params[0].params
-
-        # get line structural layer
-        intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
-
-        # get id field
-        intersection_line_id_field_ndx = self.inters_input_id_fld_line_comboBox.currentIndex() - 1  # minus 1 in order to account for initial text in combo box
-
-        # define structural layer        
-        structural_line_layer = self.current_line_layers[intersection_line_qgis_ndx]
-
-        on_the_fly_projection, project_crs = get_on_the_fly_projection(self.canvas)
-
-        # read structural line values
-        if intersection_line_id_field_ndx == -1:
-            id_list = None
-        else:
-            id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
-
-        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
-                                                                       project_crs)
-
-        # calculated Point intersection list
-        intersection_point_id_list = calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
-                                                                          id_list,
-                                                                          geoprofile.original_line)
-
-        # sort intersection points by spat_distance from profile start point
-        lstDistancesFromProfileStart = intersection_distances_by_profile_start_list(geoprofile.original_line,
-                                                                                         intersection_point_id_list)
-
-        # create CartesianPoint from intersection with source DEM
-        lstIntersectionPoints = [pt2d for pt2d, _ in intersection_point_id_list]
-        lstIntersectionIds = [id for _, id in intersection_point_id_list]
-        lstIntersectionPoints3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
-                                                            lstIntersectionPoints)
-        lstIntersectionColors = [color] * len(lstIntersectionPoints)
-
-        geoprofile.add_intersections_pts(
-            zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors))
-
-        # plot profiles
-
-        plot_addit_params = dict()
-        plot_addit_params["add_trendplunge_label"] = self.plot_prj_add_trendplunge_label.isChecked()
-        plot_addit_params["add_ptid_label"] = self.plot_prj_add_pt_id_label.isChecked()
-        plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
-        plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
-
-        profile_window = plot_geoprofiles(self.input_geoprofiles,
-                                          plot_addit_params)
-        self.profile_windows.append(profile_window)
-
-
-    def do_export_image(self):
-
-        try:
-            profile_window = self.profile_windows[-1]
+            num_intersection_lines = len(geoprofile.intersection_lines)
         except:
             warn(self,
-                 self.plugin_name,
-                 "Profile not yet calculated")
+                     self.plugin_name,
+                     "No available profile-polygon intersections")
             return
+        else:
+            if num_intersection_lines == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No available profile-polygon intersections")
+                return
 
-        dialog = FigureExportDialog(self.plugin_name)
-
+        dialog = LineDataExportDialog(self.plugin_name)
         if dialog.exec_():
-
-            try:
-                fig_width_inches = float(dialog.figure_width_inches_QLineEdit.text())
-            except:
+            output_format = get_format_type()
+            if output_format == "":
                 warn(self,
                      self.plugin_name,
-                     "Error in figure width value")
+                     "Error in output format")
                 return
-
-            try:
-                fig_resolution_dpi = int(dialog.figure_resolution_dpi_QLineEdit.text())
-            except:
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
                 warn(self,
                      self.plugin_name,
-                     "Error in figure resolution value")
+                     "Error in output path")
                 return
-
-            try:
-                fig_font_size_pts = float(dialog.figure_fontsize_pts_QLineEdit.text())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in font size value")
-
-            try:
-                fig_outpath = unicode(dialog.figure_outpath_QLineEdit.text())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure output path")
-                return
-
-            try:
-                top_space_value = float(dialog.top_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure top space value")
-                return
-
-            try:
-                left_space_value = float(dialog.left_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure left space value")
-                return
-
-            try:
-                right_space_value = float(dialog.right_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure right space value")
-                return
-
-            try:
-                bottom_space_value = float(dialog.bottom_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure bottom space value")
-                return
-
-            try:
-                blank_width_space = float(dialog.blank_width_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure blank widht space value")
-                return
-
-            try:
-                blank_height_space = float(dialog.blank_height_space_value_QDoubleSpinBox.value())
-            except:
-                warn(self,
-                     self.plugin_name,
-                     "Error in figure blank height space value")
-                return
-
+            add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-
             warn(self,
-                 self.plugin_name,
-                 "No export figure defined")
+                     self.plugin_name,
+                     "No export defined")
             return
 
-        figure = profile_window.canvas.fig
+        # get project CRS information
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
-        fig_current_width, fig_current_height = figure.get_size_inches()
-        fig_scale_factor = fig_width_inches / fig_current_width
-        figure.set_size_inches(fig_width_inches, fig_scale_factor * fig_current_height)
+        self.output_profile_polygons_intersections(output_format, output_filepath, project_crs_osr)
 
-        for axis in figure.axes:
-            for label in (axis.get_xticklabels() + axis.get_yticklabels()):
-                label.set_fontsize(fig_font_size_pts)
+        # add theme to QGis project
+        if 'shapefile' in output_format and add_to_project:
+            try:
+                layer = QgsVectorLayer(output_filepath,
+                                       QFileInfo(output_filepath).baseName(),
+                                       "ogr")
+                QgsMapLayerRegistry.instance().addMapLayer(layer)
+            except:
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
 
-        figure.subplots_adjust(wspace=blank_width_space, hspace=blank_height_space, left=left_space_value,
-                               right=right_space_value, top=top_space_value, bottom=bottom_space_value)
+    def output_profile_polygons_intersections(self, output_format, output_filepath, sr):
 
-        try:
-            figure.savefig(str(fig_outpath), dpi=fig_resolution_dpi)
-        except:
-            warn(self,
-                 self.plugin_name,
-                 "Error with image saving")
+        # definition of field names
+        header_list = ['class_fld',
+                       's',
+                       'x',
+                       'y',
+                       'z']
+
+        geoprofile = self.input_geoprofiles.geoprofile(0)
+        intersection_lines = geoprofile.intersection_lines
+
+        # output for csv file
+        if output_format == "csv":
+            success, msg = write_intersection_line_csv(
+                output_filepath,
+                header_list,
+                intersection_lines)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
+        elif output_format == "shapefile - line":
+            success, msg = write_intersection_polygon_lnshp(
+                output_filepath,
+                header_list,
+                intersection_lines,
+                sr)
+            if not success:
+                warn(self,
+                     self.plugin_name,
+                     msg)
         else:
+            error("Debug: error in export format")
+            return
+
+        if success:
             info(self,
                  self.plugin_name,
-                 "Image saved")
+                 "Polygon intersections saved")
 
     def closeEvent(self, event):
 

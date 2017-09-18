@@ -111,7 +111,7 @@ class GeoProfile(object):
 
     def get_current_dem_names(self):
 
-        return self.profile_elevations.names
+        return self.profile_elevations.surface_names
 
     def max_s(self):
         return self.profile_elevations.max_s()

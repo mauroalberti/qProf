@@ -13,31 +13,38 @@ h5 { font-size: 95%; color: #333; }
 
 <body>
 
-<h1>qProf vers. 0.3.3</h1>
+<h1>qProf help</h1>
+<h3>vers. 0.3.4</h3>
 
 <div style="font-size: 90%; font-style: italic;">
-	Plugin creators are M. Alberti (<a href="http:\\www.malg.eu">www.malg.eu</a>) and M. Zanieri. 
+	Plugin creators: M. Alberti (alberti.m65 at gmail.com) and M. Zanieri. 
 	<br />The original concept is by M. Zanieri, while the implementation is by M. Alberti. 
 	<br />A few people otheer contributed with suggestions and testing. Among them we want to thank S. Peduzzi.
 </div>
+
 <br /><br />
+
 <div>
-	The purpose of this QGIS plugin is to help in the creation of geological profiles. 
-	<br />
-	Georeferenced data describing topography, geological outcrops and attitudes can be used as source data.
+	The purpose of this QGIS plugin is to help in the creation of geological profiles. Georeferenced data describing topography, 
+	geological outcrops and attitudes can be used as source data.
+	<br /><br />
+	Since vers. 0.3.4 it allows to create multiple topographic profiles at ones (currently only when the source profiles are derived 
+	from a  line layer; moreover geological data can be plotted on multiple profiles, only on single line profiles).
+
 </div>
 
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/f01.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 1. Example of a topographic profile comprising directional slopes, created from a GPX file (data courtesy of S. Peduzzi).
+	<br /><br />Fig. 1. Example of a topographic profile comprising directional slopes, created from a GPX file 
+	(data courtesy of S. Peduzzi).
 </div>
 <div>
 	Note that currently qProf allows to project/intersect geological data (attitudes, outcrops,
 	lineaments or faults) only when the profile is constituted by a straight line, with just an 
 	initial and a final point. Due to this constrain, GPX file input, generally comprising multiple
-	points, or profile lines with more than two points can be used to construct topographic profiles
-	but the functionalities of geological data projection and intersection are not allowed on such 
-	profiles. This constraint will be relaxed as much as possible in future versions, at least for geological intersection processings.
+	points, or profile lines with more than two points can be used for constructing topographic profiles
+	but not for geological data projection and intersections. 
+	This constraint will be relaxed as much as possible in future versions.
 </div>
 <br />
 <div>A few posts describing the plugin are:
@@ -54,16 +61,21 @@ h5 { font-size: 95%; color: #333; }
 <h2>1. General workflow</h2>
 
 <div>
-	To construct a geological profile with qProf, the first step is to create a topographic profile, with input data represented by one or more DEMs or alternatively by a GPX file.
+	To construct a geological profile with qProf, the first step is to create a topographic profile, where the input data are
+	represented by one or more DEMs, or alternatively by a GPX file.
 	<br /><br />
-	Afterwards, <u>for profiles created using a line made up by just two points</u>, the user can add to the topographic profile geological data, by projecting them on the profile (e.g., geological attitudes) or intersecting them with the profile (e.g., faults, geological outcrops). This geological data are stored as point, line or polygon layers with geological attributes in the their attribute tables. In details, these processings can be:<ul>
+	Afterwards, the user can add to the topographic profile geological data but <u> only for profiles created using a line made up by two points</u>. Geological data can be projected on the profile (e.g., geological attitudes or traces) or can intersect the profile (e.g., faults, geological outcrops). 
+	Geological data are provided in point, line or polygon layers. Geological attributes are stored in the attribute tables. 
+	<br /><br />
+	In details, these processings can be:
+	<ul>
 		<li>the projection of geological attitudes on the profile section;</li>
 		<li>the projection of geological lines;</li>
 		<li>the intersection of geological lines (e.g., faults) on the profile section;</li>
 		<li>the intersection of geological polygonal elements (e.g., outcrops) on the profile section.</li>
 	</ul>
 
-	The last step consists in exporting created datasets as graphics or GIS data, for further elaborations in graphic or 	geological software.
+	The last step consists in exporting created datasets as graphics or GIS data, for further elaborations via graphic or 	geological software.
 </div>
 
 <br />
@@ -83,40 +95,59 @@ h5 { font-size: 95%; color: #333; }
 <h3>2.1 Definition of topographic data sources</h3>
 
 <div>
-	Elevation data sources may originate from:
+	Elevation data sources may derive from:
 	<ol>
-		<li>one or more DEMs and a profile line, to be digitized in the map canvas or already available in a line layer;</li>
-		<li>a GPX file storing track points.</li>
+	  <li>one or more DEMs, sampled along one or more profile lines;</li>
+	  <li>a GPX file storing track points.</li>
 	</ol>
 
-	When deriving the source data from DEMs and a line, a profile line may be digitised directy in the map canvas by using the "Digitize line" button. After activating the button, you add a point with a left click, and terminate the line with a right click. 
- 	It is possible to delete the digitized line by cliking the "Clear" button. With the "Save" button it is possible to save the line as a shapefile and add it to the project.
-
- 	<br /><br />
-
-	The orientation of the profile source line, be it from a layer, digitized, a point list or a GPX file, can be reversed by checking the "Invert source line orientation" checkbox: the start will become the end and vice versa.
+	The orientation of the profile, be it from DEMs or from a GPX file, can be reversed by checking the "Invert orientation" checkbox: the start will become the end and vice versa.
 </div>
 
-<h4>2.1.1 Topographic profile creation from DEM(s) and a line trace</h4>
+<h4>2.1.1 Topographic profile creation from DEM(s) and line traces</h4>
 
 <div>
-	A topographic profile can be extracted from one or more DEMs, given a source profile line. This line can derive from a previously digitized line, a source line layer or a list of points. The created profile will be created using the assigned project CRS if defined. Otherwise the user will have to manually set the CRS after exporting the profile. 
+  A topographic profile can be extracted from one or more DEMs. 
+<br />The profile lines can derive from:
+<ul>
+  <li><i>a canvas-digitized line</i>: only single-line profiles</li>
+  <li><i>a line layer</i>: single- or multiple-line profiles</li> 
+  <li><i>a list of points</i>: only single-line profiles</li>
+</ul> 
+The created profile will be created using the assigned project CRS if defined. Otherwise the user will have to manually set the CRS (after exporting and loading the profile as a new GIS layer). 
 </div>
 
-<br />
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/prof_topo_single.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 3. Example of a single topographic profile.
+</div>
+
+
+<div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
+	<img src="images/prof_topo_multiple.png" style="align:middle; max_width: 80%"/>
+	<br /><br />Fig. 4. Example of multiple topographic profiles.
+</div>
+
+<h5>2.1.1.1 Profile line digitized in the canvas</h5>
+
+<div>
+  A profile line may be digitised directy in the map canvas by using the "<i>Digitize line</i>" button. After activating the button, you add a point with a left click, and terminate the line with a right click. 
+ 	It is possible to delete the digitized line by cliking the "<i>Clear</i>" button. With the "<i>Save</i>" button it is possible to save the line as a shapefile and add it to the project.
+</div>
+
+<h5>2.1.1.2 Single or multiple lines stored in a layer</h5>
+
+<div>
+    When using a line layer, all the elements will be used, unless there are selected lines.
+    If the "<i>Layer has multiple profiles</i>" option is cheked, each line will give rise to an individual profile.
+    <br/><br/>
+    Otherwise, multiple lines will be merged into a single line, using an order defined in the field chosen with the optional "<i>Line order field</i>" (integer field with order values starting from 1)
+The internal line order in the layer would otherwise be used, but this sometimes produces errors in derived profiles, that can be corrected via the choice of the <i>line order field</i>.
+</div>
 
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
 	<img src="images/f03.png" style="align:middle; max_width: 80%"/>
-	<br /><br />Fig. 3. Definition of source data for DEMs and line-derived profiles.
-</div>
-
-<h5>2.1.1.2 Line stored in a layer</h5>
-
-<div>
-    When using an already existing line trace, stored in a line layer, all the elements will be used, irrespective of eventual selections in the layer.
-    Multiple lines will be merged into a single line, based on the chosen order field when available,
-    or otherwise based on the internal line order. Some errors in derived profiles can be due to erroneous line ordering,
-    not adjusted via the choice of a correct sequential order stored in an integer field (order values start from 1).
+	<br /><br />Fig. 5. Definition of lines as single or multiple profiles.
 </div>
 
 <h5>2.1.1.3 Line from numeric input</h5>
@@ -134,7 +165,7 @@ h5 { font-size: 95%; color: #333; }
 <h5>2.1.1.4 Definition of input DEMs</h5>
 
 <div>
-By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs to use, also choosing the color that will represent it in the resulting profile.
+By clicking on "Define source DEMs" the user can choose which of the loaded DEMs to use, also choosing the color that will represent it in the resulting profile.
 </div>
 <br />
 <div style="text-align:center;margin: 20px;font-size: 90%;font-style:italic;">
@@ -160,7 +191,6 @@ By clicking on "DEfine source DEMs" the user can choose which of the loaded DEMs
 	<img src="images/f05.png" style="align:middle; max_width: 80%"/>
 	<br /><br />Fig. 5. The window for input GPX file choice.
 </div>
-<br />
 
 <h3>2.2 Profile statistics</h3>
 

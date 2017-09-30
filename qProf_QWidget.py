@@ -2856,7 +2856,7 @@ class qprof_QWidget(QWidget):
 
         try:
             geoprofile = self.input_geoprofiles.geoprofile(0)
-            num_intersection_lines = len(geoprofile.intersection_lines)
+            num_intersection_lines = len(geoprofile.outcrops)
         except:
             warn(self,
                      self.plugin_name,
@@ -2916,7 +2916,7 @@ class qprof_QWidget(QWidget):
                        'z']
 
         geoprofile = self.input_geoprofiles.geoprofile(0)
-        intersection_lines = geoprofile.intersection_lines
+        intersection_lines = geoprofile.outcrops
 
         # output for csv file
         if output_format == "csv":

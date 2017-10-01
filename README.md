@@ -4,3 +4,8 @@ Contacts:
 Mauro Alberti - alberti.m65@gmail.com
 Marco Zanieri - marcozanieri@gmail.com
 
+Current Version is: 0.3.4
+
+How to install:
+
+

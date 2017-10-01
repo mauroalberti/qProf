@@ -1,18 +1,21 @@
 [general]
 name=qProf
-about=Generation of topographic and geological profiles
+email=alberti.m65@gmail.com
+author=Mauro Alberti, Marco Zanieri
+qgisMinimumVersion=2.0
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological attitudes and traces on profiles
-category=Raster 
+about=qProf is a plugin for the generation of topographic and geological profiles. 
+  Topography can be extracted from DEM or GPX files. 
+  Geological data, such as stratification attitude and geological traces, can be projected on the profile. 
+  Intersections between geological outcrops or faults can be determined.
 version=0.3.4
 experimental=False
-qgisMinimumVersion=2.0
-author=Mauro Alberti, Marco Zanieri
-email=alberti.m65@gmail.com
-icon=./icon.png
-
+tracker=https://github.com/mauroalberti/qProf/issues
+repository=https://github.com/mauroalberti/qProf
 ; end of mandatory metadata
 
 ; start of optional metadata
+category=Raster 
 changelog=
   0.1.3 : - fixed bug related to non-ascii names in input files. 
   0.1.4 : - reshaped the GUI
@@ -48,16 +51,10 @@ changelog=
           - various secondary modifications
   0.3.4 : - substitution of geosurf with gsf and other minor internal libraries; implementation of multiple topographic profiles
 
-; tags are in comma separated value format, spaces are allowed
+; Tags are in comma separated value format, spaces are allowed within the
+; tag name.
+; Tags should be in English language. Please also check for existing tags and
+; synonyms before creating a new one.
 tags = raster, dem, profiles, gpx, geology, cross-section, fold axis
 
-; these metadata can be empty
-; in a future version of the web application it will
-; be probably possible to create a project on redmine
-; if they are not filled
-homepage=https://bitbucket.org/mauroalberti/qprof
-tracker=https://bitbucket.org/mauroalberti/qprof/issues
-repository=https://bitbucket.org/mauroalberti/qprof
 
-; deprecated flag (applies to the whole plugin and not only to the uploaded version)
-deprecated=False

@@ -9,9 +9,10 @@ Marco Zanieri - marcozanieri@gmail.com
 
 How to install:
 
- - Download and unzip the release file from the release section
- - Copy the single folder containing the Python files (plus the other modules) in your local Python plugin repository
- - Rename the folder to "qProf"
+ - Download the last release from the release section: https://github.com/mauroalberti/qProf/releases
+ - Unzip the downloaded file 
+ - Copy just the single folder containing the Python files (plus the other modules) in your local Python plugin repository
+ - Rename the copied folder as "qProf"
  - Launch QGIS and activate the plugin in the QGIS Python plugin manager.
 
 

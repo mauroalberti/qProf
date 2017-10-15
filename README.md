@@ -12,6 +12,8 @@ qProf is a QGIS plugin for the generation of topographic and geological profiles
 
 ## How to install
 
+There are two alternative ways to install the plugin.
+
 1. Install via the QGIS Python Plugin Manager
 
 2. Clone or download from GitHub

@@ -1,15 +1,13 @@
 
 ## qProf
 
+*Current version: 0.3.4*
+
 qProf is a QGIS plugin for the generation of topographic and geological profiles. Topography can be extracted from DEM or GPX files. Geological data, such as stratification attitude and geological traces, can be projected on the profile. Intersections between geological outcrops or faults can be determined.
   
-Current version: 0.3.4
+ ![alt text](/help/images/prof_topo_multiple.png "geocouche interface")
 
-Contacts:
-
-   Mauro Alberti - alberti.m65@gmail.com
-   
-   Marco Zanieri - marcozanieri@gmail.com
+*Fig. 1. An example of multiple topographic profiles.*
 
 
 ## How to install
@@ -27,4 +25,8 @@ Contacts:
    Launch QGIS and activate the plugin in the QGIS Python plugin manager.
 
 
+## Contacts:
 
+   Mauro Alberti - alberti.m65@gmail.com
+   
+   Marco Zanieri - marcozanieri@gmail.com

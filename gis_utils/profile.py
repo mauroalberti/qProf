@@ -1,6 +1,10 @@
 
 from __future__ import division
 
+from builtins import zip
+from builtins import map
+from builtins import range
+from builtins import object
 import copy
 import xml.dom.minidom
 
@@ -107,7 +111,7 @@ class GeoProfile(object):
 
     def add_intersections_lines(self, formation_list, intersection_line3d_list, intersection_polygon_s_list2):
 
-        self.outcrops = zip(formation_list, intersection_line3d_list, intersection_polygon_s_list2)
+        self.outcrops = list(zip(formation_list, intersection_line3d_list, intersection_polygon_s_list2))
 
     def get_current_dem_names(self):
 
@@ -210,16 +214,16 @@ class ProfileElevations(object):
 
     def min_z(self):
 
-        return min(map(np.nanmin, self.profile_zs))
+        return min(list(map(np.nanmin, self.profile_zs)))
 
     def max_z(self):
 
-        return max(map(np.nanmax, self.profile_zs))
+        return max(list(map(np.nanmax, self.profile_zs)))
 
     @property
     def absolute_slopes(self):
 
-        return map(np.fabs, self.profile_dirslopes)
+        return list(map(np.fabs, self.profile_dirslopes))
 
 
 class DEMParams(object):
@@ -290,11 +294,11 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
     topo_profiles.planar_xs = np.asarray(resampled_line.x_list)
     topo_profiles.planar_ys = np.asarray(resampled_line.y_list)
-    topo_profiles.surface_names = map(lambda dem: dem.name(), selected_dems)
+    topo_profiles.surface_names = [dem.name() for dem in selected_dems]
     topo_profiles.profile_s = np.asarray(resampled_line.incremental_length_2d())
-    topo_profiles.profile_s3ds = map(lambda cl3dt: np.asarray(cl3dt.incremental_length_3d()), dem_topolines3d)
-    topo_profiles.profile_zs = map(lambda cl3dt: cl3dt.z_array(), dem_topolines3d)
-    topo_profiles.profile_dirslopes = map(lambda cl3dt: np.asarray(cl3dt.slopes()), dem_topolines3d)
+    topo_profiles.profile_s3ds = [np.asarray(cl3dt.incremental_length_3d()) for cl3dt in dem_topolines3d]
+    topo_profiles.profile_zs = [cl3dt.z_array() for cl3dt in dem_topolines3d]
+    topo_profiles.profile_dirslopes = [np.asarray(cl3dt.slopes()) for cl3dt in dem_topolines3d]
     topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                                 zip(selected_dems, selected_dem_parameters)]
 
@@ -343,7 +347,7 @@ def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
         delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
 
     # convert original values into ECEF values (x, y, z in ECEF global coordinate system)
-    trk_ECEFpoints = map(lambda trck: trck.as_pt3dt(), track_points)
+    trk_ECEFpoints = [trck.as_pt3dt() for trck in track_points]
 
     # calculate 3D distances between consecutive points
     dist_3D_values = [np.nan]

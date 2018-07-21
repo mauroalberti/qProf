@@ -1,4 +1,5 @@
-from PyQt4.QtGui import QIcon, QAction
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction
 
 
 def create_action(

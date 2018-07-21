@@ -1,4 +1,8 @@
 
+from builtins import map
+from builtins import zip
+from builtins import range
+from builtins import object
 import numpy as np
 
 from .qgs_tools import project_point
@@ -237,7 +241,7 @@ class Line(object):
 
     def clone(self):
 
-        return Line(map(lambda pt: pt.clone(), self.pts))
+        return Line([pt.clone() for pt in self.pts])
 
     def add_pt(self, pt):
         """
@@ -352,7 +356,7 @@ class Line(object):
         :return: list of Segment objects
         """
 
-        pts_pairs = zip(self.pts[:-1], self.pts[1:])
+        pts_pairs = list(zip(self.pts[:-1], self.pts[1:]))
 
         segments = [Segment(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
 
@@ -450,7 +454,7 @@ class Line(object):
 
     def absolute_slopes(self):
 
-        return map(abs, self.slopes())
+        return list(map(abs, self.slopes()))
 
     def crs_project(self, srcCrs, destCrs):
 

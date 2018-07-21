@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
+from builtins import object
 from .geometry import *
 from .errors import SlickelineTypeException, SlickelineSenseException
 from .math_utils import isclose

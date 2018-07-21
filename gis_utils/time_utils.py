@@ -1,4 +1,5 @@
 
+from builtins import map
 import calendar
 
 
@@ -19,7 +20,7 @@ def standard_gpstime_to_seconds(time_str):
     if hhmmss.endswith("Z"):
         hhmmss = hhmmss[:-1]
 
-    year, month, day = map(int, date.split("-"))
+    year, month, day = list(map(int, date.split("-")))
     hour, minutes, seconds = hhmmss.split(":")
     hour, minutes, seconds = int(hour), int(minutes), float(seconds)
 

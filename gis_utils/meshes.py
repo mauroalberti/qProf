@@ -1,4 +1,8 @@
 
+from builtins import zip
+from builtins import str
+from builtins import range
+from builtins import object
 from math import radians, sin, cos
 import json
 import numpy as np
@@ -114,8 +118,8 @@ class AnalyticGeosurface(object):
         # calculate array from formula
         try:
             self.X, self.Y, self.Z = formula_to_grid(array_range, array_size, formula)
-        except AnaliticSurfaceCalcException, msg:
-            raise AnaliticSurfaceCalcException, msg
+        except AnaliticSurfaceCalcException as msg:
+            raise AnaliticSurfaceCalcException(msg)
 
         # calculate geographic transformations to surface
         self.geographical_values = self.get_geographical_param_values()
@@ -170,16 +174,16 @@ class AnalyticGeosurface(object):
 
             formula = str(self.analytical_params['formula'])
         except:
-            raise AnaliticSurfaceIOException, "Analytical value error"
+            raise AnaliticSurfaceIOException("Analytical value error")
 
         if a_min >= a_max or b_min >= b_max:
-            raise AnaliticSurfaceIOException, "Input a and b value error"
+            raise AnaliticSurfaceIOException("Input a and b value error")
 
         if grid_cols <= 0 or grid_rows <= 0:
-            raise AnaliticSurfaceIOException, "Grid column/row value error"
+            raise AnaliticSurfaceIOException("Grid column/row value error")
 
         if formula == '':
-            raise AnaliticSurfaceIOException, "Input analytical formula error"
+            raise AnaliticSurfaceIOException("Input analytical formula error")
 
         return (a_min, a_max, b_min, b_max), (grid_rows, grid_cols), formula
 
@@ -192,7 +196,7 @@ class AnalyticGeosurface(object):
             grid_width = float(self.geographical_params['grid width'])
             grid_rot_angle_degr = float(self.geographical_params['grid rot angle degr'])
         except:
-            raise AnaliticSurfaceIOException, "Input geographic value error"
+            raise AnaliticSurfaceIOException("Input geographic value error")
 
         return (geog_x_min, geog_y_min), (grid_height, grid_width), grid_rot_angle_degr
 
@@ -259,7 +263,7 @@ def geosurface_export_vtk(output_filepath, geodata):
         outfile.write('\nDATASET POLYDATA\n')
 
         outfile.write('POINTS %d float\n' % n_points)
-        for n in xrange(n_points):
+        for n in range(n_points):
             outfile.write('%.4f %.4f %.4f\n' % (X_arr[n], Y_arr[n], Z_arr[n]))
 
         outfile.write('\n')
@@ -267,9 +271,9 @@ def geosurface_export_vtk(output_filepath, geodata):
         outfile.write('TRIANGLE_STRIPS %d %d\n' % (n_cols - 1, (n_cols - 1) * (1 + n_rows * 2)))
 
         num_points_strip = n_rows * 2
-        for l in xrange(n_cols - 1):
+        for l in range(n_cols - 1):
             triangle_strip_string = "%d " % num_points_strip
-            for p in xrange(n_rows):
+            for p in range(n_rows):
                 triangle_strip_string += "%d %d " % ((l + 1) * n_rows + p, l * n_rows + p)
             triangle_strip_string += "\n"
             outfile.write(triangle_strip_string)
@@ -289,8 +293,8 @@ def geosurface_export_grass(output_filepath, geodata):
 
     with open(output_filepath, 'w') as outfile:
         outfile.write('VERTI:\n')
-        for l in xrange(n_cols - 1):
-            for p in xrange(n_rows - 1):
+        for l in range(n_cols - 1):
+            for p in range(n_rows - 1):
                 start_point_ndx = l * n_rows + p
                 forward_line_point_ndx = start_point_ndx + n_rows
                 outfile.write('F 4\n')
@@ -329,8 +333,8 @@ def geosurface_export_esri_generate(output_filepath, geodata):
     progr_id = 0
     with open(output_filepath, 'w') as outfile:
         outfile.write('VERTI:\n')
-        for l in xrange(n_cols - 1):
-            for p in xrange(n_rows - 1):
+        for l in range(n_cols - 1):
+            for p in range(n_rows - 1):
                 start_point_ndx = l * n_rows + p
                 forward_line_point_ndx = start_point_ndx + n_rows
                 progr_id += 1
@@ -371,7 +375,7 @@ def geosurface_read_gas_input(infile_path):
         with open(infile_path, 'r') as infile:
             input_geosurface = json.load(infile)
     except:
-        raise AnaliticSurfaceIOException, "Check input file name"
+        raise AnaliticSurfaceIOException("Check input file name")
 
     src_analytical_params = input_geosurface['analytical surface']
     src_geographical_params = input_geosurface['geographical params']
@@ -396,7 +400,7 @@ def geosurface_export_shapefile_pt3d(shapefile_path, geodata, fields_dict_list, 
     X, Y, Z = geosurface_XYZ
     assert len(X) == len(Y)
     assert len(X) == len(Z)
-    ids = range(len(X))
+    ids = list(range(len(X)))
 
-    rec_values_list2 = zip(ids, X, Y, Z)
+    rec_values_list2 = list(zip(ids, X, Y, Z))
     ogr_write_point_result(point_shapelayer, field_list, rec_values_list2)

@@ -1,4 +1,6 @@
 
+from builtins import range
+from builtins import object
 from math import ceil, floor
 import copy
 
@@ -501,8 +503,8 @@ class Grid(object):
             ycoords_y = np.where(ycoords_y < xcoords_y, np.NaN, ycoords_y)
             ycoords_y = np.where(ycoords_y >= xcoords_y + self.cellsize_y, np.NaN, ycoords_y)
 
-            for i in xrange(xcoords_x.shape[0]):
-                for j in xrange(xcoords_x.shape[1]):
+            for i in range(xcoords_x.shape[0]):
+                for j in range(xcoords_x.shape[1]):
                     if abs(xcoords_x[i, j] - ycoords_x[i, j]) < MIN_SEPARATION_THRESHOLD and abs(
                                     ycoords_y[i, j] - xcoords_y[i, j]) < MIN_SEPARATION_THRESHOLD:
                         ycoords_y[i, j] = np.NaN

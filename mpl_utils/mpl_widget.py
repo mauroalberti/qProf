@@ -14,9 +14,12 @@ from matplotlib.backends.backend_qt4agg import \
 from matplotlib.figure import Figure
 from matplotlib import pyplot
 
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
-from qProf.mpl_utils.utils import valid_intervals
+
+from .utils import valid_intervals
 
 
 class MplCanvas(FigureCanvas):

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from builtins import str
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 

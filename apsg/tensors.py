@@ -2,6 +2,7 @@
 
 from __future__ import division, print_function
 
+from builtins import str
 import numpy as np
 from .core import Vec3, Group, Pair, Fault
 from .helpers import sind, cosd

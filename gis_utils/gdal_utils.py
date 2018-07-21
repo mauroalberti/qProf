@@ -1,4 +1,9 @@
 
+from builtins import zip
+from builtins import map
+from builtins import str
+from builtins import range
+from builtins import object
 import os
 
 from osgeo import ogr, gdal, osr
@@ -249,11 +254,11 @@ class GDALParameters(object):
         """
         # check if pixel size can be considered the same in the two axis directions
         if abs(abs(self._pixsizeEW) - abs(self._pixsizeNS)) / abs(self._pixsizeNS) > tolerance:
-            raise RasterParametersException, 'Pixel sizes in x and y directions are different in raster'
+            raise RasterParametersException('Pixel sizes in x and y directions are different in raster')
 
             # check for the absence of axis rotations
         if abs(self._rotation_GT_2) > tolerance or abs(self._rotation_GT_4) > tolerance:
-            raise RasterParametersException, 'There should be no axis rotation in raster'
+            raise RasterParametersException('There should be no axis rotation in raster')
 
         return
 
@@ -397,8 +402,8 @@ def shapefile_create(path, geom_type, fields_dict_list, crs=None):
     else:
         outShapelayer = outShapefile.CreateLayer("layer", geom_type=geom_type)
 
-    map(lambda field_def_params: outShapelayer.CreateField(shapefile_create_def_field(field_def_params)),
-        fields_dict_list)
+    list(map(lambda field_def_params: outShapelayer.CreateField(shapefile_create_def_field(field_def_params)),
+        fields_dict_list))
 
     return outShapefile, outShapelayer
 
@@ -409,7 +414,7 @@ def ogr_get_solution_shapefile(path, fields_dict_list):
     dataSource = driver.Open(str(path), 0)
 
     if dataSource is None:
-        raise OGRIOException, 'Unable to open shapefile in provided path'
+        raise OGRIOException('Unable to open shapefile in provided path')
 
     point_shapelayer = dataSource.GetLayer()
 

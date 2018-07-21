@@ -2,6 +2,9 @@
 
 from __future__ import division, print_function
 
+from builtins import zip
+from builtins import range
+from builtins import object
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable

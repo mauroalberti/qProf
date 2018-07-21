@@ -20,8 +20,10 @@
  ***************************************************************************/
 """
 
+from __future__ import absolute_import
 
-from qProf_main import qProf_main
+
+from .qProf_main import qProf_main
 
 
 def classFactory(iface):    

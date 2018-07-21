@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
+from builtins import zip
+from builtins import str
+from builtins import range
 import os
 import unicodedata
 
@@ -25,8 +29,8 @@ from .string_utils.utils_string import clean_string
 
 from .config.output import dem_header_common, dem_single_dem_header, gpx_header
 
-from qProf_plotting import plot_geoprofiles
-from qProf_export import write_intersection_polygon_lnshp, write_topography_multidems_csv, write_topography_singledem_csv, \
+from .qProf_plotting import plot_geoprofiles
+from .qProf_export import write_intersection_polygon_lnshp, write_topography_multidems_csv, write_topography_singledem_csv, \
           write_generic_csv, write_intersection_line_csv, write_topography_multidems_ptshp, write_topography_multidems_lnshp, \
           write_geological_attitudes_ptshp, write_rubberband_profile_lnshp, write_topography_gpx_lnshp, write_topography_singledem_lnshp, \
           write_topography_singledem_ptshp, write_topography_gpx_ptshp, write_intersection_line_ptshp
@@ -82,13 +86,13 @@ class qprof_QWidget(QWidget):
         self.struct_line_refresh_lyr_combobox()
         self.struct_polygon_refresh_lyr_combobox()
 
-        QgsMapLayerRegistry.instance().layerWasAdded.connect(self.struct_point_refresh_lyr_combobox)
-        QgsMapLayerRegistry.instance().layerWasAdded.connect(self.struct_line_refresh_lyr_combobox)
-        QgsMapLayerRegistry.instance().layerWasAdded.connect(self.struct_polygon_refresh_lyr_combobox)
+        QgsProject.instance().layerWasAdded.connect(self.struct_point_refresh_lyr_combobox)
+        QgsProject.instance().layerWasAdded.connect(self.struct_line_refresh_lyr_combobox)
+        QgsProject.instance().layerWasAdded.connect(self.struct_polygon_refresh_lyr_combobox)
 
-        QgsMapLayerRegistry.instance().layerRemoved.connect(self.struct_point_refresh_lyr_combobox)
-        QgsMapLayerRegistry.instance().layerRemoved.connect(self.struct_line_refresh_lyr_combobox)
-        QgsMapLayerRegistry.instance().layerRemoved.connect(self.struct_polygon_refresh_lyr_combobox)
+        QgsProject.instance().layerRemoved.connect(self.struct_point_refresh_lyr_combobox)
+        QgsProject.instance().layerRemoved.connect(self.struct_line_refresh_lyr_combobox)
+        QgsProject.instance().layerRemoved.connect(self.struct_polygon_refresh_lyr_combobox)
 
         self.dialog_layout.addWidget(self.main_widget)
         self.setLayout(self.dialog_layout)
@@ -176,7 +180,7 @@ class qprof_QWidget(QWidget):
             elif topo_source_type == self.gpxfile_source:
                 stop_rubberband()
                 try:
-                    source_gpx_path = unicode(self.qlneInputGPXFile.text())
+                    source_gpx_path = str(self.qlneInputGPXFile.text())
                     if source_gpx_path == '':
                         warn(self,
                              self.plugin_name,
@@ -444,7 +448,7 @@ class qprof_QWidget(QWidget):
                     digitized_line_layer = QgsVectorLayer(output_filepath,
                                                           QFileInfo(output_filepath).baseName(),
                                                           "ogr")
-                    QgsMapLayerRegistry.instance().addMapLayer(digitized_line_layer)
+                    QgsProject.instance().addMapLayer(digitized_line_layer)
                 except:
                     QMessageBox.critical(self, "Result", "Unable to load layer in project")
                     return
@@ -456,25 +460,15 @@ class qprof_QWidget(QWidget):
 
             for ndx in range(self.input_geoprofiles.geoprofiles_num):
 
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev = map(
-                    lambda p: get_statistics(p),
-                    self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_zs)
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_dirslopes = map(
-                    lambda p: get_statistics(p),
-                    self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes)
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_slopes = map(
-                    lambda p: get_statistics(p),
-                    np.absolute(self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes))
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_zs]
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_dirslopes = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes]
+                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_slopes = [get_statistics(p) for p in np.absolute(self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes)]
 
                 self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_length = self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[-1] - self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[0]
                 statistics_elev = self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev
                 self.input_geoprofiles.geoprofile(ndx).profile_elevations.natural_elev_range = (
-                    np.nanmin(np.array(map(
-                        lambda ds_stats: ds_stats["min"],
-                        statistics_elev))),
-                    np.nanmax(np.array(map(
-                        lambda ds_stats: ds_stats["max"],
-                        statistics_elev))))
+                    np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
+                    np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
 
                 self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_calculated = True
 
@@ -553,7 +547,7 @@ class qprof_QWidget(QWidget):
                                                                self.on_the_fly_projection,
                                                                self.project_crs))
 
-            self.dem_source_lines = map(lambda line: line.remove_coincident_points(), projected_lines)
+            self.dem_source_lines = [line.remove_coincident_points() for line in projected_lines]
 
         def load_point_list():
 
@@ -561,8 +555,8 @@ class qprof_QWidget(QWidget):
 
                 raw_point_string = dialog.point_list_qtextedit.toPlainText()
                 raw_point_list = raw_point_string.split("\n")
-                raw_point_list = map(lambda unicode_txt: clean_string(str(unicode_txt)), raw_point_list)
-                data_list = filter(lambda rp: rp != "", raw_point_list)
+                raw_point_list = [clean_string(str(unicode_txt)) for unicode_txt in raw_point_list]
+                data_list = [rp for rp in raw_point_list if rp != ""]
 
                 point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
                 line2d = xytuple_list_to_Line(point_list)
@@ -597,9 +591,9 @@ class qprof_QWidget(QWidget):
 
             def connect_digitize_maptool():
 
-                QObject.connect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-                QObject.connect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
-                QObject.connect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+                self.digitize_maptool.moved.connect(self.canvas_refresh_profile_line)
+                self.digitize_maptool.leftClicked.connect(self.profile_add_point)
+                self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
 
             qprof_QWidget.map_digitations += 1
 
@@ -624,7 +618,7 @@ class qprof_QWidget(QWidget):
 
             gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
                                                     "")
-            file_name = QFileDialog.getOpenFileName(self,
+            file_name, __ = QFileDialog.getOpenFileName(self,
                                                    self.tr("Open GPX file"),
                                                    gpx_last_used_dir,
                                                    "GPX (*.gpx *.GPX)")
@@ -1019,9 +1013,9 @@ class qprof_QWidget(QWidget):
 
         xs_plot_proj_Layout.addWidget(QLabel("Color"), 0, 3, 1, 1)
 
-        self.proj_point_color_QgsColorButtonV2 = QgsColorButtonV2()
-        self.proj_point_color_QgsColorButtonV2.setColor(QColor('orange'))
-        xs_plot_proj_Layout.addWidget(self.proj_point_color_QgsColorButtonV2, 0, 4, 1, 1)
+        self.proj_point_color_QgsColorButton = QgsColorButton()
+        self.proj_point_color_QgsColorButton.setColor(QColor('orange'))
+        xs_plot_proj_Layout.addWidget(self.proj_point_color_QgsColorButton, 0, 4, 1, 1)
 
         self.project_point_pushbutton = QPushButton(self.tr("Plot"))
         self.project_point_pushbutton.clicked.connect(self.create_struct_point_projection)
@@ -1157,9 +1151,9 @@ class qprof_QWidget(QWidget):
         self.flds_inters_line_comboBoxes = [self.inters_input_id_fld_line_comboBox]
 
         inters_line_input_Layout.addWidget(QLabel("Color"), 2, 0, 1, 1)
-        self.inters_line_point_color_QgsColorButtonV2 = QgsColorButtonV2()
-        self.inters_line_point_color_QgsColorButtonV2.setColor(QColor('blue'))
-        inters_line_input_Layout.addWidget(self.inters_line_point_color_QgsColorButtonV2, 2, 1, 1, 1)
+        self.inters_line_point_color_QgsColorButton = QgsColorButton()
+        self.inters_line_point_color_QgsColorButton.setColor(QColor('blue'))
+        inters_line_input_Layout.addWidget(self.inters_line_point_color_QgsColorButton, 2, 1, 1, 1)
 
         inters_line_input_QGroupBox.setLayout(inters_line_input_Layout)
         line_intersect_Layout.addWidget(inters_line_input_QGroupBox)
@@ -1294,7 +1288,7 @@ class qprof_QWidget(QWidget):
                          "Error in font size value")
 
                 try:
-                    fig_outpath = unicode(dialog.figure_outpath_QLineEdit.text())
+                    fig_outpath = str(dialog.figure_outpath_QLineEdit.text())
                 except:
                     warn(self,
                          self.plugin_name,
@@ -1417,9 +1411,9 @@ class qprof_QWidget(QWidget):
                     cumdist3Ds = geoprofile.profile_elevations.profile_s3ds
                     slopes = geoprofile.profile_elevations.profile_dirslopes
 
-                    elevs_zipped = zip(*elev_list)
-                    cumdist3Ds_zipped = zip(*cumdist3Ds)
-                    slopes_zipped = zip(*slopes)
+                    elevs_zipped = list(zip(*elev_list))
+                    cumdist3Ds_zipped = list(zip(*cumdist3Ds))
+                    slopes_zipped = list(zip(*slopes))
 
                     result_data = []
                     rec_id = 0
@@ -1461,7 +1455,7 @@ class qprof_QWidget(QWidget):
                     slopes_headers = []
                     for ndx in range(len(dem_names)):
                         dem_headers.append(
-                            unicodedata.normalize('NFKD', unicode(dem_names[ndx][:10])).encode('ascii', 'ignore'))
+                            unicodedata.normalize('NFKD', str(dem_names[ndx][:10])).encode('ascii', 'ignore'))
                         cum3ddist_headers.append("cds3d_" + str(ndx + 1))
                         slopes_headers.append("slopd_" + str(ndx + 1))
 
@@ -1738,7 +1732,7 @@ class qprof_QWidget(QWidget):
                     layer = QgsVectorLayer(output_filepath,
                                            QFileInfo(output_filepath).baseName(),
                                            "ogr")
-                    QgsMapLayerRegistry.instance().addMapLayer(layer)
+                    QgsProject.instance().addMapLayer(layer)
                 except:
                     QMessageBox.critical(self, "Result", "Unable to load layer in project")
                     return
@@ -2064,7 +2058,7 @@ class qprof_QWidget(QWidget):
         polygon_classification_colors_dict = dict()
         for classification_ndx in range(dialog.polygon_classifications_treeWidget.topLevelItemCount()):
             class_itemwidget = dialog.polygon_classifications_treeWidget.topLevelItem(classification_ndx)
-            classification = unicode(class_itemwidget.text(0))
+            classification = str(class_itemwidget.text(0))
             # get color
             color = qcolor2rgbmpl(dialog.polygon_classifications_treeWidget.itemWidget(class_itemwidget, 1).color())
             polygon_classification_colors_dict[classification] = color
@@ -2079,7 +2073,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get color for projected points
-        color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButtonV2.color())
+        color = qcolor2rgbmpl(self.inters_line_point_color_QgsColorButton.color())
 
         # get dem parameters
         geoprofile = self.input_geoprofiles.geoprofile(0)
@@ -2123,7 +2117,7 @@ class qprof_QWidget(QWidget):
         lstIntersectionColors = [color] * len(lstIntersectionPoints)
 
         geoprofile.add_intersections_pts(
-            zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors))
+            list(zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors)))
 
         # plot profiles
 
@@ -2243,8 +2237,8 @@ class qprof_QWidget(QWidget):
 
         if self.axis_individual_point_proj_choice.isChecked():
             return {'method': 'individual axes',
-                    'trend field': unicode(self.proj_point_indivax_trend_fld_comboBox.currentText()),
-                    'plunge field': unicode(self.proj_point_indivax_plunge_fld_comboBox.currentText())}
+                    'trend field': str(self.proj_point_indivax_trend_fld_comboBox.currentText()),
+                    'plunge field': str(self.proj_point_indivax_plunge_fld_comboBox.currentText())}
 
     def check_for_struc_process(self, single_segment_constrain=True):
 
@@ -2315,7 +2309,7 @@ class qprof_QWidget(QWidget):
             return
 
         # get color for projected points
-        color = qcolor2rgbmpl(self.proj_point_color_QgsColorButtonV2.color())
+        color = qcolor2rgbmpl(self.proj_point_color_QgsColorButton.color())
 
         # define structural layer 
         prj_struct_point_qgis_ndx = self.prj_struct_point_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2350,7 +2344,7 @@ class qprof_QWidget(QWidget):
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
-        structural_data = zip(struct_pts_3d, structural_planes, struct_pts_ids)
+        structural_data = list(zip(struct_pts_3d, structural_planes, struct_pts_ids))
 
         ### map points onto section ###
 
@@ -2608,7 +2602,7 @@ class qprof_QWidget(QWidget):
                 layer = QgsVectorLayer(output_filepath,
                                        QFileInfo(output_filepath).baseName(),
                                        "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
+                QgsProject.instance().addMapLayer(layer)
             except:
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
@@ -2701,7 +2695,7 @@ class qprof_QWidget(QWidget):
                      "No available geological traces to save")
                 return
 
-        fileName = QFileDialog.getSaveFileName(self,
+        fileName, __ = QFileDialog.getSaveFileName(self,
                                                self.tr("Save results"),
                                                "*.csv",
                                                self.tr("csv (*.csv)"))
@@ -2780,7 +2774,7 @@ class qprof_QWidget(QWidget):
                 layer = QgsVectorLayer(output_filepath,
                                        QFileInfo(output_filepath).baseName(),
                                        "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
+                QgsProject.instance().addMapLayer(layer)
             except:
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
@@ -2901,7 +2895,7 @@ class qprof_QWidget(QWidget):
                 layer = QgsVectorLayer(output_filepath,
                                        QFileInfo(output_filepath).baseName(),
                                        "ogr")
-                QgsMapLayerRegistry.instance().addMapLayer(layer)
+                QgsProject.instance().addMapLayer(layer)
             except:
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
@@ -2962,9 +2956,9 @@ class qprof_QWidget(QWidget):
 
                 def disconnect_digitize_maptool():
 
-                    QObject.disconnect(self.digitize_maptool, SIGNAL("moved"), self.canvas_refresh_profile_line)
-                    QObject.disconnect(self.digitize_maptool, SIGNAL("leftClicked"), self.profile_add_point)
-                    QObject.disconnect(self.digitize_maptool, SIGNAL("rightClicked"), self.canvas_end_profile_line)
+                    self.digitize_maptool.moved.disconnect(self.canvas_refresh_profile_line)
+                    self.digitize_maptool.leftClicked.disconnect(self.profile_add_point)
+                    self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
 
                 try:
                     disconnect_digitize_maptool()
@@ -2991,32 +2985,32 @@ class qprof_QWidget(QWidget):
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
+            QgsProject.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
         except:
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_line_refresh_lyr_combobox)
+            QgsProject.instance().layerWasAdded.disconnect(self.struct_line_refresh_lyr_combobox)
         except:
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerWasAdded.disconnect(self.struct_point_refresh_lyr_combobox)
+            QgsProject.instance().layerWasAdded.disconnect(self.struct_point_refresh_lyr_combobox)
         except:
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerRemoved.disconnect(self.struct_polygon_refresh_lyr_combobox)
+            QgsProject.instance().layerRemoved.disconnect(self.struct_polygon_refresh_lyr_combobox)
         except:
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerRemoved.disconnect(self.struct_line_refresh_lyr_combobox)
+            QgsProject.instance().layerRemoved.disconnect(self.struct_line_refresh_lyr_combobox)
         except:
             pass
 
         try:
-            QgsMapLayerRegistry.instance().layerRemoved.disconnect(self.struct_point_refresh_lyr_combobox)
+            QgsProject.instance().layerRemoved.disconnect(self.struct_point_refresh_lyr_combobox)
         except:
             pass
 
@@ -3063,10 +3057,8 @@ class SourceDEMsDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Define source DEMs")
 
@@ -3077,7 +3069,7 @@ class SourceDEMsDialog(QDialog):
         for raster_layer in self.singleband_raster_layers_in_project:
             tree_item = QTreeWidgetItem(self.listDEMs_treeWidget)
             tree_item.setText(1, raster_layer.name())
-            #color_button = QgsColorButtonV2()
+            #color_button = QgsColorButton()
             #color_button.setColor(QColor('red'))
 
             #self.listDEMs_treeWidget.setItemWidget(tree_item, 2, color_button)
@@ -3125,10 +3117,8 @@ class SourceLineLayerDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Define source line layer")
 
@@ -3185,10 +3175,8 @@ class LoadPointListDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Point list")
 
@@ -3235,10 +3223,8 @@ class ElevationLineStyleDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Define elevation line style")
 
@@ -3254,7 +3240,7 @@ class ElevationLineStyleDialog(QDialog):
         for ndx, layer_name in enumerate(layer_names):
             tree_item = QTreeWidgetItem(self.qtwdElevationLayers)
             tree_item.setText(1, layer_name)
-            color_button = QgsColorButtonV2()
+            color_button = QgsColorButton()
             if ndx < num_available_colors:
                 color_button.setColor(layer_colors[ndx])
             else:
@@ -3305,10 +3291,8 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Polygon intersection colors")
 
@@ -3324,11 +3308,11 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
         for classification_id, color in zip(self.polygon_classifications, curr_colors):
             tree_item = QTreeWidgetItem(self.polygon_classifications_treeWidget)
-            tree_item.setText(0, unicode(classification_id))
+            tree_item.setText(0, str(classification_id))
 
-            color_QgsColorButtonV2 = QgsColorButtonV2()
-            color_QgsColorButtonV2.setColor(QColor(color))
-            self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButtonV2)
+            color_QgsColorButton = QgsColorButton()
+            color_QgsColorButton.setColor(QColor(color))
+            self.polygon_classifications_treeWidget.setItemWidget(tree_item, 1, color_QgsColorButton)
 
 
 class PlotTopoProfileDialog(QDialog):
@@ -3467,10 +3451,8 @@ class PlotTopoProfileDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Topographic plot parameters")
 
@@ -3663,10 +3645,8 @@ class FigureExportDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Export figure")
 
@@ -3842,10 +3822,8 @@ class TopographicProfileExportDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Export topographic profile")
 
@@ -3931,10 +3909,8 @@ class PointDataExportDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Export geological attitudes")
 
@@ -4020,10 +3996,8 @@ class LineDataExportDialog(QDialog):
 
         self.setLayout(layout)
 
-        self.connect(okButton, SIGNAL("clicked()"),
-                     self, SLOT("accept()"))
-        self.connect(cancelButton, SIGNAL("clicked()"),
-                     self, SLOT("reject()"))
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
 
         self.setWindowTitle("Export")
 
@@ -4062,10 +4036,10 @@ class StatisticsDialog(QDialog):
 
             profile_elevations = geoprofile_set.geoprofile(ndx).profile_elevations
 
-            profiles_stats = zip(profile_elevations.surface_names,
-                                 zip(profile_elevations.statistics_elev,
+            profiles_stats = list(zip(profile_elevations.surface_names,
+                                 list(zip(profile_elevations.statistics_elev,
                                      profile_elevations.statistics_dirslopes,
-                                     profile_elevations.statistics_slopes))
+                                     profile_elevations.statistics_slopes))))
 
             stat_report += "\nStatistics for Line {}\n".format(ndx+1)
             stat_report += "\nProfile length: %f\n" % profile_elevations.profile_length

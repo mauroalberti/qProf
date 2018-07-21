@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from builtins import zip
+from builtins import str
+from builtins import map
+from builtins import range
 import os
 
 import ogr
@@ -13,7 +17,7 @@ def write_rubberband_profile_lnshp(fileName, header_list, points, sr):
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -52,7 +56,7 @@ def write_rubberband_profile_lnshp(fileName, header_list, points, sr):
 def write_generic_csv(output_filepath, header_list, parsed_results, sep=","):
 
     try:
-        with open(unicode(output_filepath), 'w') as f:
+        with open(str(output_filepath), 'w') as f:
             f.write(sep.join(header_list) + '\n')
             for rec in parsed_results:
                 out_rec_string = ''
@@ -67,7 +71,7 @@ def write_generic_csv(output_filepath, header_list, parsed_results, sep=","):
 def write_topography_singledem_csv(fileName, header_list, multiprofile_dem_data, current_dem_ndx, sep=","):
 
     try:
-        with open(unicode(fileName), 'w') as f:
+        with open(str(fileName), 'w') as f:
             f.write(sep.join(header_list) + '\n')
             for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
                 for rec in profile_data:
@@ -75,7 +79,7 @@ def write_topography_singledem_csv(fileName, header_list, multiprofile_dem_data,
                     z = rec[3 + current_dem_ndx * 3 + 1]
                     cum3ddist = rec[3 + current_dem_ndx * 3 + 2]
                     slope = rec[3 + current_dem_ndx * 3 + 3]
-                    outdata_list = map(str, [prof_ndx+1, rec_id, x, y, cum2ddist, z, cum3ddist, slope])
+                    outdata_list = list(map(str, [prof_ndx+1, rec_id, x, y, cum2ddist, z, cum3ddist, slope]))
                     f.write(sep.join(outdata_list) + "\n")
         return True, "done"
     except Exception as e:
@@ -90,7 +94,7 @@ def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_de
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(out_file_path))
+        datasource = shape_driver.CreateDataSource(str(out_file_path))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(out_file_path))
 
@@ -159,7 +163,7 @@ def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_dat
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -223,7 +227,7 @@ def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_dat
 def write_topography_multidems_csv(fileName, multi_dems_headers, multiprofile_dem_data, sep=","):
 
     try:
-        with open(unicode(fileName), 'w') as f:
+        with open(str(fileName), 'w') as f:
             f.write(sep.join(multi_dems_headers) + '\n')
             for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
                 for rec in profile_data:
@@ -242,7 +246,7 @@ def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, mul
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -318,7 +322,7 @@ def write_topography_multidems_lnshp(fileName, header_list, dem_names, multiprof
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -390,7 +394,7 @@ def write_topography_gpx_ptshp(output_filepath, header_list, gpx_parsed_results,
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(output_filepath))
+        datasource = shape_driver.CreateDataSource(str(output_filepath))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(output_filepath))
 
@@ -454,7 +458,7 @@ def write_topography_gpx_lnshp(output_filepath, header_list, gpx_parsed_results,
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(output_filepath))
+        datasource = shape_driver.CreateDataSource(str(output_filepath))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(output_filepath))
 
@@ -521,7 +525,7 @@ def write_geological_attitudes_ptshp(fileName, parsed_crosssect_results, sr):
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -583,7 +587,7 @@ def write_geological_attitudes_ptshp(fileName, parsed_crosssect_results, sr):
 def write_intersection_line_csv(output_filepath, header_list, parsed_results, sep=","):
 
     try:
-        with open(unicode(output_filepath), 'w') as f:
+        with open(str(output_filepath), 'w') as f:
             f.write(sep.join(header_list) + '\n')
             for classification, line3d, s_list in parsed_results:
                 for pt, s in zip(line3d.pts, s_list):
@@ -603,7 +607,7 @@ def write_intersection_line_ptshp(fileName, header_list, intersline_results, sr)
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 
@@ -654,7 +658,7 @@ def write_intersection_polygon_lnshp(fileName, header_list, intersline_results, 
         return False, "%s driver is not available" % shape_driver_name
 
     try:
-        datasource = shape_driver.CreateDataSource(unicode(fileName))
+        datasource = shape_driver.CreateDataSource(str(fileName))
     except TypeError:
         datasource = shape_driver.CreateDataSource(str(fileName))
 

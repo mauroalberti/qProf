@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division
+from builtins import object
 from math import radians, sin, cos, tan
 
 import numpy as np

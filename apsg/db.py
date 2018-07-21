@@ -3,7 +3,9 @@
 API to read data from PySDB database
 
 """
+from __future__ import print_function
 
+from builtins import object
 import sqlite3
 from .core import Fol, Lin, Group
 

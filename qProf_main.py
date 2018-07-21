@@ -1,13 +1,16 @@
+from __future__ import absolute_import
+from builtins import object
 import os
 import webbrowser
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
-import resources
+from . import resources
 
 from .qgis_utils.utils import create_action
-from qProf_QWidget import qprof_QWidget
+from .qProf_QWidget import qprof_QWidget
 
 _plugin_name_ = "qProf"
 

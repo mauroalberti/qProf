@@ -1,4 +1,8 @@
 
+from builtins import zip
+from builtins import str
+from builtins import map
+from builtins import range
 import numpy as np
 
 from matplotlib import gridspec
@@ -82,7 +86,7 @@ def plot_profile_polygon_intersection_line(plot_addit_params, axes, intersection
     if plot_addit_params["polygon_class_colors"] is None:
         color = "red"
     else:
-        color = plot_addit_params["polygon_class_colors"][unicode(classification)]
+        color = plot_addit_params["polygon_class_colors"][str(classification)]
 
     plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
@@ -184,8 +188,8 @@ def plot_geoprofiles(geoprofiles, plot_addit_params, slope_padding=0.2):
             else:
                 slopes = geoprofile.profile_elevations.profile_dirslopes
 
-            profiles_slope_min = np.nanmin(np.array(map(np.nanmin, slopes)))
-            profiles_slope_max = np.nanmax(np.array(map(np.nanmax, slopes)))
+            profiles_slope_min = np.nanmin(np.array(list(map(np.nanmin, slopes))))
+            profiles_slope_max = np.nanmax(np.array(list(map(np.nanmax, slopes))))
 
             delta_slope = profiles_slope_max - profiles_slope_min
             plot_slope_min = profiles_slope_min - delta_slope * slope_padding

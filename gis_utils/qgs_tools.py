@@ -1,16 +1,19 @@
 from __future__ import division
 
+from builtins import str
+from builtins import object
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
 
 import numpy as np
 
 from osgeo import ogr, osr
 
-from qgis.core import QgsMapLayerRegistry, QgsMapLayer, QGis, QgsCoordinateTransform, QgsPoint, QgsRaster
+from qgis.core import QgsProject, QgsMapLayer, QgsWkbTypes, QgsCoordinateTransform, QgsPoint, QgsRaster
 from qgis.gui import *
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
 from .errors import VectorIOException
 from ..gsf.geometry import Point
@@ -18,10 +21,10 @@ from ..gsf.geometry import Point
 
 def get_on_the_fly_projection(canvas):
 
-    on_the_fly_projection = True if canvas.hasCrsTransformEnabled() else False
+    on_the_fly_projection = True
 
     if on_the_fly_projection:
-        project_crs = canvas.mapRenderer().destinationCrs()
+        project_crs = canvas.mapSettings().destinationCrs()
     else:
         project_crs = None
 
@@ -33,11 +36,11 @@ def vector_type(layer):
     if not layer.type() == QgsMapLayer.VectorLayer:
         raise VectorIOException("Layer is not vector")
 
-    if layer.geometryType() == QGis.Point:
+    if layer.geometryType() == QgsWkbTypes.PointGeometry:
         return "point"
-    elif layer.geometryType() == QGis.Line:
+    elif layer.geometryType() == QgsWkbTypes.LineGeometry:
         return "line"
-    elif layer.geometryType() == QGis.Polygon:
+    elif layer.geometryType() == QgsWkbTypes.PolygonGeometry:
         return "polygon"
     else:
         raise VectorIOException("Unknown vector type")
@@ -45,43 +48,37 @@ def vector_type(layer):
 
 def loaded_layers():
 
-    return QgsMapLayerRegistry.instance().mapLayers().values()
+    return list(QgsProject.instance().mapLayers().values())
 
 
 def loaded_vector_layers():
 
-    return filter(lambda layer: layer.type() == QgsMapLayer.VectorLayer,
-                  loaded_layers())
+    return [layer for layer in loaded_layers() if layer.type() == QgsMapLayer.VectorLayer]
 
 
 def loaded_polygon_layers():
 
-    return filter(lambda layer: layer.geometryType() == QGis.Polygon,
-                  loaded_vector_layers())
+    return [layer for layer in loaded_vector_layers() if layer.geometryType() == QgsWkbTypes.PolygonGeometry]
 
 
 def loaded_line_layers():
 
-    return filter(lambda layer: layer.geometryType() == QGis.Line,
-                  loaded_vector_layers())
+    return [layer for layer in loaded_vector_layers() if layer.geometryType() == QgsWkbTypes.LineGeometry]
 
 
 def loaded_point_layers():
 
-    return filter(lambda layer: layer.geometryType() == QGis.Point,
-                  loaded_vector_layers())
+    return [layer for layer in loaded_vector_layers() if layer.geometryType() == QgsWkbTypes.PointGeometry]
 
 
 def loaded_raster_layers():
 
-    return filter(lambda layer: layer.type() == QgsMapLayer.RasterLayer,
-                  loaded_layers())
+    return [layer for layer in loaded_layers() if layer.type() == QgsMapLayer.RasterLayer]
 
 
 def loaded_monoband_raster_layers():
 
-    return filter(lambda layer: layer.bandCount() == 1,
-                  loaded_raster_layers())
+    return [layer for layer in loaded_raster_layers() if layer.bandCount() == 1]
 
 
 def pt_geoms_attrs(pt_layer, field_list=None):
@@ -239,8 +236,8 @@ def raster_qgis_params(raster_layer):
     cellsizeNS = (yMax - yMin) / float(rows)
 
     # TODO: get real no data value from QGIS
-    if raster_layer.dataProvider().srcHasNoDataValue(1):
-        nodatavalue = raster_layer.dataProvider().srcNoDataValue(1)
+    if raster_layer.dataProvider().sourceHasNoDataValue(1):
+        nodatavalue = raster_layer.dataProvider().sourceNoDataValue(1)
     else:
         nodatavalue = np.nan
 
@@ -342,9 +339,11 @@ class MapDigitizeTool(QgsMapTool):
         self.canvas = canvas
         self.cursor = QCursor(Qt.CrossCursor)
 
+        self.moved = pyqtSignal()
+
     def canvasMoveEvent(self, event):
 
-        self.emit(SIGNAL("moved"), {'x': event.pos().x(), 'y': event.pos().y()})
+        self.moved.emit({'x': event.pos().x(), 'y': event.pos().y()})
 
     def canvasReleaseEvent(self, event):
 
@@ -355,11 +354,11 @@ class MapDigitizeTool(QgsMapTool):
         else:
             return
 
-        self.emit(SIGNAL(button_type), {'x': event.pos().x(), 'y': event.pos().y()})
+        self.button_type.emit({'x': event.pos().x(), 'y': event.pos().y()})
 
     def canvasDoubleClickEvent(self, event):
 
-        self.emit(SIGNAL("doubleClicked"), {'x': event.pos().x(), 'y': event.pos().y()})
+        self.doubleClicked.emit({'x': event.pos().x(), 'y': event.pos().y()})
 
     def activate(self):
 

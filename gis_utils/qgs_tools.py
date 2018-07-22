@@ -8,7 +8,7 @@ import numpy as np
 
 from osgeo import ogr, osr
 
-from qgis.core import QgsProject, QgsMapLayer, QgsWkbTypes, QgsCoordinateTransform, QgsPoint, QgsRaster
+from qgis.core import *
 from qgis.gui import *
 
 from qgis.PyQt.QtCore import *
@@ -168,7 +168,7 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
                 ('multiline', multipolyline_to_xytuple_list2(geom.asMultiPolyline())))  # typedef QVector<QgsPolyline>
             # now is a list of list of (x,y) tuples
         else:
-            lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPoint>
+            lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPointXY>
 
     return lines, progress_ids
 
@@ -251,17 +251,17 @@ def raster_qgis_params(raster_layer):
 
 def qgs_pt(x, y):
 
-    return QgsPoint(x, y)
+    return QgsPointXY(x, y)
 
 
 def project_qgs_point(qgsPt, srcCrs, destCrs):
 
-    return QgsCoordinateTransform(srcCrs, destCrs).transform(qgsPt)
+    return QgsCoordinateTransform(srcCrs, destCrs, QgsProject.instance()).transform(qgsPt)
 
 
 def project_point(pt, srcCrs, destCrs):
 
-    qgs_pt = QgsPoint(pt.x, pt.y)
+    qgs_pt = QgsPointXY(pt.x, pt.y)
     proj_qgs_pt = project_qgs_point(qgs_pt, srcCrs, destCrs)
     proj_x, proj_y = proj_qgs_pt.x(), proj_qgs_pt.y()
 
@@ -272,7 +272,7 @@ def project_xy_list(src_crs_xy_list, srcCrs, destCrs):
 
     pt_list_dest_crs = []
     for x, y in src_crs_xy_list.pts:
-        srcPt = QgsPoint(x, y)
+        srcPt = QgsPointXY(x, y)
         destPt = project_qgs_point(srcPt, srcCrs, destCrs)
         pt_list_dest_crs = pt_list_dest_crs.append([destPt.x(), destPt.y()])
 
@@ -333,13 +333,15 @@ class PointMapToolEmitPoint(QgsMapToolEmitPoint):
 
 class MapDigitizeTool(QgsMapTool):
 
+    moved = pyqtSignal(dict)
+    leftClicked = pyqtSignal(dict)
+    rightClicked = pyqtSignal(dict)
+
     def __init__(self, canvas):
 
         QgsMapTool.__init__(self, canvas)
         self.canvas = canvas
         self.cursor = QCursor(Qt.CrossCursor)
-
-        self.moved = pyqtSignal()
 
     def canvasMoveEvent(self, event):
 
@@ -348,13 +350,11 @@ class MapDigitizeTool(QgsMapTool):
     def canvasReleaseEvent(self, event):
 
         if event.button() == Qt.RightButton:
-            button_type = "rightClicked"
+            self.rightClicked.emit({'x': event.pos().x(), 'y': event.pos().y()})
         elif event.button() == Qt.LeftButton:
-            button_type = "leftClicked"
+            self.leftClicked.emit({'x': event.pos().x(), 'y': event.pos().y()})
         else:
             return
-
-        self.button_type.emit({'x': event.pos().x(), 'y': event.pos().y()})
 
     def canvasDoubleClickEvent(self, event):
 
@@ -459,7 +459,7 @@ class QGisRasterParameters(object):
 
 def get_z(dem_layer, point):
 
-    identification = dem_layer.dataProvider().identify(QgsPoint(point.x, point.y), QgsRaster.IdentifyFormatValue)
+    identification = dem_layer.dataProvider().identify(QgsPointXY(point.x, point.y), QgsRaster.IdentifyFormatValue)
     if not identification.isValid():
         return np.nan
     else:

@@ -7,7 +7,7 @@ from builtins import range
 import os
 import unicodedata
 
-from qgis.core import QgsGeometry, QgsVectorLayer
+from qgis.core import *
 
 from .gsf.geometry import Plane, GPlane, GAxis
 from .gsf.array_utils import to_float
@@ -1789,9 +1789,9 @@ class qprof_QWidget(QWidget):
 
     def refresh_rubberband(self, xy_list):
 
-        self.rubberband.reset(QGis.Line)
+        self.rubberband.reset(QgsWkbTypes.LineGeometry)
         for x, y in xy_list:
-            self.rubberband.addPoint(QgsPoint(x, y))
+            self.rubberband.addPoint(QgsPointXY(x, y))
 
     def canvas_refresh_profile_line(self, position):
 
@@ -1959,7 +1959,7 @@ class qprof_QWidget(QWidget):
             profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
 
         profile_qgsgeometry = QgsGeometry.fromPolyline(
-            [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
+            [QgsPointXY(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
         success, return_data = profile_polygon_intersection(profile_qgsgeometry,
                                                             polygon_layer,

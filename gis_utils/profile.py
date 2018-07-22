@@ -416,7 +416,7 @@ def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, 
 
     # project to Dem CRS
     if on_the_fly_projection and demParams.crs != project_crs:
-        lQgsPoints = [QgsPoint(pt.x, pt.y) for pt in lIntersPts]
+        lQgsPoints = [QgsPointXY(pt.x, pt.y) for pt in lIntersPts]
         lDemCrsIntersQgsPoints = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                lQgsPoints]
         lDemCrsIntersPts = [Point(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
@@ -480,7 +480,7 @@ def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
 
     pts_in_prj_crs = []
     for pt in pts_in_orig_crs:
-        qgs_pt = QgsPoint(pt.x, pt.y)
+        qgs_pt = QgsPointXY(pt.x, pt.y)
         qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
         pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
     return pts_in_prj_crs

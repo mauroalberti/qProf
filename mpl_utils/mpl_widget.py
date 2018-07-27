@@ -12,7 +12,6 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import \
     NavigationToolbar2QT as NavigationToolbar  # changed for Matplotlib 1.5.0 API break
 from matplotlib.figure import Figure
-from matplotlib import pyplot
 
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *

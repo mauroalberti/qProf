@@ -1959,7 +1959,7 @@ class qprof_QWidget(QWidget):
             profile_line2d_polycrs_densif = profile_line2d_prjcrs_densif
 
         profile_qgsgeometry = QgsGeometry.fromPolyline(
-            [QgsPointXY(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
+            [QgsPoint(pt2d.x, pt2d.y) for pt2d in profile_line2d_polycrs_densif.pts])
 
         success, return_data = profile_polygon_intersection(profile_qgsgeometry,
                                                             polygon_layer,

@@ -38,20 +38,9 @@ class qProf_main(object):
                                        self.qactOpenMainWin)
         self.actions.append(self.qactOpenMainWin)
 
-        self.qactOpenHelp = create_action(
-            ':/plugins/{}/icons/help.ico'.format(self.plugin_name),
-            'Help',
-            self.open_html_help,
-            whats_this="Topographic and geological profiles Help",
-            parent=self.interface.mainWindow())
-        self.actions.append(self.qactOpenHelp)
-        self.interface.addPluginToMenu(self.plugin_name,
-                                       self.qactOpenHelp)
-
     def unload(self):
 
         self.interface.removePluginMenu(self.plugin_name, self.qactOpenMainWin)
-        self.interface.removePluginMenu(self.plugin_name, self.qactOpenHelp)
 
     def open_qprof(self):
 
@@ -65,6 +54,3 @@ class qProf_main(object):
         qprof_DockWidget.destroyed.connect(self.qProf_QWidget.closeEvent)
         self.interface.addDockWidget(Qt.RightDockWidgetArea, qprof_DockWidget)
 
-    def open_html_help(self):
-
-        webbrowser.open('{}/help/help.html'.format(os.path.dirname(__file__)), new=True)

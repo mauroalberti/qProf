@@ -7,6 +7,8 @@ from builtins import range
 import os
 import unicodedata
 
+from qgis.PyQt.QtWidgets import QTextBrowser
+
 from qgis.core import *
 
 from .gsf.geometry import Plane, GPlane, GAxis
@@ -78,6 +80,7 @@ class qprof_QWidget(QWidget):
         self.main_widget.addTab(self.setup_topoprofile_tab(), "Topography")
         self.main_widget.addTab(self.setup_geology_section_tab(), "Geology")
         self.main_widget.addTab(self.setup_export_section_tab(), "Export")
+        self.main_widget.addTab(self.setup_about_tab(), "Help")
 
         self.prj_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
         self.inters_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
@@ -1455,7 +1458,7 @@ class qprof_QWidget(QWidget):
                     slopes_headers = []
                     for ndx in range(len(dem_names)):
                         dem_headers.append(
-                            unicodedata.normalize('NFKD', str(dem_names[ndx][:10])).encode('ascii', 'ignore'))
+                            unicodedata.normalize('NFKD', str(dem_names[ndx][:10])).encode('ascii', 'ignore').decode("utf-8") )
                         cum3ddist_headers.append("cds3d_" + str(ndx + 1))
                         slopes_headers.append("slopd_" + str(ndx + 1))
 
@@ -1777,6 +1780,23 @@ class qprof_QWidget(QWidget):
         qwdtImportExport.setLayout(qlytImportExport)
 
         return qwdtImportExport
+
+    def setup_about_tab(self):
+
+        qwdtAbout = QWidget()
+        qlytAbout = QVBoxLayout()
+
+        # About section
+
+        about_textBrwsr = QTextBrowser(qwdtAbout)
+
+        about_textBrwsr.setSource(QUrl('{}/help/help.html'.format(os.path.dirname(__file__))))
+        about_textBrwsr.setSearchPaths(['{}/help'.format(os.path.dirname(__file__))])
+        qlytAbout.addWidget(about_textBrwsr)
+
+        qwdtAbout.setLayout(qlytAbout)
+
+        return qwdtAbout
 
     def clear_rubberband(self):
 

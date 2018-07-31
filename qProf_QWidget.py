@@ -505,7 +505,11 @@ class qprof_QWidget(QWidget):
 
                 return line_layer, multiple_profiles, order_field_ndx
 
-            #multiple_profiles = self.qrbtLineIsMultiProfile.isChecked()
+            def sort_profile(profile_lines, order_ids):
+
+                zipped_profs = zip(order_ids, profile_lines)
+                return map(lambda v: v[1], sorted(zipped_profs, key=lambda v: v[0]))
+
             current_line_layers = loaded_line_layers()
 
             if len(current_line_layers) == 0:
@@ -537,7 +541,8 @@ class qprof_QWidget(QWidget):
 
             processed_lines = []
             if multiple_profiles:
-                for orig_line in profile_orig_lines:
+                sorted_profiles = sort_profile(profile_orig_lines, mergeorder_ids)
+                for orig_line in sorted_profiles:
                     processed_lines.append(merge_line(orig_line))
             else:
                 processed_lines.append(merge_lines(profile_orig_lines, mergeorder_ids))

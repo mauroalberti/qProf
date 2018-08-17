@@ -1794,8 +1794,8 @@ class qprof_QWidget(QWidget):
         # About section
 
         about_textBrwsr = QTextBrowser(qwdtAbout)
-
-        about_textBrwsr.setSource(QUrl('{}/help/help.html'.format(os.path.dirname(__file__))))
+        url_path = "file:///{}/help/help.html".format(os.path.dirname(__file__))
+        about_textBrwsr.setSource(QUrl(url_path))
         about_textBrwsr.setSearchPaths(['{}/help'.format(os.path.dirname(__file__))])
         qlytAbout.addWidget(about_textBrwsr)
 

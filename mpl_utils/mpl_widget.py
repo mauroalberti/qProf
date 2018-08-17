@@ -8,9 +8,8 @@ from __future__ import division
 
 import numpy as np
 from matplotlib import rcParams
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import \
-    NavigationToolbar2QT as NavigationToolbar  # changed for Matplotlib 1.5.0 API break
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 from qgis.PyQt.QtCore import *

@@ -13,6 +13,7 @@ from .qgis_utils.utils import create_action
 from .qProf_QWidget import qprof_QWidget
 
 _plugin_name_ = "qProf"
+_version_ = "0.4.2"
 
 
 class qProf_main(object):

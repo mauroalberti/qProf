@@ -3052,12 +3052,8 @@ class SourceDEMsDialog(QDialog):
 
         self.listDEMs_treeWidget = QTreeWidget()
         self.listDEMs_treeWidget.setColumnCount(2)
-        self.listDEMs_treeWidget.setColumnWidth(0, 43)
-        self.listDEMs_treeWidget.setColumnWidth(1, 165)
-        #self.listDEMs_treeWidget.setColumnWidth(2, 58)
         self.listDEMs_treeWidget.headerItem().setText(0, "Select")
         self.listDEMs_treeWidget.headerItem().setText(1, "Name")
-        #self.listDEMs_treeWidget.headerItem().setText(2, "Color")
         self.listDEMs_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.listDEMs_treeWidget.setDragEnabled(False)
         self.listDEMs_treeWidget.setDragDropMode(QAbstractItemView.NoDragDrop)
@@ -3066,6 +3062,9 @@ class SourceDEMsDialog(QDialog):
         self.listDEMs_treeWidget.setTextElideMode(Qt.ElideLeft)
 
         self.populate_raster_layer_treewidget()
+
+        self.listDEMs_treeWidget.resizeColumnToContents(0)
+        self.listDEMs_treeWidget.resizeColumnToContents(1)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3094,10 +3093,6 @@ class SourceDEMsDialog(QDialog):
         for raster_layer in self.singleband_raster_layers_in_project:
             tree_item = QTreeWidgetItem(self.listDEMs_treeWidget)
             tree_item.setText(1, raster_layer.name())
-            #color_button = QgsColorButton()
-            #color_button.setColor(QColor('red'))
-
-            #self.listDEMs_treeWidget.setItemWidget(tree_item, 2, color_button)
             tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
             tree_item.setCheckState(0, 0)
 
@@ -3218,10 +3213,7 @@ class ElevationLineStyleDialog(QDialog):
 
         self.qtwdElevationLayers = QTreeWidget()
         self.qtwdElevationLayers.setColumnCount(3)
-        self.qtwdElevationLayers.setColumnWidth(0, 43)
-        self.qtwdElevationLayers.setColumnWidth(1, 135)
-        self.qtwdElevationLayers.setColumnWidth(2, 58)
-        self.qtwdElevationLayers.headerItem().setText(0, "Visible")
+        self.qtwdElevationLayers.headerItem().setText(0, "View")
         self.qtwdElevationLayers.headerItem().setText(1, "Name")
         self.qtwdElevationLayers.headerItem().setText(2, "Color")
         self.qtwdElevationLayers.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -3232,6 +3224,10 @@ class ElevationLineStyleDialog(QDialog):
         self.qtwdElevationLayers.setTextElideMode(Qt.ElideLeft)
 
         self.populate_elevation_layer_treewidget(layer_names, layer_colors)
+
+        self.qtwdElevationLayers.resizeColumnToContents(0)
+        self.qtwdElevationLayers.resizeColumnToContents(1)
+        self.qtwdElevationLayers.resizeColumnToContents(2)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3290,16 +3286,18 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
         self.polygon_classifications_treeWidget = QTreeWidget()
         self.polygon_classifications_treeWidget.setColumnCount(2)
-        self.polygon_classifications_treeWidget.setColumnWidth(0, 200)
         self.polygon_classifications_treeWidget.headerItem().setText(0, "Name")
-        self.polygon_classifications_treeWidget.headerItem().setText(1, "Plot color")
+        self.polygon_classifications_treeWidget.headerItem().setText(1, "Color")
         self.polygon_classifications_treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.polygon_classifications_treeWidget.setDragEnabled(False)
         self.polygon_classifications_treeWidget.setDragDropMode(QAbstractItemView.NoDragDrop)
         self.polygon_classifications_treeWidget.setAlternatingRowColors(True)
         self.polygon_classifications_treeWidget.setTextElideMode(Qt.ElideLeft)
 
-        self.refresh_classification_colors_treewidget()
+        self.update_classification_colors_treewidget()
+
+        self.polygon_classifications_treeWidget.resizeColumnToContents(0)
+        self.polygon_classifications_treeWidget.resizeColumnToContents(1)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3321,7 +3319,7 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
         self.setWindowTitle("Polygon intersection colors")
 
-    def refresh_classification_colors_treewidget(self):
+    def update_classification_colors_treewidget(self):
 
         if len(PolygonIntersectionRepresentationDialog.colors) < len(self.polygon_classifications):
             dupl_factor = 1 + int(len(self.polygon_classifications) / len(PolygonIntersectionRepresentationDialog.colors))

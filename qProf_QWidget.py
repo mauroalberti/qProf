@@ -29,6 +29,7 @@ from .qt_utils.tools import info, warn, error, update_ComboBox
 
 from .string_utils.utils_string import clean_string
 
+from .config.settings import *
 from .config.output import dem_header_common, dem_single_dem_header, gpx_header
 
 from .qProf_plotting import plot_geoprofiles
@@ -69,7 +70,6 @@ class qprof_QWidget(QWidget):
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
 
         self.plane_attitudes_colors = []
-        #self.curve_colors = []
 
         self.setup_gui()
 
@@ -207,6 +207,25 @@ class qprof_QWidget(QWidget):
 
             if topo_source_type == self.demline_source:  # sources are DEM(s) and line
 
+                # check total number of points in line(s) to create
+                estimated_total_num_pts = 0
+                for profile_line in source_profile_lines:
+
+                    profile_length = profile_line.length_2d
+                    profile_num_pts = profile_length / sample_distance
+                    estimated_total_num_pts += profile_num_pts
+
+                estimated_total_num_pts = int(ceil(estimated_total_num_pts))
+
+                if estimated_total_num_pts > pt_num_threshold:
+                    warn(
+                        parent=self,
+                        header=self.plugin_name,
+                        msg="There are {} estimated points (limit is {}) in profile(s) to create.".format(estimated_total_num_pts, pt_num_threshold) +
+                            "\nPlease increase sample distance value"
+                    )
+                    return
+
                 for profile_line in source_profile_lines:
 
                     try:
@@ -265,7 +284,7 @@ class qprof_QWidget(QWidget):
             else:  # source error
                 error(self,
                       self.plugin_name,
-                     "Algorithm error: profile calculation not defined")
+                     "Debug: profile calculation not defined")
                 return
 
             info(self,

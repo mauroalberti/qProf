@@ -3,13 +3,18 @@ from builtins import object
 import os
 import webbrowser
 
+from qgis.core import *
+
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 from . import resources
 
+
+from .qt_utils.tools import info, warn, error, update_ComboBox
 from .qgis_utils.utils import create_action
+
 from .qProf_QWidget import qprof_QWidget
 
 _plugin_name_ = "qProf"
@@ -44,6 +49,15 @@ class qProf_main(object):
         self.interface.removePluginMenu(self.plugin_name, self.qactOpenMainWin)
 
     def open_qprof(self):
+
+        project = QgsProject.instance()
+
+        if project.count() == 0:
+            warn(
+                parent=None,
+                header=_plugin_name_,
+                msg="No project/layer available.\nPlease open project and add layers.")
+            return
 
         qprof_DockWidget = QDockWidget(self.plugin_name,
                                        self.interface.mainWindow())

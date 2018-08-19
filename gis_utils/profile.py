@@ -267,6 +267,7 @@ def topoline_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, 
 
 def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selected_dems, selected_dem_parameters,
                            invert_profile):
+    
     # get project CRS information
     on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
 

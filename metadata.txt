@@ -15,7 +15,7 @@ repository=https://github.com/mauroalberti/qProf
 experimental=False
 deprecated=False
 changelog=
-  0.4.2 : - fixed help visualization in Windows
+  0.4.2 : - fixed help visualization in Windows; set limit to point number in profile(s); fixed bug related to no project open
   0.4.1 : - implemented sorting of profiles in multiprofile case based on field value
   0.4.0 : - ported to QGIS 3
   0.3.4 : - substitution of geosurf with gsf and other minor internal libraries; implementation of multiple topographic profiles

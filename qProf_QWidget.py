@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
+from typing import Optional, Tuple
+
+import numbers
+
 from builtins import zip
 from builtins import str
 from builtins import range
@@ -508,21 +512,30 @@ class qprof_QWidget(QWidget):
                 else:
                     return profile_processed_line.crs_project(line_layer_crs, project_crs)
 
-            def get_line_traces(line_shape, order_field_ndx):
+            def try_get_line_traces(
+                    line_shape,
+                    label_field_ndx: Optional[numbers.Integral],
+                    order_field_ndx: Optional[numbers.Integral]
+            ):
 
                 try:
-                    profile_orig_lines, mergeorder_ids = line_geoms_with_id(line_shape, order_field_ndx)
+
+                    profile_orig_lines, mergeorder_ids, label_names = line_geoms_with_infos(line_shape, label_field_ndx, order_field_ndx)
+
                 except VectorInputException as error_msg:
+
                     return False, error_msg
+
                 return True, (profile_orig_lines, mergeorder_ids)
 
             def line_layer_params(dialog):
 
                 line_layer = dialog.line_shape
                 multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
+                label_field_ndx = dialog.Trace2D_label_field_comboBox.currentIndex()
                 order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
-                return line_layer, multiple_profiles, order_field_ndx
+                return line_layer, multiple_profiles, label_field_ndx, order_field_ndx
 
             def sort_profile(profile_lines, order_ids):
 
@@ -541,18 +554,19 @@ class qprof_QWidget(QWidget):
                                            current_line_layers)
 
             if dialog.exec_():
-                line_layer, multiple_profiles, order_field_ndx = line_layer_params(dialog)
+                line_layer, multiple_profiles, label_field_ndx, order_field_ndx = line_layer_params(dialog)
             else:
                 warn(self,
                      self.plugin_name,
                      "No defined line source")
                 return
 
-            line_fld_ndx = int(order_field_ndx) - 1
+            line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
+            line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
             # get profile path from input line layer
 
-            success, result = get_line_traces(line_layer, line_fld_ndx)
+            success, result = try_get_line_traces(line_layer, line_label_fld_ndx, line_order_fld_ndx)
             if not success:
                 raise VectorIOException(result)
 
@@ -3127,13 +3141,20 @@ class SourceLineLayerDialog(QDialog):
 
         layout = QGridLayout()
 
-        layout.addWidget(QLabel(self.tr("Line layer:")), 0, 0, 1, 1)
+        layout.addWidget(QLabel(self.tr("Input line layer:")), 0, 0, 1, 1)
         self.LineLayers_comboBox = QComboBox()
         layout.addWidget(self.LineLayers_comboBox, 0, 1, 1, 3)
         self.refresh_input_profile_layer_combobox()
 
-        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer has multiple profiles"))
-        layout.addWidget(self.qrbtLineIsMultiProfile, 1, 0, 1, 4)
+        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer with multiple profiles:"))
+        layout.addWidget(self.qrbtLineIsMultiProfile, 1, 0, 1, 2)
+
+        layout.addWidget(QLabel(self.tr("label field:")), 1, 2, 1, 1)
+        self.Trace2D_label_field_comboBox = QComboBox()
+        layout.addWidget(self.Trace2D_label_field_comboBox, 1, 3, 1, 1)
+
+        self.refresh_label_field_combobox()
+        self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_label_field_combobox)
 
         layout.addWidget(QLabel(self.tr("Line order field:")), 2, 0, 1, 1)
 
@@ -3182,6 +3203,18 @@ class SourceLineLayerDialog(QDialog):
         line_layer_field_list = self.line_shape.dataProvider().fields().toList()
         for field in line_layer_field_list:
             self.Trace2D_order_field_comboBox.addItem(field.name())
+
+    def refresh_label_field_combobox(self):
+
+        self.Trace2D_label_field_comboBox.clear()
+        self.Trace2D_label_field_comboBox.addItem('--optional--')
+
+        shape_qgis_ndx = self.LineLayers_comboBox.currentIndex()
+        self.line_shape = self.current_line_layers[shape_qgis_ndx]
+
+        line_layer_field_list = self.line_shape.dataProvider().fields().toList()
+        for field in line_layer_field_list:
+            self.Trace2D_label_field_comboBox.addItem(field.name())
 
 
 class LoadPointListDialog(QDialog):

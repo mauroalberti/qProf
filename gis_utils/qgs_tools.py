@@ -1,4 +1,7 @@
-from __future__ import division
+from typing import Optional, Tuple
+import numbers
+
+#from __future__ import division
 
 from builtins import str
 from builtins import object
@@ -144,7 +147,11 @@ def line_geoms_attrs(line_layer, field_list=None):
     return lines
 
 
-def line_geoms_with_id(line_layer, curr_field_ndx):
+def line_geoms_with_infos(
+    line_layer,
+    label_field_ndx: Optional[numbers.Integral],
+    order_field_ndx: Optional[numbers.Integral]
+):
 
     lines = []
     progress_ids = []
@@ -155,10 +162,18 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
         features = line_layer.getFeatures()
 
     dummy_progressive = 0
+
     for feature in features:
+
         try:
-            progress_ids.append(int(feature[curr_field_ndx]))
+
+            label_val = feature[label_field_ndx]
+            order_val = feature[order_field_ndx]
+
+            progress_ids.append(int(order_val))
+
         except:
+
             dummy_progressive += 1
             progress_ids.append(dummy_progressive)
 
@@ -166,7 +181,7 @@ def line_geoms_with_id(line_layer, curr_field_ndx):
         if geom.isMultipart():
             lines.append(
                 ('multiline', multipolyline_to_xytuple_list2(geom.asMultiPolyline())))  # typedef QVector<QgsPolyline>
-            # now is a list of list of (x,y) tuples
+            # now it's a list of list of (x,y) tuples
         else:
             lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPointXY>
 

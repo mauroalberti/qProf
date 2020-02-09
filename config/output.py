@@ -1,6 +1,7 @@
 
 dem_header_common = [
     "prof_id",
+    "prof_label",
     "rec_id",
     "x",
     "y",

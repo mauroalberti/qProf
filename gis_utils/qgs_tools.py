@@ -154,7 +154,8 @@ def line_geoms_with_infos(
 ):
 
     lines = []
-    progress_ids = []
+    order_values = []
+    label_values = []
 
     if line_layer.selectedFeatureCount() > 0:
         features = line_layer.selectedFeatures()
@@ -165,17 +166,13 @@ def line_geoms_with_infos(
 
     for feature in features:
 
-        try:
+        dummy_progressive += 1
 
-            label_val = feature[label_field_ndx]
-            order_val = feature[order_field_ndx]
+        label_val = feature[label_field_ndx] if label_field_ndx is not None else ''
+        order_val = feature[order_field_ndx] if order_field_ndx is not None else dummy_progressive
 
-            progress_ids.append(int(order_val))
-
-        except:
-
-            dummy_progressive += 1
-            progress_ids.append(dummy_progressive)
+        label_values.append(label_val)
+        order_values.append(order_val)
 
         geom = feature.geometry()
         if geom.isMultipart():
@@ -185,7 +182,7 @@ def line_geoms_with_infos(
         else:
             lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPointXY>
 
-    return lines, progress_ids
+    return lines, label_values, order_values
 
 
 def polyline_to_xytuple_list(qgsline):

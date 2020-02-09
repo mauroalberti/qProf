@@ -68,22 +68,34 @@ def write_generic_csv(output_filepath, header_list, parsed_results, sep=","):
         return False, e.message
 
 
-def write_topography_singledem_csv(fileName, header_list, multiprofile_dem_data, current_dem_ndx, sep=","):
+def write_topography_singledem_csv(
+        fileName,
+        header_list,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        current_dem_ndx,
+        sep=","
+):
+
+    print(len(list(labels)), len(list(orders)), len(list(multiprofile_dem_data)))
+    #assert len(list(labels)) == len(list(orders)) == len(list(multiprofile_dem_data))
 
     try:
         with open(str(fileName), 'w') as f:
             f.write(sep.join(header_list) + '\n')
-            for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+            for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
+                print("record", prof_ndx, profile_label)
                 for rec in profile_data:
                     rec_id, x, y, cum2ddist = rec[:4]
                     z = rec[3 + current_dem_ndx * 3 + 1]
                     cum3ddist = rec[3 + current_dem_ndx * 3 + 2]
                     slope = rec[3 + current_dem_ndx * 3 + 3]
-                    outdata_list = list(map(str, [prof_ndx+1, rec_id, x, y, cum2ddist, z, cum3ddist, slope]))
+                    outdata_list = list(map(str, [prof_ndx, profile_label, rec_id, x, y, cum2ddist, z, cum3ddist, slope]))
                     f.write(sep.join(outdata_list) + "\n")
         return True, "done"
     except Exception as e:
-        return False, e.message
+        return False, e
 
 
 def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_dem_data, current_dem_ndx, sr):

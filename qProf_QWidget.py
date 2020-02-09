@@ -17,6 +17,7 @@ from qgis.core import *
 
 from .gsf.geometry import Plane, GPlane, GAxis
 from .gsf.array_utils import to_float
+from .gsf.sorting import *
 
 from .gis_utils.features import Segment, MultiLine, Line, \
     merge_line, merge_lines, ParamLine3D, xytuple_list_to_Line
@@ -520,13 +521,13 @@ class qprof_QWidget(QWidget):
 
                 try:
 
-                    profile_orig_lines, mergeorder_ids, label_names = line_geoms_with_infos(line_shape, label_field_ndx, order_field_ndx)
+                    profile_orig_lines, label_values, order_values = line_geoms_with_infos(line_shape, label_field_ndx, order_field_ndx)
 
                 except VectorInputException as error_msg:
 
                     return False, error_msg
 
-                return True, (profile_orig_lines, mergeorder_ids)
+                return True, (profile_orig_lines, label_values, order_values)
 
             def line_layer_params(dialog):
 
@@ -536,11 +537,6 @@ class qprof_QWidget(QWidget):
                 order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
                 return line_layer, multiple_profiles, label_field_ndx, order_field_ndx
-
-            def sort_profile(profile_lines, order_ids):
-
-                zipped_profs = zip(order_ids, profile_lines)
-                return map(lambda v: v[1], sorted(zipped_profs, key=lambda v: v[0]))
 
             current_line_layers = loaded_line_layers()
 
@@ -564,31 +560,67 @@ class qprof_QWidget(QWidget):
             line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
             line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
+            areLinesToReorder = False if line_order_fld_ndx is None else True
+
             # get profile path from input line layer
 
             success, result = try_get_line_traces(line_layer, line_label_fld_ndx, line_order_fld_ndx)
             if not success:
                 raise VectorIOException(result)
 
-            profile_orig_lines, mergeorder_ids = result
+            profile_orig_lines, label_values, order_values = result
 
             processed_lines = []
             if multiple_profiles:
-                sorted_profiles = sort_profile(profile_orig_lines, mergeorder_ids)
+
+                if areLinesToReorder:
+
+                    sorted_profiles = sort_by_external_key(
+                        profile_orig_lines,
+                        order_values
+                    )
+
+                    print("Pre labels: {}".format(label_values))
+                    sorted_labels = list(sort_by_external_key(
+                        label_values,
+                        order_values
+                    ))
+                    
+                    print("Post labels: {}".format(sorted_labels))
+
+                    sorted_orders = sorted(order_values)
+
+                else:
+
+                    sorted_profiles = profile_orig_lines
+                    sorted_labels = label_values
+                    sorted_orders = order_values
+
                 for orig_line in sorted_profiles:
                     processed_lines.append(merge_line(orig_line))
+
             else:
-                processed_lines.append(merge_lines(profile_orig_lines, mergeorder_ids))
+
+                sorted_labels = label_values
+                sorted_orders = order_values
+                processed_lines.append(merge_lines(profile_orig_lines, order_values))
 
             # process input line layer
+
             projected_lines = []
             for processed_line in processed_lines:
-                projected_lines.append(create_line_in_project_crs(processed_line,
-                                                               line_layer.crs(),
-                                                               self.on_the_fly_projection,
-                                                               self.project_crs))
+                projected_lines.append(
+                    create_line_in_project_crs(
+                        processed_line,
+                        line_layer.crs(),
+                        self.on_the_fly_projection,
+                        self.project_crs
+                    )
+                )
 
             self.dem_source_lines = [line.remove_coincident_points() for line in projected_lines]
+            self.profiles_labels = sorted_labels
+            self.profiles_order = sorted_orders
 
         def load_point_list():
 
@@ -1441,7 +1473,9 @@ class qprof_QWidget(QWidget):
 
             def export_topography():
 
-                def export_parse_geoprofile_DEM_results(geoprofile):
+                def parse_geoprofile_data(
+                    geoprofile
+                ):
 
                     # definition of output results
 
@@ -1456,7 +1490,7 @@ class qprof_QWidget(QWidget):
                     cumdist3Ds_zipped = list(zip(*cumdist3Ds))
                     slopes_zipped = list(zip(*slopes))
 
-                    result_data = []
+                    parsed_data = []
                     rec_id = 0
                     for x, y, cum_2d_dist, zs, cum3d_dists, slopes \
                             in zip(
@@ -1470,15 +1504,22 @@ class qprof_QWidget(QWidget):
                         rec_id += 1
                         record = [rec_id, x, y, cum_2d_dist]
                         for z, cum3d_dist, slope in zip(zs, cum3d_dists, slopes):
-                            if isnan(z): z = ''
-                            if isnan(cum3d_dist): cum3d_dist = ''
-                            if isnan(slope): slope = ''
+                            if isnan(z):
+                                z = ''
+                            if isnan(cum3d_dist):
+                                cum3d_dist = ''
+                            if isnan(slope):
+                                slope = ''
                             record += [z, cum3d_dist, slope]
-                        result_data.append(record)
+                        parsed_data.append(record)
 
-                    return result_data
+                    return parsed_data
 
-                def export_topography_all_dems(out_format, outfile_path, proj_sr):
+                def export_topography_all_dems(
+                    out_format,
+                    outfile_path,
+                    proj_sr
+                ):
 
                     geoprofile = self.input_geoprofiles.geoprofile(0)
                     if geoprofile.source_data_type != self.demline_source:
@@ -1509,7 +1550,7 @@ class qprof_QWidget(QWidget):
 
                     geoprofiles_topography_data = []
                     for geoprofile in self.input_geoprofiles.geoprofiles:
-                        geoprofiles_topography_data.append(export_parse_geoprofile_DEM_results(geoprofile))
+                        geoprofiles_topography_data.append(parse_geoprofile_data(geoprofile))
 
                     if out_format == "csv":
                         success, msg = write_topography_multidems_csv(
@@ -1551,20 +1592,25 @@ class qprof_QWidget(QWidget):
                              self.plugin_name,
                              "Profiles export completed")
 
-                def export_topography_single_dem(out_format, ndx_dem_to_export, outfile_path, prj_srs):
+                def export_topography_single_dem(
+                    out_format,
+                    ndx_dem_to_export,
+                    outfile_path, prj_srs
+                ):
 
                     geoprofile = self.input_geoprofiles.geoprofile(0)
                     if geoprofile.source_data_type != self.demline_source:
-                        warn(self,
-                             self.plugin_name,
-                             "No DEM-derived profile defined")
+                        warn(
+                            self,
+                            self.plugin_name,
+                            "No DEM-derived profile defined")
                         return
 
                     # process results for data export
 
                     geoprofiles_topography_data = []
                     for geoprofile in self.input_geoprofiles.geoprofiles:
-                        geoprofiles_topography_data.append(export_parse_geoprofile_DEM_results(geoprofile))
+                        geoprofiles_topography_data.append(parse_geoprofile_data(geoprofile))
 
                     # definition of field names
                     header_list = dem_header_common + dem_single_dem_header
@@ -1573,12 +1619,16 @@ class qprof_QWidget(QWidget):
                         success, msg = write_topography_singledem_csv(
                             outfile_path,
                             header_list,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data,
                             ndx_dem_to_export)
                         if not success:
-                            warn(self,
+                            warn(
+                                self,
                                  self.plugin_name,
-                                 msg)
+                                 msg
+                            )
                     elif out_format == "shapefile - point":
                         success, msg = write_topography_singledem_ptshp(
                             outfile_path,
@@ -1612,7 +1662,11 @@ class qprof_QWidget(QWidget):
                              self.plugin_name,
                              "Profile export completed")
 
-                def export_topography_gpx_data(out_format, output_filepath, prj_srs):
+                def export_topography_gpx_data(
+                    out_format,
+                    output_filepath,
+                    prj_srs
+                ):
 
                     def export_parse_gpx_results():
 
@@ -1706,12 +1760,25 @@ class qprof_QWidget(QWidget):
                              "Profile export completed")
 
                 if output_source[0] == "all_dems":
-                    export_topography_all_dems(output_format, output_filepath, project_crs_osr)
+                    export_topography_all_dems(
+                        output_format,
+                        output_filepath,
+                        project_crs_osr
+                    )
                 elif output_source[0] == "single_dem":
                     ndx_dem_to_export = output_source[1]
-                    export_topography_single_dem(output_format, ndx_dem_to_export, output_filepath, project_crs_osr)
+                    export_topography_single_dem(
+                        output_format,
+                        ndx_dem_to_export,
+                        output_filepath,
+                        project_crs_osr
+                    )
                 elif output_source[0] == "gpx_file":
-                    export_topography_gpx_data(output_format, output_filepath, project_crs_osr)
+                    export_topography_gpx_data(
+                        output_format,
+                        output_filepath,
+                        project_crs_osr
+                    )
                 else:
                     error(self,
                           self.plugin_name,
@@ -1719,17 +1786,22 @@ class qprof_QWidget(QWidget):
                     return
 
             try:
+
                 geoprofile = self.input_geoprofiles.geoprofile(0)
                 geoprofile.profile_elevations.profile_s
+
             except:
+
                 warn(self,
                      self.plugin_name,
                      "Profiles not yet calculated")
                 return
 
             selected_dems_params = geoprofile.profile_elevations.dem_params
-            dialog = TopographicProfileExportDialog(self.plugin_name,
-                                                    selected_dems_params)
+            dialog = TopographicProfileExportDialog(
+                self.plugin_name,
+                selected_dems_params
+            )
 
             if dialog.exec_():
 

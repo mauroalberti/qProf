@@ -78,14 +78,10 @@ def write_topography_singledem_csv(
         sep=","
 ):
 
-    print(len(list(labels)), len(list(orders)), len(list(multiprofile_dem_data)))
-    #assert len(list(labels)) == len(list(orders)) == len(list(multiprofile_dem_data))
-
     try:
         with open(str(fileName), 'w') as f:
             f.write(sep.join(header_list) + '\n')
             for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
-                print("record", prof_ndx, profile_label)
                 for rec in profile_data:
                     rec_id, x, y, cum2ddist = rec[:4]
                     z = rec[3 + current_dem_ndx * 3 + 1]
@@ -98,7 +94,15 @@ def write_topography_singledem_csv(
         return False, e
 
 
-def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_dem_data, current_dem_ndx, sr):
+def write_topography_singledem_ptshp(
+        out_file_path,
+        header_list,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        current_dem_ndx,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -119,19 +123,22 @@ def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_de
 
         # creates required fields
     layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(header_list[1], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTReal))
+    labelsFldDef = ogr.FieldDefn(header_list[1], ogr.OFTString)
+    labelsFldDef.SetWidth(255)
+    layer.CreateField(labelsFldDef)
+    layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTInteger))
     layer.CreateField(ogr.FieldDefn(header_list[3], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(header_list[4], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(header_list[7], ogr.OFTReal))
+    layer.CreateField(ogr.FieldDefn(header_list[8], ogr.OFTReal))
 
     featureDefn = layer.GetLayerDefn()
 
     # loops through geoprofiles and output records
 
-    for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+    for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
         for rec in profile_data:
             rec_id, x, y, cumdist2D = rec[0], rec[1], rec[2], rec[3]
             z = rec[3 + current_dem_ndx * 3 + 1]
@@ -148,15 +155,16 @@ def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_de
             pt_feature.SetGeometry(pt)
 
             pt_feature.SetField(header_list[0], prof_ndx)
-            pt_feature.SetField(header_list[1], rec_id)
-            pt_feature.SetField(header_list[2], x)
-            pt_feature.SetField(header_list[3], y)
-            pt_feature.SetField(header_list[4], cumdist2D)
-            pt_feature.SetField(header_list[5], z)
+            pt_feature.SetField(header_list[1], profile_label)
+            pt_feature.SetField(header_list[2], rec_id)
+            pt_feature.SetField(header_list[3], x)
+            pt_feature.SetField(header_list[4], y)
+            pt_feature.SetField(header_list[5], cumdist2D)
+            pt_feature.SetField(header_list[6], z)
             if cumdist3D != '':
-                pt_feature.SetField(header_list[6], cumdist3D)
+                pt_feature.SetField(header_list[7], cumdist3D)
             if slopedegr != '':
-                pt_feature.SetField(header_list[7], slopedegr)
+                pt_feature.SetField(header_list[8], slopedegr)
 
             layer.CreateFeature(pt_feature)
 
@@ -167,7 +175,15 @@ def write_topography_singledem_ptshp(out_file_path, header_list, multiprofile_de
     return True, "done"
 
 
-def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_data, current_dem_ndx, sr):
+def write_topography_singledem_lnshp(
+        fileName,
+        header_list,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        current_dem_ndx,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -188,16 +204,19 @@ def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_dat
 
         # creates required fields
     layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(header_list[1], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(header_list[4], ogr.OFTReal))
-    layer.CreateField(ogr.FieldDefn(header_list[6], ogr.OFTReal))
+    labelsFldDef = ogr.FieldDefn(header_list[1], ogr.OFTString)
+    labelsFldDef.SetWidth(255)
+    layer.CreateField(labelsFldDef)
+    layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTInteger))
+    layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(header_list[7], ogr.OFTReal))
+    layer.CreateField(ogr.FieldDefn(header_list[8], ogr.OFTReal))
 
     featureDefn = layer.GetLayerDefn()
 
     # loops through output records
 
-    for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+    for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
 
         for ndx in range(len(profile_data) - 1):
 
@@ -218,14 +237,15 @@ def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_dat
             ln_feature.SetGeometry(segment_3d)
 
             ln_feature.SetField(header_list[0], prof_ndx)
-            ln_feature.SetField(header_list[1], rec_id)
-            ln_feature.SetField(header_list[4], rec_b[3])
+            ln_feature.SetField(header_list[1], profile_label)
+            ln_feature.SetField(header_list[2], rec_id)
+            ln_feature.SetField(header_list[5], rec_b[3])
 
             if cum3ddist != '':
-                ln_feature.SetField(header_list[6], cum3ddist)
+                ln_feature.SetField(header_list[7], cum3ddist)
 
             if slope_degr != '':
-                ln_feature.SetField(header_list[7], slope_degr)
+                ln_feature.SetField(header_list[8], slope_degr)
 
             layer.CreateFeature(ln_feature)
 
@@ -236,21 +256,36 @@ def write_topography_singledem_lnshp(fileName, header_list, multiprofile_dem_dat
     return True, "done"
 
 
-def write_topography_multidems_csv(fileName, multi_dems_headers, multiprofile_dem_data, sep=","):
+def write_topography_multidems_csv(
+        fileName,
+        multi_dems_headers,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        sep=","
+):
 
     try:
         with open(str(fileName), 'w') as f:
             f.write(sep.join(multi_dems_headers) + '\n')
-            for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+            for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
                 for rec in profile_data:
-                    out_rec_string = sep.join(map(str, [prof_ndx+1]+rec))
+                    out_rec_string = sep.join(map(str, [prof_ndx, profile_label]+rec))
                     f.write(out_rec_string + '\n')
         return True, "done"
     except Exception as e:
-        return False, e.message
+        return False, e
 
 
-def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, multiprofile_dem_data, sr):
+def write_topography_multidems_ptshp(
+        fileName,
+        multidems_headers,
+        dem_names,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -271,15 +306,18 @@ def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, mul
 
     # creates required fields
     layer.CreateField(ogr.FieldDefn(multidems_headers[0], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(multidems_headers[1], ogr.OFTInteger))
-    layer.CreateField(ogr.FieldDefn(multidems_headers[2], ogr.OFTReal))
+    labelsFldDef = ogr.FieldDefn(multidems_headers[1], ogr.OFTString)
+    labelsFldDef.SetWidth(255)
+    layer.CreateField(labelsFldDef)
+    layer.CreateField(ogr.FieldDefn(multidems_headers[2], ogr.OFTInteger))
     layer.CreateField(ogr.FieldDefn(multidems_headers[3], ogr.OFTReal))
     layer.CreateField(ogr.FieldDefn(multidems_headers[4], ogr.OFTReal))
+    layer.CreateField(ogr.FieldDefn(multidems_headers[5], ogr.OFTReal))
 
     for dem_ndx in range(len(dem_names)):
-        layer.CreateField(ogr.FieldDefn(multidems_headers[4 + dem_ndx * 3 + 1], ogr.OFTReal))
-        layer.CreateField(ogr.FieldDefn(multidems_headers[4 + dem_ndx * 3 + 2], ogr.OFTReal))
-        layer.CreateField(ogr.FieldDefn(multidems_headers[4 + dem_ndx * 3 + 3], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(multidems_headers[5 + dem_ndx * 3 + 1], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(multidems_headers[5 + dem_ndx * 3 + 2], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(multidems_headers[5 + dem_ndx * 3 + 3], ogr.OFTReal))
 
     featureDefn = layer.GetLayerDefn()
 
@@ -291,7 +329,7 @@ def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, mul
 
     # loops through output records
 
-    for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+    for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
 
         for rec in profile_data:
 
@@ -302,20 +340,21 @@ def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, mul
             pt_feature.SetGeometry(pt)
 
             pt_feature.SetField(field_names[0], prof_ndx)
-            pt_feature.SetField(field_names[1], rec[0])
-            pt_feature.SetField(field_names[2], rec[1])
-            pt_feature.SetField(field_names[3], rec[2])
-            pt_feature.SetField(field_names[4], rec[3])
+            pt_feature.SetField(header_list[1], profile_label)
+            pt_feature.SetField(field_names[2], rec[0])
+            pt_feature.SetField(field_names[3], rec[1])
+            pt_feature.SetField(field_names[4], rec[2])
+            pt_feature.SetField(field_names[5], rec[3])
             for dem_ndx in range(len(dem_names)):
                 dem_height = rec[3 + dem_ndx * 3 + 1]
                 if dem_height != '':
-                    pt_feature.SetField(field_names[4 + dem_ndx * 3 + 1], dem_height)
+                    pt_feature.SetField(field_names[5 + dem_ndx * 3 + 1], dem_height)
                 cum3ddist = rec[3 + dem_ndx * 3 + 2]
                 if cum3ddist != '':
-                    pt_feature.SetField(field_names[4 + dem_ndx * 3 + 2], cum3ddist)
+                    pt_feature.SetField(field_names[5 + dem_ndx * 3 + 2], cum3ddist)
                 slope = rec[3 + dem_ndx * 3 + 3]
                 if slope != '':
-                    pt_feature.SetField(field_names[4 + dem_ndx * 3 + 3], slope)
+                    pt_feature.SetField(field_names[5 + dem_ndx * 3 + 3], slope)
 
             layer.CreateFeature(pt_feature)
 
@@ -326,7 +365,15 @@ def write_topography_multidems_ptshp(fileName, multidems_headers, dem_names, mul
     return True, "Done"
 
 
-def write_topography_multidems_lnshp(fileName, header_list, dem_names, multiprofile_dem_data, sr):
+def write_topography_multidems_lnshp(
+        fileName,
+        header_list,
+        dem_names,
+        labels,
+        orders,
+        multiprofile_dem_data,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -348,12 +395,15 @@ def write_topography_multidems_lnshp(fileName, header_list, dem_names, multiprof
     # creates required fields
 
     layer.CreateField(ogr.FieldDefn(header_list[0], ogr.OFTInteger))  # prof ndx
-    layer.CreateField(ogr.FieldDefn(header_list[1], ogr.OFTInteger))  # rec ndx
-    layer.CreateField(ogr.FieldDefn(header_list[4], ogr.OFTReal))  # cum dist 2d
+    labelsFldDef = ogr.FieldDefn(header_list[1], ogr.OFTString)
+    labelsFldDef.SetWidth(255)
+    layer.CreateField(labelsFldDef)
+    layer.CreateField(ogr.FieldDefn(header_list[2], ogr.OFTInteger))  # rec ndx
+    layer.CreateField(ogr.FieldDefn(header_list[5], ogr.OFTReal))  # cum dist 2d
     for dem_ndx in range(len(dem_names)):
-        layer.CreateField(ogr.FieldDefn(header_list[4 + dem_ndx * 3 + 1], ogr.OFTReal))
-        layer.CreateField(ogr.FieldDefn(header_list[4 + dem_ndx * 3 + 2], ogr.OFTReal))
-        layer.CreateField(ogr.FieldDefn(header_list[4 + dem_ndx * 3 + 3], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(header_list[5 + dem_ndx * 3 + 1], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(header_list[5 + dem_ndx * 3 + 2], ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn(header_list[5 + dem_ndx * 3 + 3], ogr.OFTReal))
 
     featureDefn = layer.GetLayerDefn()
 
@@ -362,7 +412,9 @@ def write_topography_multidems_lnshp(fileName, header_list, dem_names, multiprof
         field_names.append(featureDefn.GetFieldDefn(i).GetName())
 
     # loops through output records
-    for prof_ndx, profile_data in enumerate(multiprofile_dem_data):
+
+    for prof_ndx, profile_label, profile_data in zip(orders, labels, multiprofile_dem_data):
+
         for ndx in range(len(profile_data) - 1):
 
             rec_a = profile_data[ndx]
@@ -377,18 +429,19 @@ def write_topography_multidems_lnshp(fileName, header_list, dem_names, multiprof
             ln_feature.SetGeometry(segment_2d)
 
             ln_feature.SetField(field_names[0], prof_ndx)
-            ln_feature.SetField(field_names[1], rec_a[0])
-            ln_feature.SetField(field_names[4], rec_b[3])
+            ln_feature.SetField(field_names[1], profile_label)
+            ln_feature.SetField(field_names[2], rec_a[0])
+            ln_feature.SetField(field_names[5], rec_b[3])
             for dem_ndx, dem_name in enumerate(dem_names):
                 dem_height = rec_b[3 + dem_ndx * 3 + 1]
                 if dem_height != '':
-                    ln_feature.SetField(field_names[2 + dem_ndx * 3 + 1], dem_height)
+                    ln_feature.SetField(field_names[3 + dem_ndx * 3 + 1], dem_height)
                 cum3ddist = rec_b[3 + dem_ndx * 3 + 2]
                 if cum3ddist != '':
-                    ln_feature.SetField(field_names[2 + dem_ndx * 3 + 2], cum3ddist)
+                    ln_feature.SetField(field_names[3 + dem_ndx * 3 + 2], cum3ddist)
                 slope = rec_b[3 + dem_ndx * 3 + 3]
                 if slope != '':
-                    ln_feature.SetField(field_names[2 + dem_ndx * 3 + 3], slope)
+                    ln_feature.SetField(field_names[3 + dem_ndx * 3 + 3], slope)
 
             layer.CreateFeature(ln_feature)
             ln_feature.Destroy()

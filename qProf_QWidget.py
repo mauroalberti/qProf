@@ -173,7 +173,7 @@ class qprof_QWidget(QWidget):
                 else:
                     stop_rubberband()
                     try:
-                        source_profile_lines = self.dem_source_lines
+                        source_profile_lines = self.profiles_lines
                     except:
                         warn(self,
                              self.plugin_name,
@@ -580,13 +580,10 @@ class qprof_QWidget(QWidget):
                         order_values
                     )
 
-                    print("Pre labels: {}".format(label_values))
                     sorted_labels = list(sort_by_external_key(
                         label_values,
                         order_values
                     ))
-                    
-                    print("Post labels: {}".format(sorted_labels))
 
                     sorted_orders = sorted(order_values)
 
@@ -618,7 +615,7 @@ class qprof_QWidget(QWidget):
                     )
                 )
 
-            self.dem_source_lines = [line.remove_coincident_points() for line in projected_lines]
+            self.profiles_lines = [line.remove_coincident_points() for line in projected_lines]
             self.profiles_labels = sorted_labels
             self.profiles_order = sorted_orders
 
@@ -658,7 +655,7 @@ class qprof_QWidget(QWidget):
                      "No defined line source")
                 return
 
-            self.dem_source_lines = [line2d]
+            self.profiles_lines = [line2d]
 
         def digitize_line():
 
@@ -1556,6 +1553,8 @@ class qprof_QWidget(QWidget):
                         success, msg = write_topography_multidems_csv(
                             outfile_path,
                             multi_dem_header_list,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data)
                         if not success:
                             warn(self,
@@ -1566,6 +1565,8 @@ class qprof_QWidget(QWidget):
                             outfile_path,
                             multi_dem_header_list,
                             dem_names,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data,
                             proj_sr)
                         if not success:
@@ -1577,6 +1578,8 @@ class qprof_QWidget(QWidget):
                             outfile_path,
                             multi_dem_header_list,
                             dem_names,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data,
                             proj_sr)
                         if not success:
@@ -1593,9 +1596,10 @@ class qprof_QWidget(QWidget):
                              "Profiles export completed")
 
                 def export_topography_single_dem(
-                    out_format,
-                    ndx_dem_to_export,
-                    outfile_path, prj_srs
+                        out_format,
+                        ndx_dem_to_export,
+                        outfile_path,
+                        prj_srs
                 ):
 
                     geoprofile = self.input_geoprofiles.geoprofile(0)
@@ -1633,6 +1637,8 @@ class qprof_QWidget(QWidget):
                         success, msg = write_topography_singledem_ptshp(
                             outfile_path,
                             header_list,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data,
                             ndx_dem_to_export,
                             prj_srs)
@@ -1644,6 +1650,8 @@ class qprof_QWidget(QWidget):
                         success, msg = write_topography_singledem_lnshp(
                             outfile_path,
                             header_list,
+                            self.profiles_labels,
+                            self.profiles_order,
                             geoprofiles_topography_data,
                             ndx_dem_to_export,
                             prj_srs)

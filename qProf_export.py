@@ -9,6 +9,23 @@ import os
 import ogr
 
 
+def preprocess_labels(
+        labels,
+        orders,
+        data
+):
+
+    if labels is None:
+
+        labels = [''] * len(data)
+
+    if orders is None:
+
+        orders = list(range(1, len(data) + 1))
+
+    return labels, orders
+
+
 def write_rubberband_profile_lnshp(fileName, header_list, points, sr):
 
     shape_driver_name = "ESRI Shapefile"
@@ -78,6 +95,12 @@ def write_topography_singledem_csv(
         sep=","
 ):
 
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
+
     try:
         with open(str(fileName), 'w') as f:
             f.write(sep.join(header_list) + '\n')
@@ -103,6 +126,12 @@ def write_topography_singledem_ptshp(
         current_dem_ndx,
         sr
 ):
+
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -185,6 +214,12 @@ def write_topography_singledem_lnshp(
         sr
 ):
 
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
+
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
     if shape_driver is None:
@@ -265,6 +300,12 @@ def write_topography_multidems_csv(
         sep=","
 ):
 
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
+
     try:
         with open(str(fileName), 'w') as f:
             f.write(sep.join(multi_dems_headers) + '\n')
@@ -286,6 +327,12 @@ def write_topography_multidems_ptshp(
         multiprofile_dem_data,
         sr
 ):
+
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -340,7 +387,7 @@ def write_topography_multidems_ptshp(
             pt_feature.SetGeometry(pt)
 
             pt_feature.SetField(field_names[0], prof_ndx)
-            pt_feature.SetField(header_list[1], profile_label)
+            pt_feature.SetField(field_names[1], profile_label)
             pt_feature.SetField(field_names[2], rec[0])
             pt_feature.SetField(field_names[3], rec[1])
             pt_feature.SetField(field_names[4], rec[2])
@@ -374,6 +421,12 @@ def write_topography_multidems_lnshp(
         multiprofile_dem_data,
         sr
 ):
+
+    labels, orders = preprocess_labels(
+        labels,
+        orders,
+        multiprofile_dem_data
+    )
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -451,7 +504,12 @@ def write_topography_multidems_lnshp(
     return True, "Done"
 
 
-def write_topography_gpx_ptshp(output_filepath, header_list, gpx_parsed_results, sr):
+def write_topography_gpx_ptshp(
+        output_filepath,
+        header_list,
+        gpx_parsed_results,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -515,7 +573,12 @@ def write_topography_gpx_ptshp(output_filepath, header_list, gpx_parsed_results,
     return True, "done"
 
 
-def write_topography_gpx_lnshp(output_filepath, header_list, gpx_parsed_results, sr):
+def write_topography_gpx_lnshp(
+        output_filepath,
+        header_list,
+        gpx_parsed_results,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -582,7 +645,11 @@ def write_topography_gpx_lnshp(output_filepath, header_list, gpx_parsed_results,
     return True, "done"
 
 
-def write_geological_attitudes_ptshp(fileName, parsed_crosssect_results, sr):
+def write_geological_attitudes_ptshp(
+        fileName,
+        parsed_crosssect_results,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -649,7 +716,12 @@ def write_geological_attitudes_ptshp(fileName, parsed_crosssect_results, sr):
     return True, "done"
 
 
-def write_intersection_line_csv(output_filepath, header_list, parsed_results, sep=","):
+def write_intersection_line_csv(
+        output_filepath,
+        header_list,
+        parsed_results,
+        sep=","
+):
 
     try:
         with open(str(output_filepath), 'w') as f:
@@ -664,7 +736,12 @@ def write_intersection_line_csv(output_filepath, header_list, parsed_results, se
         return False, e.message
 
 
-def write_intersection_line_ptshp(fileName, header_list, intersline_results, sr):
+def write_intersection_line_ptshp(
+        fileName,
+        header_list,
+        intersline_results,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -715,7 +792,12 @@ def write_intersection_line_ptshp(fileName, header_list, intersline_results, sr)
     return True, "done"
 
 
-def write_intersection_polygon_lnshp(fileName, header_list, intersline_results, sr):
+def write_intersection_polygon_lnshp(
+        fileName,
+        header_list,
+        intersline_results,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)

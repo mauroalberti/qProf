@@ -78,6 +78,16 @@ class qprof_QWidget(QWidget):
 
         self.setup_gui()
 
+    def init_topo_labels(self):
+        """
+        Initialize topographic label and order parameters.
+
+        :return:
+        """
+
+        self.profiles_labels = None
+        self.profiles_order = None
+
     def setup_gui(self):
 
         self.dialog_layout = QVBoxLayout()
@@ -538,6 +548,8 @@ class qprof_QWidget(QWidget):
 
                 return line_layer, multiple_profiles, label_field_ndx, order_field_ndx
 
+            self.init_topo_labels()
+
             current_line_layers = loaded_line_layers()
 
             if len(current_line_layers) == 0:
@@ -633,6 +645,8 @@ class qprof_QWidget(QWidget):
 
                 return line2d
 
+            self.init_topo_labels()
+
             dialog = LoadPointListDialog(self.plugin_name)
 
             if dialog.exec_():
@@ -664,6 +678,8 @@ class qprof_QWidget(QWidget):
                 self.digitize_maptool.moved.connect(self.canvas_refresh_profile_line)
                 self.digitize_maptool.leftClicked.connect(self.profile_add_point)
                 self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
+
+            self.init_topo_labels()
 
             qprof_QWidget.map_digitations += 1
 

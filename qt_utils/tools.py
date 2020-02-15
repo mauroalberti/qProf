@@ -3,19 +3,20 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
+
 def info(parent, header, msg):
     
-    QMessageBox.information(parent, header, msg)
+    QMessageBox.information(parent, header, str(msg))
 
 
 def warn(parent, header, msg):
 
-    QMessageBox.warning(parent, header, msg)
+    QMessageBox.warning(parent, header, str(msg))
 
 
 def error(parent, header, msg):
 
-    QMessageBox.error(parent, header, msg)
+    QMessageBox.error(parent, header, str(msg))
     
     
 def update_ComboBox(combobox, init_choice, names):

@@ -82,7 +82,7 @@ def write_generic_csv(output_filepath, header_list, parsed_results, sep=","):
                 f.write(out_rec_string[:-1] + '\n')
         return True, "done"
     except Exception as e:
-        return False, e.message
+        return False, e
 
 
 def write_topography_singledem_csv(
@@ -733,7 +733,7 @@ def write_intersection_line_csv(
                     f.write(sep.join(out_val_strings) + '\n')
         return True, "done"
     except Exception as e:
-        return False, e.message
+        return False, e
 
 
 def write_intersection_line_ptshp(

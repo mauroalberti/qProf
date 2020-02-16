@@ -107,7 +107,7 @@ def plot_geoprofiles(geoprofiles, plot_addit_params, slope_padding=0.2):
 
             return axes
 
-        topo_profiles = geoprofile.profile_elevations
+        topo_profiles = geoprofile.topo_profiles
         topoline_colors = plot_params['elev_lyr_colors']
         topoline_visibilities = plot_params['visible_elev_lyrs']
 
@@ -177,16 +177,16 @@ def plot_geoprofiles(geoprofiles, plot_addit_params, slope_padding=0.2):
     for ndx in range(geoprofiles.geoprofiles_num):
 
         geoprofile = geoprofiles.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile.profile_elevations.profile_length
+        plot_s_min, plot_s_max = 0, geoprofile.topo_profiles.profile_length
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:
 
             # defines slope value lists and the min and max values
             if plot_params['plot_slope_absolute']:
-                slopes = geoprofile.profile_elevations.absolute_slopes
+                slopes = geoprofile.topo_profiles.absolute_slopes
             else:
-                slopes = geoprofile.profile_elevations.profile_dirslopes
+                slopes = geoprofile.topo_profiles.profile_dirslopes
 
             profiles_slope_min = np.nanmin(np.array(list(map(np.nanmin, slopes))))
             profiles_slope_max = np.nanmax(np.array(list(map(np.nanmax, slopes))))

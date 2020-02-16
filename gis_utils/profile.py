@@ -26,7 +26,7 @@ class GeoProfilesSet(object):
     def __init__(self, name=""):
 
         self._name = name
-        self._geoprofiles = []  # a list of ProfileElements instances
+        self._geoprofiles = []
         self.profiles_created = False
         self.plot_params = None
 
@@ -92,9 +92,7 @@ class GeoProfile(object):
         self.sample_distance = None  # max spacing along profile; float
         self.resampled_line = None
 
-        #self.plot_params = None
-
-        self.profile_elevations = None  # instance of ProfileElevations
+        self.topo_profiles = None  # instance of ProfileElevations
         self.geoplane_attitudes = []
         self.geosurfaces = []
         self.geosurfaces_ids = []
@@ -103,7 +101,7 @@ class GeoProfile(object):
 
     def set_topo_profiles(self, topo_profiles):
 
-        self.profile_elevations = topo_profiles
+        self.topo_profiles = topo_profiles
 
     def add_intersections_pts(self, intersection_list):
 
@@ -115,16 +113,16 @@ class GeoProfile(object):
 
     def get_current_dem_names(self):
 
-        return self.profile_elevations.surface_names
+        return self.topo_profiles.surface_names
 
     def max_s(self):
-        return self.profile_elevations.max_s()
+        return self.topo_profiles.max_s()
 
     def min_z_topo(self):
-        return self.profile_elevations.min_z()
+        return self.topo_profiles.min_z()
 
     def max_z_topo(self):
-        return self.profile_elevations.max_z()
+        return self.topo_profiles.max_z()
 
     def min_z_plane_attitudes(self):
 
@@ -186,7 +184,7 @@ class ProfileElevations(object):
 
     def __init__(self):
 
-        self.line_source = None
+        #self.line_source = None
         self.dem_params = []
         self.gpx_params = None
 
@@ -265,8 +263,14 @@ def topoline_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, 
     return ln3dtProfile
 
 
-def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selected_dems, selected_dem_parameters,
-                           invert_profile):
+def topoprofiles_from_dems(
+        canvas,
+        source_profile_line,
+        sample_distance,
+        selected_dems,
+        selected_dem_parameters,
+        invert_profile
+):
     
     # get project CRS information
     on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
@@ -282,11 +286,15 @@ def topoprofiles_from_dems(canvas, source_profile_line, sample_distance, selecte
 
     dem_topolines3d = []
     for dem, dem_params in zip(selected_dems, selected_dem_parameters):
-        dem_topoline3d = topoline_from_dem(resampled_line,
-                                           on_the_fly_projection,
-                                           project_crs,
-                                           dem,
-                                           dem_params)
+
+        dem_topoline3d = topoline_from_dem(
+            resampled_line,
+            on_the_fly_projection,
+            project_crs,
+            dem,
+            dem_params
+        )
+
         dem_topolines3d.append(dem_topoline3d)
 
     # setup topoprofiles properties

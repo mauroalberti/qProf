@@ -15,7 +15,7 @@ img { max-width: 95%; }
 <body>
 
 <h1>qProf help</h1>
-<h3>vers. 0.4.2</h3>
+<h3>vers. 0.4.3</h3>
 
 <div style="font-size: 90%; font-style: italic;">
 	Plugin creators: M. Alberti and M. Zanieri.
@@ -139,13 +139,16 @@ The created profile will be created using the assigned project CRS if defined. O
 <h5>2.1.1.2 Single or multiple lines stored in a layer</h5>
 
 <div>
-    When using a line layer, all the elements will be used, unless there are selected lines.
+    When using a line layer, all its elements will be used, unless there are selected lines.
 	<br/><br/>
-    If the "<i>Layer has multiple profiles</i>" option is checked, each line will be considered to constitute an individual profile.
+    If the "<i>Layer with multiple profiles</i>" option is checked, each line will be considered to constitute an individual profile.
+	The name of each profile (to be used in the data export) will be extracted from the field optionally defined as "<i>label field</i>".
+
+	<br/> <br/>
 	The plot order for these individual profiles can be set using the "<i>Line order field</i>" option,
 	otherwise profiles will be plot in the order in which they are found in the attribute table.
-    <br/><br/>
-	When the "<i>Layer has multiple profiles</i>" option is <u>not</u> checked and there is more than one line in the layer, these lines will be
+   <br/>
+	When the "<i>Layer with multiple profiles</i>" option is <u>not</u> checked and there is more than one line in the layer, these lines will be
 	merged into a single one, eventually using, if defined, the order stored in the "<i>Line order field</i>" optional field (integer field with order values starting from 1).
 	Otherwise, the internal line order in the layer would be used, but since sometimes errors in the profile sequence are observed due
 	to an incorrect line sequencing in the attribute table of the layer, this problem could be fixed by setting a correct line order in the <i>line order field</i>.
@@ -341,7 +344,7 @@ With the polygon intersection tool, the colors for the resulting intersection wi
 <div style="font-size: 85%; font-style: italic;">
 -----
 <br /><br />
-Doc version 2018-08-17, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
+Doc version 2020-02-16, by Mauro Alberti - <a href="mailto:alberti.m65@gmail.com">alberti.m65@gmail.com</a>
 </div>
 
 <br /><br />

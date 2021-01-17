@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 from builtins import zip
 from builtins import str
@@ -26,7 +25,12 @@ def preprocess_labels(
     return labels, orders
 
 
-def write_rubberband_profile_lnshp(fileName, header_list, points, sr):
+def write_rubberband_profile_lnshp(
+        fileName,
+        header_list,
+        points,
+        sr
+):
 
     shape_driver_name = "ESRI Shapefile"
     shape_driver = ogr.GetDriverByName(shape_driver_name)
@@ -70,7 +74,12 @@ def write_rubberband_profile_lnshp(fileName, header_list, points, sr):
     return True, "done"
 
 
-def write_generic_csv(output_filepath, header_list, parsed_results, sep=","):
+def write_generic_csv(
+        output_filepath,
+        header_list,
+        parsed_results,
+        sep: str = ","
+):
 
     try:
         with open(str(output_filepath), 'w') as f:
@@ -92,7 +101,7 @@ def write_topography_singledem_csv(
         orders,
         multiprofile_dem_data,
         current_dem_ndx,
-        sep=","
+        sep: str = ","
 ):
 
     labels, orders = preprocess_labels(
@@ -297,7 +306,7 @@ def write_topography_multidems_csv(
         labels,
         orders,
         multiprofile_dem_data,
-        sep=","
+        sep: str = ","
 ):
 
     labels, orders = preprocess_labels(
@@ -720,7 +729,7 @@ def write_intersection_line_csv(
         output_filepath,
         header_list,
         parsed_results,
-        sep=","
+        sep: str = ","
 ):
 
     try:

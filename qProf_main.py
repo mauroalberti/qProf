@@ -1,5 +1,7 @@
-from __future__ import absolute_import
-from builtins import object
+
+#from __future__ import absolute_import
+#from builtins import object
+
 import os
 import webbrowser
 
@@ -11,21 +13,18 @@ from qgis.PyQt.QtWidgets import *
 
 from . import resources
 
-
 from .qt_utils.tools import info, warn, error, update_ComboBox
 from .qgis_utils.utils import create_action
+from .config.params import *
 
 from .qProf_QWidget import qprof_QWidget
-
-_plugin_name_ = "qProf"
-_version_ = "0.4.2"
 
 
 class qProf_main(object):
 
     def __init__(self, interface):
 
-        self.plugin_name = _plugin_name_
+        self.plugin_name = plugin_name
         self.interface = interface
         self.main_window = self.interface.mainWindow()
         self.canvas = self.interface.mapCanvas()
@@ -55,7 +54,7 @@ class qProf_main(object):
         if project.count() == 0:
             warn(
                 parent=None,
-                header=_plugin_name_,
+                header=plugin_name,
                 msg="No project/layer available.\nPlease open project and add layers.")
             return
 

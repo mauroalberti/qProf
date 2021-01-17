@@ -1,24 +1,29 @@
 
+'''
 from builtins import zip
 from builtins import str
 from builtins import map
 from builtins import range
+'''
+
 import numpy as np
 
 from matplotlib import gridspec
 
-from.gis_utils.qgs_tools import qcolor2rgbmpl
+from .gis_utils.qgs_tools import qcolor2rgbmpl
 from .gis_utils.profile import define_plot_structural_segment
 from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+from .config.settings import *
 
 
-colors_addit = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen",
-                "palevioletred",
-                "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
-                "chartreuse"]
-
-
-def plot_structural_attitude(plot_addit_params, axes, section_length, vertical_exaggeration, structural_attitude_list, color):
+def plot_structural_attitude(
+        plot_addit_params,
+        axes,
+        section_length,
+        vertical_exaggeration,
+        structural_attitude_list,
+        color
+):
 
     # TODO:  manage case for possible nan z values
     projected_z = [structural_attitude.pt_3d.z for structural_attitude in structural_attitude_list if
@@ -62,7 +67,11 @@ def plot_structural_attitude(plot_addit_params, axes, section_length, vertical_e
             axes.annotate(label, (s + 15, z + 15))
 
 
-def plot_projected_line_set(axes, curve_set, labels):
+def plot_projected_line_set(
+        axes,
+        curve_set,
+        labels
+):
 
     colors = colors_addit * (int(len(curve_set) / len(colors_addit)) + 1)
     for multiline_2d, label, color in zip(curve_set, labels, colors):
@@ -70,7 +79,10 @@ def plot_projected_line_set(axes, curve_set, labels):
             plot_line(axes, line_2d.x_list, line_2d.y_list, color, name=label)
 
 
-def plot_profile_lines_intersection_points(axes, profile_lines_intersection_points):
+def plot_profile_lines_intersection_points(
+        axes,
+        profile_lines_intersection_points
+):
 
     for s, pt3d, intersection_id, color in profile_lines_intersection_points:
         axes.plot(s, pt3d.z, 'o', color=color)
@@ -78,7 +90,11 @@ def plot_profile_lines_intersection_points(axes, profile_lines_intersection_poin
             axes.annotate(str(intersection_id), (s + 25, pt3d.z + 25))
 
 
-def plot_profile_polygon_intersection_line(plot_addit_params, axes, intersection_line_value):
+def plot_profile_polygon_intersection_line(
+        plot_addit_params,
+        axes,
+        intersection_line_value
+):
 
     classification, line3d, s_list = intersection_line_value
     z_list = [pt3d.z for pt3d in line3d.pts]
@@ -91,11 +107,26 @@ def plot_profile_polygon_intersection_line(plot_addit_params, axes, intersection
     plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
 
-def plot_geoprofiles(geoprofiles, plot_addit_params, slope_padding=0.2):
+def plot_geoprofiles(
+        geoprofiles,
+        plot_addit_params,
+        slope_padding=0.2
+):
 
-    def plot_topo_profile_lines(grid_spec, ndx_subplot, topo_type, plot_x_range, plot_y_range, filled_choice):
+    def plot_topo_profile_lines(
+            grid_spec,
+            ndx_subplot,
+            topo_type,
+            plot_x_range,
+            plot_y_range,
+            filled_choice
+    ):
 
-        def create_axes(profile_window, plot_x_range, plot_y_range):
+        def create_axes(
+                profile_window,
+                plot_x_range,
+                plot_y_range
+        ):
 
             x_min, x_max = plot_x_range
             y_min, y_max = plot_y_range

@@ -1,13 +1,15 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
+#from __future__ import absolute_import
 from typing import Optional, Tuple
 
 import numbers
 
+'''
 from builtins import zip
 from builtins import str
 from builtins import range
+'''
+
 import os
 import unicodedata
 
@@ -46,8 +48,20 @@ from .qProf_export import write_intersection_polygon_lnshp, write_topography_mul
 
 class qprof_QWidget(QWidget):
 
-    colors = ['orange', 'green', 'red', 'grey', 'brown', 'yellow', 'magenta', 'black', 'blue', 'white', 'cyan',
-              'chartreuse']
+    colors = [
+        'orange',
+        'green',
+        'red',
+        'grey',
+        'brown',
+        'yellow',
+        'magenta',
+        'black',
+        'blue',
+        'white',
+        'cyan',
+        'chartreuse'
+    ]
 
     map_digitations = 0
 
@@ -313,9 +327,21 @@ class qprof_QWidget(QWidget):
 
         def define_source_DEMs():
 
-            def get_dem_resolution_in_prj_crs(dem, dem_params, on_the_fly_projection, prj_crs):
+            def get_dem_resolution_in_prj_crs(
+                    dem,
+                    dem_params,
+                    on_the_fly_projection,
+                    prj_crs
+            ):
 
-                def distance_projected_pts(x, y, delta_x, delta_y, src_crs, dest_crs):
+                def distance_projected_pts(
+                        x,
+                        y,
+                        delta_x,
+                        delta_y,
+                        src_crs,
+                        dest_crs
+                ):
 
                     qgspt_start_src_crs = qgs_pt(x, y)
                     qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
@@ -402,7 +428,12 @@ class qprof_QWidget(QWidget):
 
         def save_rubberband():
 
-            def output_profile_line(output_format, output_filepath, pts2dt, proj_sr):
+            def output_profile_line(
+                    output_format,
+                    output_filepath,
+                    pts2dt,
+                    proj_sr
+            ):
 
                 points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
                 if output_format == "csv":
@@ -861,12 +892,14 @@ class qprof_QWidget(QWidget):
 
         self.qpbtDigitizeLine = QPushButton(self.tr("Digitize line"))
         self.qpbtDigitizeLine.clicked.connect(digitize_line)
-        self.qpbtDigitizeLine.setToolTip("Digitize a line on the map.\n"
-                                                     "Left click: add point\n"
-                                                     "Right click: end adding point\n"
-                                                     "From: Define topographic sources (below)\n"
-                                                     "you can use also an existing line\n"
-                                                     "or a point list")
+        self.qpbtDigitizeLine.setToolTip(
+            "Digitize a line on the map.\n"
+            "Left click: add point\n"
+            "Right click: end adding point\n"
+            "From: Define topographic sources (below)\n"
+            "you can use also an existing line\n"
+            "or a point list"
+        )
         qlytInputLine.addWidget(self.qpbtDigitizeLine, 0, 1, 1, 1)
 
         self.qpbtClearLine = QPushButton(self.tr("Clear"))
@@ -910,15 +943,21 @@ class qprof_QWidget(QWidget):
         qwdgGPXInput = QWidget()
         qlytGPXInput = QGridLayout()
 
-        qlytGPXInput.addWidget(QLabel(self.tr("Choose input file:")), 0, 0, 1, 1)
+        qlytGPXInput.addWidget(
+            QLabel(self.tr("Choose input file:")),
+            0, 0, 1, 1)
 
         self.qlneInputGPXFile = QLineEdit()
         self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
-        qlytGPXInput.addWidget(self.qlneInputGPXFile, 0, 1, 1, 1)
+        qlytGPXInput.addWidget(
+            self.qlneInputGPXFile,
+            0, 1, 1, 1)
 
         self.qphbInputGPXFile = QPushButton("...")
         self.qphbInputGPXFile.clicked.connect(select_input_gpx_file)
-        qlytGPXInput.addWidget(self.qphbInputGPXFile, 0, 2, 1, 1)
+        qlytGPXInput.addWidget(
+            self.qphbInputGPXFile,
+            0, 2, 1, 1)
 
         qwdgGPXInput.setLayout(qlytGPXInput)
 
@@ -935,17 +974,25 @@ class qprof_QWidget(QWidget):
 
         self.qrbtDEMDataType = QRadioButton("DEM input")
         self.qrbtDEMDataType.setChecked(True)
-        qlytDoTopoDataRead.addWidget(self.qrbtDEMDataType, 0, 0, 1, 1)
+        qlytDoTopoDataRead.addWidget(
+            self.qrbtDEMDataType,
+            0, 0, 1, 1)
 
         self.qrbtGPXDataType = QRadioButton("GPX input")
-        qlytDoTopoDataRead.addWidget(self.qrbtGPXDataType, 0, 1, 1, 1)
+        qlytDoTopoDataRead.addWidget(
+            self.qrbtGPXDataType,
+            0, 1, 1, 1)
 
         self.qcbxInvertProfile = QCheckBox("Invert orientation")
-        qlytDoTopoDataRead.addWidget(self.qcbxInvertProfile, 0, 2, 1, 1)
+        qlytDoTopoDataRead.addWidget(
+            self.qcbxInvertProfile,
+            0, 2, 1, 1)
 
         self.qpbtReadData = QPushButton("Read source data")
         self.qpbtReadData.clicked.connect(create_topo_profiles)
-        qlytDoTopoDataRead.addWidget(self.qpbtReadData, 1, 0, 1, 3)
+        qlytDoTopoDataRead.addWidget(
+            self.qpbtReadData,
+            1, 0, 1, 3)
 
         qwgtDoTopoDataRead.setLayout(qlytDoTopoDataRead)
 
@@ -967,7 +1014,9 @@ class qprof_QWidget(QWidget):
         self.qpbtProfileStats = QPushButton(self.tr("Calculate profile statistics"))
         self.qpbtProfileStats.clicked.connect(calculate_profile_statistics)
 
-        qlytProfStats.addWidget(self.qpbtProfileStats, 0, 0, 1, 3)
+        qlytProfStats.addWidget(
+            self.qpbtProfileStats,
+            0, 0, 1, 3)
 
         qgbxProfStats.setLayout(qlytProfStats)
 
@@ -1016,35 +1065,53 @@ class qprof_QWidget(QWidget):
 
         # input point geological layer
 
-        qlytXsInputPointProj.addWidget(QLabel("Layer "), 0, 0, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            QLabel("Layer "),
+            0, 0, 1, 1)
         self.prj_struct_point_comboBox = QComboBox()
         self.prj_struct_point_comboBox.currentIndexChanged[int].connect(self.update_point_layers_boxes)
 
-        qlytXsInputPointProj.addWidget(self.prj_struct_point_comboBox, 0, 1, 1, 6)
+        qlytXsInputPointProj.addWidget(
+            self.prj_struct_point_comboBox,
+            0, 1, 1, 6)
         self.struct_point_refresh_lyr_combobox()
 
-        qlytXsInputPointProj.addWidget(QLabel("Fields:"), 1, 0, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            QLabel("Fields:"),
+            1, 0, 1, 1)
 
-        qlytXsInputPointProj.addWidget(QLabel("Id"), 1, 1, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            QLabel("Id"),
+            1, 1, 1, 1)
 
         self.proj_point_id_fld_comboBox = QComboBox()
-        qlytXsInputPointProj.addWidget(self.proj_point_id_fld_comboBox, 1, 2, 1, 1)
-
-
+        qlytXsInputPointProj.addWidget(
+            self.proj_point_id_fld_comboBox,
+            1, 2, 1, 1)
 
         self.qrbtPlotPrjUseDipDir = QRadioButton("Dip dir.")
         self.qrbtPlotPrjUseDipDir.setChecked(True)
-        qlytXsInputPointProj.addWidget(self.qrbtPlotPrjUseDipDir, 1, 3, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            self.qrbtPlotPrjUseDipDir,
+            1, 3, 1, 1)
 
         self.qrbtPlotPrjUseRhrStrike = QRadioButton("RHR str.")
-        qlytXsInputPointProj.addWidget(self.qrbtPlotPrjUseRhrStrike, 2, 3, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            self.qrbtPlotPrjUseRhrStrike,
+            2, 3, 1, 1)
 
         self.qcbxProjPointOrientFld = QComboBox()
-        qlytXsInputPointProj.addWidget(self.qcbxProjPointOrientFld, 1, 4, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            self.qcbxProjPointOrientFld,
+            1, 4, 1, 1)
 
-        qlytXsInputPointProj.addWidget(QLabel("Dip"), 1, 5, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            QLabel("Dip"),
+            1, 5, 1, 1)
         self.qcbxProjPointDipAngFld = QComboBox()
-        qlytXsInputPointProj.addWidget(self.qcbxProjPointDipAngFld, 1, 6, 1, 1)
+        qlytXsInputPointProj.addWidget(
+            self.qcbxProjPointDipAngFld,
+            1, 6, 1, 1)
 
         qgbxXsInputPointProj.setLayout(qlytXsInputPointProj)
         qlytXsPointProj.addWidget(qgbxXsInputPointProj)
@@ -1058,34 +1125,52 @@ class qprof_QWidget(QWidget):
 
         self.nearest_point_proj_choice = QRadioButton("nearest intersection")
         self.nearest_point_proj_choice.setChecked(True)
-        xs_method_point_proj_Layout.addWidget(self.nearest_point_proj_choice, 0, 0, 1, 3)
+        xs_method_point_proj_Layout.addWidget(
+            self.nearest_point_proj_choice,
+            0, 0, 1, 3)
 
         self.axis_common_point_proj_choice = QRadioButton("axis with trend")
-        xs_method_point_proj_Layout.addWidget(self.axis_common_point_proj_choice, 1, 0, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.axis_common_point_proj_choice,
+            1, 0, 1, 1)
 
         self.common_axis_point_trend_SpinBox = QDoubleSpinBox()
         self.common_axis_point_trend_SpinBox.setMinimum(0.0)
         self.common_axis_point_trend_SpinBox.setMaximum(359.9)
         self.common_axis_point_trend_SpinBox.setDecimals(1)
-        xs_method_point_proj_Layout.addWidget(self.common_axis_point_trend_SpinBox, 1, 1, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.common_axis_point_trend_SpinBox,
+            1, 1, 1, 1)
 
-        xs_method_point_proj_Layout.addWidget(QLabel("and plunge"), 1, 2, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            QLabel("and plunge"),
+            1, 2, 1, 1)
 
         self.common_axis_point_plunge_SpinBox = QDoubleSpinBox()
         self.common_axis_point_plunge_SpinBox.setMinimum(0.0)
         self.common_axis_point_plunge_SpinBox.setMaximum(89.9)
         self.common_axis_point_plunge_SpinBox.setDecimals(1)
-        xs_method_point_proj_Layout.addWidget(self.common_axis_point_plunge_SpinBox, 1, 3, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.common_axis_point_plunge_SpinBox,
+            1, 3, 1, 1)
 
         self.axis_individual_point_proj_choice = QRadioButton("axes from trend field")
-        xs_method_point_proj_Layout.addWidget(self.axis_individual_point_proj_choice, 2, 0, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.axis_individual_point_proj_choice,
+            2, 0, 1, 1)
 
         self.proj_point_indivax_trend_fld_comboBox = QComboBox()
-        xs_method_point_proj_Layout.addWidget(self.proj_point_indivax_trend_fld_comboBox, 2, 1, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.proj_point_indivax_trend_fld_comboBox,
+            2, 1, 1, 1)
 
-        xs_method_point_proj_Layout.addWidget(QLabel("and plunge field"), 2, 2, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            QLabel("and plunge field"),
+            2, 2, 1, 1)
         self.proj_point_indivax_plunge_fld_comboBox = QComboBox()
-        xs_method_point_proj_Layout.addWidget(self.proj_point_indivax_plunge_fld_comboBox, 2, 3, 1, 1)
+        xs_method_point_proj_Layout.addWidget(
+            self.proj_point_indivax_plunge_fld_comboBox,
+            2, 3, 1, 1)
 
         xs_method_point_proj_QGroupBox.setLayout(xs_method_point_proj_Layout)
         qlytXsPointProj.addWidget(xs_method_point_proj_QGroupBox)
@@ -1097,43 +1182,61 @@ class qprof_QWidget(QWidget):
 
         xs_plot_proj_Layout = QGridLayout()
 
-        xs_plot_proj_Layout.addWidget(QLabel("Labels"), 0, 0, 1, 1)
+        xs_plot_proj_Layout.addWidget(
+            QLabel("Labels"),
+            0, 0, 1, 1)
 
         self.plot_prj_add_trendplunge_label = QCheckBox("or./dip")
-        xs_plot_proj_Layout.addWidget(self.plot_prj_add_trendplunge_label, 0, 1, 1, 1)
+        xs_plot_proj_Layout.addWidget(
+            self.plot_prj_add_trendplunge_label,
+            0, 1, 1, 1)
 
         self.plot_prj_add_pt_id_label = QCheckBox("id")
-        xs_plot_proj_Layout.addWidget(self.plot_prj_add_pt_id_label, 0, 2, 1, 1)
+        xs_plot_proj_Layout.addWidget(
+            self.plot_prj_add_pt_id_label,
+            0, 2, 1, 1)
 
-        xs_plot_proj_Layout.addWidget(QLabel("Color"), 0, 3, 1, 1)
+        xs_plot_proj_Layout.addWidget(
+            QLabel("Color"),
+            0, 3, 1, 1)
 
         self.proj_point_color_QgsColorButton = QgsColorButton()
         self.proj_point_color_QgsColorButton.setColor(QColor('orange'))
-        xs_plot_proj_Layout.addWidget(self.proj_point_color_QgsColorButton, 0, 4, 1, 1)
+        xs_plot_proj_Layout.addWidget(
+            self.proj_point_color_QgsColorButton,
+            0, 4, 1, 1)
 
         self.project_point_pushbutton = QPushButton(self.tr("Plot"))
         self.project_point_pushbutton.clicked.connect(self.create_struct_point_projection)
-        xs_plot_proj_Layout.addWidget(self.project_point_pushbutton, 1, 0, 1, 3)
+        xs_plot_proj_Layout.addWidget(
+            self.project_point_pushbutton,
+            1, 0, 1, 3)
 
         self.reset_point_pushbutton = QPushButton(self.tr("Reset plot"))
         self.reset_point_pushbutton.clicked.connect(self.reset_struct_point_projection)
 
-        xs_plot_proj_Layout.addWidget(self.reset_point_pushbutton, 1, 3, 1, 2)
+        xs_plot_proj_Layout.addWidget(
+            self.reset_point_pushbutton,
+            1, 3, 1, 2)
 
         xs_plot_proj_QGroupBox.setLayout(xs_plot_proj_Layout)
         qlytXsPointProj.addWidget(xs_plot_proj_QGroupBox)
 
-        self.flds_prj_point_comboBoxes = [self.proj_point_id_fld_comboBox,
-                                          self.qcbxProjPointOrientFld,
-                                          self.qcbxProjPointDipAngFld,
-                                          self.proj_point_indivax_trend_fld_comboBox,
-                                          self.proj_point_indivax_plunge_fld_comboBox]
+        self.flds_prj_point_comboBoxes = [
+            self.proj_point_id_fld_comboBox,
+            self.qcbxProjPointOrientFld,
+            self.qcbxProjPointDipAngFld,
+            self.proj_point_indivax_trend_fld_comboBox,
+            self.proj_point_indivax_plunge_fld_comboBox
+        ]
 
         ##
 
         xs_point_proj_QWidget.setLayout(qlytXsPointProj)
-        geology_toolbox.addItem(xs_point_proj_QWidget,
-                                "Project geological attitudes")
+        geology_toolbox.addItem(
+            xs_point_proj_QWidget,
+            "Project geological attitudes"
+        )
 
         ## END Point project toolbox
 
@@ -1151,18 +1254,30 @@ class qprof_QWidget(QWidget):
 
         # input geological layer
 
-        xs_input_line_proj_Layout.addWidget(QLabel("Layer"), 0, 0, 1, 1)
+        xs_input_line_proj_Layout.addWidget(
+            QLabel("Layer"),
+            0, 0, 1, 1)
         self.prj_input_line_comboBox = QComboBox()
 
-        xs_input_line_proj_Layout.addWidget(self.prj_input_line_comboBox, 0, 1, 1, 3)
+        xs_input_line_proj_Layout.addWidget(
+            self.prj_input_line_comboBox,
+            0, 1, 1, 3)
 
-        xs_input_line_proj_Layout.addWidget(QLabel("Id field"), 1, 0, 1, 1)
+        xs_input_line_proj_Layout.addWidget(
+            QLabel("Id field"),
+            1, 0, 1, 1)
         self.id_fld_line_prj_comboBox = QComboBox()
-        xs_input_line_proj_Layout.addWidget(self.id_fld_line_prj_comboBox, 1, 1, 1, 3)
+        xs_input_line_proj_Layout.addWidget(
+            self.id_fld_line_prj_comboBox,
+            1, 1, 1, 3)
 
-        xs_input_line_proj_Layout.addWidget(QLabel("Line densify distance"), 2, 0, 1, 1)
+        xs_input_line_proj_Layout.addWidget(
+            QLabel("Line densify distance"),
+            2, 0, 1, 1)
         self.project_line_densify_distance_lineedit = QLineEdit()
-        xs_input_line_proj_Layout.addWidget(self.project_line_densify_distance_lineedit, 2, 1, 1, 3)
+        xs_input_line_proj_Layout.addWidget(
+            self.project_line_densify_distance_lineedit,
+            2, 1, 1, 3)
 
         self.flds_prj_line_comboBoxes = [self.id_fld_line_prj_comboBox]
 
@@ -1176,34 +1291,48 @@ class qprof_QWidget(QWidget):
 
         xs_method_line_proj_Layout = QGridLayout()
 
-        xs_method_line_proj_Layout.addWidget(QLabel("Projection axis:"), 0, 0, 1, 1)
+        xs_method_line_proj_Layout.addWidget(
+            QLabel("Projection axis:"),
+            0, 0, 1, 1)
 
-        xs_method_line_proj_Layout.addWidget(QLabel("trend"), 0, 1, 1, 1)
+        xs_method_line_proj_Layout.addWidget(
+            QLabel("trend"),
+            0, 1, 1, 1)
 
         self.common_axis_line_trend_SpinBox = QDoubleSpinBox()
         self.common_axis_line_trend_SpinBox.setMinimum(0.0)
         self.common_axis_line_trend_SpinBox.setMaximum(359.9)
         self.common_axis_line_trend_SpinBox.setDecimals(1)
-        xs_method_line_proj_Layout.addWidget(self.common_axis_line_trend_SpinBox, 0, 2, 1, 1)
+        xs_method_line_proj_Layout.addWidget(
+            self.common_axis_line_trend_SpinBox,
+            0, 2, 1, 1)
 
-        xs_method_line_proj_Layout.addWidget(QLabel("plunge"), 0, 3, 1, 1)
+        xs_method_line_proj_Layout.addWidget(
+            QLabel("plunge"),
+            0, 3, 1, 1)
 
         self.common_axis_line_plunge_SpinBox = QDoubleSpinBox()
         self.common_axis_line_plunge_SpinBox.setMinimum(0.0)
         self.common_axis_line_plunge_SpinBox.setMaximum(89.9)
         self.common_axis_line_plunge_SpinBox.setDecimals(1)
-        xs_method_line_proj_Layout.addWidget(self.common_axis_line_plunge_SpinBox, 0, 4, 1, 1)
+        xs_method_line_proj_Layout.addWidget(
+            self.common_axis_line_plunge_SpinBox,
+            0, 4, 1, 1)
 
         # calculate profile
 
         self.project_line_pushbutton = QPushButton(self.tr("Plot traces"))
         self.project_line_pushbutton.clicked.connect(self.create_struct_line_projection)
-        xs_method_line_proj_Layout.addWidget(self.project_line_pushbutton, 1, 0, 1, 5)
+        xs_method_line_proj_Layout.addWidget(
+            self.project_line_pushbutton,
+            1, 0, 1, 5)
 
         self.reset_curves_pushbutton = QPushButton(self.tr("Reset traces"))
         self.reset_curves_pushbutton.clicked.connect(self.reset_structural_lines_projection)
 
-        xs_method_line_proj_Layout.addWidget(self.reset_curves_pushbutton, 2, 0, 1, 5)
+        xs_method_line_proj_Layout.addWidget(
+            self.reset_curves_pushbutton,
+            2, 0, 1, 5)
 
         xs_method_line_proj_QGroupBox.setLayout(xs_method_line_proj_Layout)
         xs_line_proj_Layout.addWidget(xs_method_line_proj_QGroupBox)
@@ -1231,23 +1360,33 @@ class qprof_QWidget(QWidget):
 
         # input traces layer
 
-        inters_line_input_Layout.addWidget(QLabel("Line layer"), 0, 0, 1, 1)
+        inters_line_input_Layout.addWidget(
+            QLabel("Line layer"),
+            0, 0, 1, 1)
 
         self.inters_input_line_comboBox = QComboBox()
 
-        inters_line_input_Layout.addWidget(self.inters_input_line_comboBox, 0, 1, 1, 3)
+        inters_line_input_Layout.addWidget(
+            self.inters_input_line_comboBox,
+            0, 1, 1, 3)
         self.struct_line_refresh_lyr_combobox()
 
         inters_line_input_Layout.addWidget(QLabel("Id field"), 1, 0, 1, 1)
         self.inters_input_id_fld_line_comboBox = QComboBox()
-        inters_line_input_Layout.addWidget(self.inters_input_id_fld_line_comboBox, 1, 1, 1, 3)
+        inters_line_input_Layout.addWidget(
+            self.inters_input_id_fld_line_comboBox,
+            1, 1, 1, 3)
 
         self.flds_inters_line_comboBoxes = [self.inters_input_id_fld_line_comboBox]
 
-        inters_line_input_Layout.addWidget(QLabel("Color"), 2, 0, 1, 1)
+        inters_line_input_Layout.addWidget(
+            QLabel("Color"),
+            2, 0, 1, 1)
         self.inters_line_point_color_QgsColorButton = QgsColorButton()
         self.inters_line_point_color_QgsColorButton.setColor(QColor('blue'))
-        inters_line_input_Layout.addWidget(self.inters_line_point_color_QgsColorButton, 2, 1, 1, 1)
+        inters_line_input_Layout.addWidget(
+            self.inters_line_point_color_QgsColorButton,
+            2, 1, 1, 1)
 
         inters_line_input_QGroupBox.setLayout(inters_line_input_Layout)
         line_intersect_Layout.addWidget(inters_line_input_QGroupBox)
@@ -1261,11 +1400,15 @@ class qprof_QWidget(QWidget):
 
         self.inters_line_do_pushbutton = QPushButton(self.tr("Intersect"))
         self.inters_line_do_pushbutton.clicked.connect(self.do_line_intersection)
-        inters_line_do_Layout.addWidget(self.inters_line_do_pushbutton, 1, 0, 1, 4)
+        inters_line_do_Layout.addWidget(
+            self.inters_line_do_pushbutton,
+            1, 0, 1, 4)
 
         self.line_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections"))
         self.line_inters_reset_pushbutton.clicked.connect(self.reset_lineaments_intersections)
-        inters_line_do_Layout.addWidget(self.line_inters_reset_pushbutton, 2, 0, 1, 4)
+        inters_line_do_Layout.addWidget(
+            self.line_inters_reset_pushbutton,
+            2, 0, 1, 4)
 
         inters_line_do_QGroupBox.setLayout(inters_line_do_Layout)
         line_intersect_Layout.addWidget(inters_line_do_QGroupBox)
@@ -1292,16 +1435,24 @@ class qprof_QWidget(QWidget):
 
         # input traces layer
 
-        inters_polygon_input_Layout.addWidget(QLabel("Polygon layer"), 0, 0, 1, 1)
+        inters_polygon_input_Layout.addWidget(
+            QLabel("Polygon layer"),
+            0, 0, 1, 1)
 
         self.inters_input_polygon_comboBox = QComboBox()
 
-        inters_polygon_input_Layout.addWidget(self.inters_input_polygon_comboBox, 0, 1, 1, 3)
+        inters_polygon_input_Layout.addWidget(
+            self.inters_input_polygon_comboBox,
+            0, 1, 1, 3)
         self.struct_polygon_refresh_lyr_combobox()
 
-        inters_polygon_input_Layout.addWidget(QLabel("Classification field"), 1, 0, 1, 1)
+        inters_polygon_input_Layout.addWidget(
+            QLabel("Classification field"),
+            1, 0, 1, 1)
         self.inters_polygon_classifaction_field_comboBox = QComboBox()
-        inters_polygon_input_Layout.addWidget(self.inters_polygon_classifaction_field_comboBox, 1, 1, 1, 3)
+        inters_polygon_input_Layout.addWidget(
+            self.inters_polygon_classifaction_field_comboBox,
+            1, 1, 1, 3)
 
         self.flds_inters_polygon_comboBoxes = [self.inters_polygon_classifaction_field_comboBox]
 
@@ -1317,11 +1468,15 @@ class qprof_QWidget(QWidget):
 
         self.inters_polygon_do_pushbutton = QPushButton(self.tr("Intersect"))
         self.inters_polygon_do_pushbutton.clicked.connect(self.do_polygon_intersection)
-        inters_polygon_do_Layout.addWidget(self.inters_polygon_do_pushbutton, 1, 0, 1, 4)
+        inters_polygon_do_Layout.addWidget(
+            self.inters_polygon_do_pushbutton,
+            1, 0, 1, 4)
 
         self.polygon_inters_reset_pushbutton = QPushButton(self.tr("Reset intersections"))
         self.polygon_inters_reset_pushbutton.clicked.connect(self.reset_polygon_intersections)
-        inters_polygon_do_Layout.addWidget(self.polygon_inters_reset_pushbutton, 2, 0, 1, 4)
+        inters_polygon_do_Layout.addWidget(
+            self.polygon_inters_reset_pushbutton,
+            2, 0, 1, 4)
 
         inters_polygon_do_QGroupBox.setLayout(inters_polygon_do_Layout)
         polygon_intersect_Layout.addWidget(inters_polygon_do_QGroupBox)
@@ -1893,27 +2048,39 @@ class qprof_QWidget(QWidget):
         qlytExport = QGridLayout()
 
         self.qpbtExportImage = QPushButton("Figure")
-        qlytExport.addWidget(self.qpbtExportImage, 1, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportImage,
+            1, 0, 1, 4)
         self.qpbtExportImage.clicked.connect(do_export_image)
 
         self.qpbtExportTopographicProfile = QPushButton("Topographic profile data")
-        qlytExport.addWidget(self.qpbtExportTopographicProfile, 2, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportTopographicProfile,
+            2, 0, 1, 4)
         self.qpbtExportTopographicProfile.clicked.connect(do_export_topo_profiles)
 
         self.qpbtExportProjectGeolAttitudes = QPushButton("Projected geological attitude data")
-        qlytExport.addWidget(self.qpbtExportProjectGeolAttitudes, 3, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportProjectGeolAttitudes,
+            3, 0, 1, 4)
         self.qpbtExportProjectGeolAttitudes.clicked.connect(self.do_export_project_geol_attitudes)
 
         self.qpbtExportProjectGeolLines = QPushButton("Projected geological line data")
-        qlytExport.addWidget(self.qpbtExportProjectGeolLines, 4, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportProjectGeolLines,
+            4, 0, 1, 4)
         self.qpbtExportProjectGeolLines.clicked.connect(self.do_export_project_geol_traces)
 
         self.qpbtExportLineIntersections = QPushButton("Line intersection data")
-        qlytExport.addWidget(self.qpbtExportLineIntersections, 5, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportLineIntersections,
+            5, 0, 1, 4)
         self.qpbtExportLineIntersections.clicked.connect(self.do_export_line_intersections)
 
         self.qpbtExportPolygonIntersections = QPushButton("Polygon intersection data")
-        qlytExport.addWidget(self.qpbtExportPolygonIntersections, 6, 0, 1, 4)
+        qlytExport.addWidget(
+            self.qpbtExportPolygonIntersections,
+            6, 0, 1, 4)
         self.qpbtExportPolygonIntersections.clicked.connect(self.do_export_polygon_intersections)
 
         qgbxExport.setLayout(qlytExport)
@@ -2259,27 +2426,47 @@ class qprof_QWidget(QWidget):
         else:
             id_list = field_values(structural_line_layer, intersection_line_id_field_ndx)
 
-        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
-                                                                       project_crs)
+        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(
+            structural_line_layer,
+            on_the_fly_projection,
+            project_crs
+        )
 
         # calculated Point intersection list
-        intersection_point_id_list = calculate_profile_lines_intersection(line_proj_crs_MultiLine2D_list,
-                                                                          id_list,
-                                                                          geoprofile.original_line)
+        intersection_point_id_list = calculate_profile_lines_intersection(
+            line_proj_crs_MultiLine2D_list,
+            id_list,
+            geoprofile.original_line
+        )
 
         # sort intersection points by spat_distance from profile start point
-        lstDistancesFromProfileStart = intersection_distances_by_profile_start_list(geoprofile.original_line,
-                                                                                         intersection_point_id_list)
+        lstDistancesFromProfileStart = intersection_distances_by_profile_start_list(
+            geoprofile.original_line,
+            intersection_point_id_list
+        )
 
         # create CartesianPoint from intersection with source DEM
         lstIntersectionPoints = [pt2d for pt2d, _ in intersection_point_id_list]
         lstIntersectionIds = [id for _, id in intersection_point_id_list]
-        lstIntersectionPoints3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
-                                                            lstIntersectionPoints)
+        lstIntersectionPoints3d = intersect_with_dem(
+            demLayer,
+            demParams,
+            on_the_fly_projection,
+            project_crs,
+            lstIntersectionPoints
+        )
         lstIntersectionColors = [color] * len(lstIntersectionPoints)
 
         geoprofile.add_intersections_pts(
-            list(zip(lstDistancesFromProfileStart, lstIntersectionPoints3d, lstIntersectionIds, lstIntersectionColors)))
+            list(
+                zip(
+                        lstDistancesFromProfileStart,
+                        lstIntersectionPoints3d,
+                        lstIntersectionIds,
+                        lstIntersectionColors
+                    )
+            )
+        )
 
         # plot profiles
 
@@ -2289,34 +2476,47 @@ class qprof_QWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = self.plane_attitudes_colors
 
-        profile_window = plot_geoprofiles(self.input_geoprofiles,
-                                          plot_addit_params)
+        profile_window = plot_geoprofiles(
+            self.input_geoprofiles,
+            plot_addit_params
+        )
+
         self.profile_windows.append(profile_window)
 
     def struct_point_refresh_lyr_combobox(self):
 
         self.pointLayers = loaded_point_layers()
 
-        update_ComboBox(self.prj_struct_point_comboBox,
-                        self.choose_message,
-                        [layer.name() for layer in self.pointLayers])
+        update_ComboBox(
+            self.prj_struct_point_comboBox,
+            self.choose_message,
+            [layer.name() for layer in self.pointLayers]
+        )
 
     def struct_polygon_refresh_lyr_combobox(self):
 
         self.current_polygon_layers = loaded_polygon_layers()
-        update_ComboBox(self.inters_input_polygon_comboBox,
-                        self.choose_message,
-                        [layer.name() for layer in self.current_polygon_layers])
+        update_ComboBox(
+            self.inters_input_polygon_comboBox,
+            self.choose_message,
+            [layer.name() for layer in self.current_polygon_layers]
+        )
 
     def struct_line_refresh_lyr_combobox(self):
 
         self.current_line_layers = loaded_line_layers()
-        update_ComboBox(self.prj_input_line_comboBox,
-                        self.choose_message,
-                        [layer.name() for layer in self.current_line_layers])
-        update_ComboBox(self.inters_input_line_comboBox,
-                        self.choose_message,
-                        [layer.name() for layer in self.current_line_layers])
+
+        update_ComboBox(
+            self.prj_input_line_comboBox,
+            self.choose_message,
+            [layer.name() for layer in self.current_line_layers]
+        )
+
+        update_ComboBox(
+            self.inters_input_line_comboBox,
+            self.choose_message,
+            [layer.name() for layer in self.current_line_layers]
+        )
 
     def update_point_layers_boxes(self):
 
@@ -2380,12 +2580,28 @@ class qprof_QWidget(QWidget):
         section_init_pt = Point(sect_pt_1.x, sect_pt_1.y, 0.0)
         section_final_pt = Point(sect_pt_2.x, sect_pt_2.y, 0.0)
 
-        section_final_pt_up = Point(section_final_pt.x, section_final_pt.y,
-                                       1000.0)  # arbitrary point on the same vertical as sect_pt_2
-        section_cartes_plane = Plane.from_points(section_init_pt, section_final_pt, section_final_pt_up)
-        section_vector = Segment(section_init_pt, section_final_pt).vector()
+        section_final_pt_up = Point(
+            x=section_final_pt.x,
+            y=section_final_pt.y,
+            z=1000.0
+        )  # arbitrary point on the same vertical as sect_pt_2
 
-        return {'init_pt': section_init_pt, 'cartes_plane': section_cartes_plane, 'vector': section_vector}
+        section_cartes_plane = Plane.from_points(
+            section_init_pt,
+            section_final_pt,
+            section_final_pt_up
+        )
+
+        section_vector = Segment(
+            section_init_pt,
+            section_final_pt
+        ).vector()
+
+        return {
+            'init_pt': section_init_pt,
+            'cartes_plane': section_cartes_plane,
+            'vector': section_vector
+        }
 
     def struct_prjct_get_mapping_method(self):
 
@@ -2402,7 +2618,9 @@ class qprof_QWidget(QWidget):
                     'trend field': str(self.proj_point_indivax_trend_fld_comboBox.currentText()),
                     'plunge field': str(self.proj_point_indivax_plunge_fld_comboBox.currentText())}
 
-    def check_for_struc_process(self, single_segment_constrain=True):
+    def check_for_struc_process(self,
+                                single_segment_constrain=True
+                                ):
 
         def check_post_profile():
 
@@ -2542,10 +2760,13 @@ class qprof_QWidget(QWidget):
     def reset_struct_point_projection(self):
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             geoprofile.geoplane_attitudes = []
             self.plane_attitudes_colors = []
+
         except:
+
             pass
 
     def check_structural_line_projection_inputs(self):
@@ -2562,13 +2783,18 @@ class qprof_QWidget(QWidget):
             return False
 
         try:
+
             densify_distance = float(self.project_line_densify_distance_lineedit.text())
+
         except:
+
             warn(self,
                  self.plugin_name,
                  "No valid numeric value for densify line distance")
             return False
+
         else:
+
             if densify_distance <= 0.0:
                 warn(self,
                      self.plugin_name,
@@ -2601,28 +2827,40 @@ class qprof_QWidget(QWidget):
 
         # read structural line values
         id_list = field_values(structural_line_layer, prj_struct_line_id_field_ndx)
-        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(structural_line_layer, on_the_fly_projection,
-                                                                       project_crs)
+        line_proj_crs_MultiLine2D_list = extract_multiline2d_list(
+            structural_line_layer,
+            on_the_fly_projection,
+            project_crs
+        )
 
         # densify with provided spat_distance
         densify_proj_crs_distance = float(self.project_line_densify_distance_lineedit.text())
-        densified_proj_crs_MultiLine2D_list = [multiline_2d.densify_2d_multiline(densify_proj_crs_distance) for multiline_2d in
-                                               line_proj_crs_MultiLine2D_list]
+        densified_proj_crs_MultiLine2D_list = [
+            multiline_2d.densify_2d_multiline(densify_proj_crs_distance) for multiline_2d in line_proj_crs_MultiLine2D_list
+        ]
 
         # project to Dem CRS
         if on_the_fly_projection and demParams.crs != project_crs:
-            densified_dem_crs_MultiLine2D_list = [multiline_2d.crs_project(project_crs, demParams.crs) for
-                                                  multiline_2d in densified_proj_crs_MultiLine2D_list]
+
+            densified_dem_crs_MultiLine2D_list = [
+                multiline_2d.crs_project(project_crs, demParams.crs) for multiline_2d in densified_proj_crs_MultiLine2D_list
+            ]
+
         else:
+
             densified_dem_crs_MultiLine2D_list = densified_proj_crs_MultiLine2D_list
 
         # interpolate z values from Dem
-        z_list = [interpolate_z(demLayer, demParams, pt_2d) for multiline_2d in densified_dem_crs_MultiLine2D_list
-                  for line_2d in multiline_2d.lines for pt_2d in line_2d.pts]
+        z_list = [
+            interpolate_z(demLayer, demParams, pt_2d) for multiline_2d in densified_dem_crs_MultiLine2D_list
+                  for line_2d in multiline_2d.lines for pt_2d in line_2d.pts
+        ]
 
         # extract x-y pairs for creation of 3D points
-        xy_list = [(pt_2d.x, pt_2d.y) for multiline_2d in densified_proj_crs_MultiLine2D_list for line_2d in
-                   multiline_2d.lines for pt_2d in line_2d.pts]
+        xy_list = [
+            (pt_2d.x, pt_2d.y) for multiline_2d in densified_proj_crs_MultiLine2D_list for line_2d in
+                   multiline_2d.lines for pt_2d in line_2d.pts
+        ]
 
         # replicate MultiLine list structure with 3D points with project CRS
         ndx = -1
@@ -2698,10 +2936,13 @@ class qprof_QWidget(QWidget):
     def reset_structural_lines_projection(self):
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             geoprofile.geosurfaces = []
             geoprofile.geosurfaces_ids = []
+
         except:
+
             pass
 
     def do_export_project_geol_attitudes(self):
@@ -2716,14 +2957,19 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             num_plane_attitudes_sets = len(geoprofile.geoplane_attitudes)
+
         except:
+
             warn(self,
                  self.plugin_name,
                  "No available geological attitudes")
             return
+
         else:
+
             if num_plane_attitudes_sets == 0:
                 warn(self,
                      self.plugin_name,
@@ -2735,19 +2981,25 @@ class qprof_QWidget(QWidget):
         if dialog.exec_():
 
             output_format = get_format_type()
+
             if output_format == "":
                 warn(self,
                      self.plugin_name,
                      "Error in output format")
                 return
+
             output_filepath = dialog.outpath_QLineEdit.text()
+
             if len(output_filepath) == 0:
                 warn(self,
                      self.plugin_name,
                      "Error in output path")
                 return
+
             add_to_project = dialog.load_output_checkBox.isChecked()
+
         else:
+
             warn(self,
                  self.plugin_name,
                  "No export defined")
@@ -2756,20 +3008,33 @@ class qprof_QWidget(QWidget):
         # get project CRS information
         project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
-        self.output_geological_attitudes(output_format, output_filepath, project_crs_osr)
+        self.output_geological_attitudes(
+            output_format,
+            output_filepath,
+            project_crs_osr
+        )
 
         # add theme to QGis project
         if 'shapefile' in output_format and add_to_project:
+
             try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
+
+                layer = QgsVectorLayer(
+                    output_filepath,
+                    QFileInfo(output_filepath).baseName(),
+                    "ogr"
+                )
+
                 QgsProject.instance().addMapLayer(layer)
+
             except:
+
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
 
-    def export_parse_geologicalattitudes_results(self, plane_attitudes_datasets):
+    def export_parse_geologicalattitudes_results(self,
+                                                 plane_attitudes_datasets
+                                                 ):
 
         result_data = []
 
@@ -2796,7 +3061,11 @@ class qprof_QWidget(QWidget):
 
         return result_data
 
-    def output_geological_attitudes(self, output_format, output_filepath, project_crs_osr):
+    def output_geological_attitudes(self,
+                                    output_format,
+                                    output_filepath,
+                                    project_crs_osr
+                                    ):
 
         # definition of field names
         header_list = ['id',
@@ -2843,39 +3112,54 @@ class qprof_QWidget(QWidget):
     def do_export_project_geol_traces(self):
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             num_proj_lines_sets = len(geoprofile.geosurfaces)
+
         except:
+
             warn(self,
                  self.plugin_name,
                  "No available geological traces")
             return
+
         else:
+
             if num_proj_lines_sets == 0:
                 warn(self,
                      self.plugin_name,
                      "No available geological traces to save")
                 return
 
-        fileName, __ = QFileDialog.getSaveFileName(self,
-                                               self.tr("Save results"),
-                                               "*.csv",
-                                               self.tr("csv (*.csv)"))
+        fileName, __ = QFileDialog.getSaveFileName(
+            self,
+            self.tr("Save results"),
+            "*.csv",
+            self.tr("csv (*.csv)")
+        )
 
         if fileName is None or fileName == '':
-            warn(self,
-                 self.plugin_name,
-                 "No output file has been defined")
+            warn(
+                self,
+                self.plugin_name,
+                 "No output file has been defined"
+            )
             return
 
         parsed_curves_for_export = self.export_parse_projected_geological_traces()
         header_list = ['id', 's', 'z']
 
-        write_generic_csv(fileName, header_list, parsed_curves_for_export)
+        write_generic_csv(
+            fileName,
+            header_list,
+            parsed_curves_for_export
+        )
 
-        info(self,
-             self.plugin_name,
-             "Projected lines saved")
+        info(
+            self,
+            self.plugin_name,
+            "Projected lines saved"
+        )
 
     def do_export_line_intersections(self):
 
@@ -2889,14 +3173,20 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             num_intersection_pts = len(geoprofile.lineaments)
+
         except:
-            warn(self,
-                 self.plugin_name,
-                 "No available profile-line intersections")
+
+            warn(
+                self,
+                self.plugin_name,
+                "No available profile-line intersections")
             return
+
         else:
+
             if num_intersection_pts == 0:
                 warn(self,
                      self.plugin_name,
@@ -2928,20 +3218,34 @@ class qprof_QWidget(QWidget):
         # get project CRS information
         project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
 
-        self.output_profile_lines_intersections(output_format, output_filepath, project_crs_osr)
+        self.output_profile_lines_intersections(
+            output_format,
+            output_filepath,
+            project_crs_osr
+        )
 
         # add theme to QGis project
         if 'shapefile' in output_format and add_to_project:
             try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
+
+                layer = QgsVectorLayer(
+                    output_filepath,
+                    QFileInfo(output_filepath).baseName(),
+                    "ogr"
+                )
+
                 QgsProject.instance().addMapLayer(layer)
+
             except:
+
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
 
-    def output_profile_lines_intersections(self, output_format, output_filepath, project_crs_osr):
+    def output_profile_lines_intersections(self,
+                                           output_format,
+                                           output_filepath,
+                                           project_crs_osr
+                                           ):
 
         # definition of field names
         header_list = ['id',
@@ -2955,18 +3259,32 @@ class qprof_QWidget(QWidget):
 
         # output for csv file
         if output_format == "csv":
-            success, msg = write_generic_csv(output_filepath, header_list, parsed_profilelineintersections)
+
+            success, msg = write_generic_csv(
+                output_filepath,
+                header_list,
+                parsed_profilelineintersections
+            )
             if not success:
                 warn(self,
                      self.plugin_name,
                      msg)
+
         elif output_format == "shapefile - point":
-            success, msg = write_intersection_line_ptshp(output_filepath, header_list, parsed_profilelineintersections, project_crs_osr)
+
+            success, msg = write_intersection_line_ptshp(
+                output_filepath,
+                header_list,
+                parsed_profilelineintersections,
+                project_crs_osr
+            )
             if not success:
                 warn(self,
                      self.plugin_name,
                      msg)
+
         else:
+
             error(self,
                   self.plugin_name,
                   "Debug: error in export format")
@@ -2988,7 +3306,9 @@ class qprof_QWidget(QWidget):
                         data_list.append([rec_id, pt.x, pt.y])
         return data_list
 
-    def export_parse_lineintersections(self, profile_intersection_pts):
+    def export_parse_lineintersections(self,
+                                       profile_intersection_pts
+                                       ):
 
         result_data = []
 
@@ -3011,14 +3331,19 @@ class qprof_QWidget(QWidget):
                 return ""
 
         try:
+
             geoprofile = self.input_geoprofiles.geoprofile(0)
             num_intersection_lines = len(geoprofile.outcrops)
+
         except:
+
             warn(self,
                      self.plugin_name,
                      "No available profile-polygon intersections")
             return
+
         else:
+
             if num_intersection_lines == 0:
                 warn(self,
                      self.plugin_name,
@@ -3053,23 +3378,39 @@ class qprof_QWidget(QWidget):
 
         # add theme to QGis project
         if 'shapefile' in output_format and add_to_project:
+
             try:
-                layer = QgsVectorLayer(output_filepath,
-                                       QFileInfo(output_filepath).baseName(),
-                                       "ogr")
+
+                layer = QgsVectorLayer(
+                    output_filepath,
+                    QFileInfo(output_filepath).baseName(),
+                    "ogr"
+                )
                 QgsProject.instance().addMapLayer(layer)
+
             except:
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+
+                QMessageBox.critical(
+                    self,
+                    "Result",
+                    "Unable to load layer in project"
+                )
                 return
 
-    def output_profile_polygons_intersections(self, output_format, output_filepath, sr):
+    def output_profile_polygons_intersections(self,
+                                              output_format,
+                                              output_filepath,
+                                              sr
+                                              ):
 
         # definition of field names
-        header_list = ['class_fld',
-                       's',
-                       'x',
-                       'y',
-                       'z']
+        header_list = [
+            'class_fld',
+            's',
+            'x',
+            'y',
+            'z'
+        ]
 
         geoprofile = self.input_geoprofiles.geoprofile(0)
         intersection_lines = geoprofile.outcrops
@@ -3079,29 +3420,37 @@ class qprof_QWidget(QWidget):
             success, msg = write_intersection_line_csv(
                 output_filepath,
                 header_list,
-                intersection_lines)
+                intersection_lines
+            )
             if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
+                warn(
+                    self,
+                    self.plugin_name,
+                    msg
+                )
         elif output_format == "shapefile - line":
             success, msg = write_intersection_polygon_lnshp(
                 output_filepath,
                 header_list,
                 intersection_lines,
-                sr)
+                sr
+            )
             if not success:
-                warn(self,
-                     self.plugin_name,
-                     msg)
+                warn(
+                    self,
+                    self.plugin_name,
+                    msg
+                )
         else:
             error("Debug: error in export format")
             return
 
         if success:
-            info(self,
-                 self.plugin_name,
-                 "Polygon intersections saved")
+            info(
+                self,
+                self.plugin_name,
+                "Polygon intersections saved"
+            )
 
     def closeEvent(self, event):
 
@@ -3110,8 +3459,11 @@ class qprof_QWidget(QWidget):
             def reset_rubber_band():
 
                 try:
+
                     self.rubberband.reset(QGis.Line)
+
                 except:
+
                     pass
 
             def stop_profile_digitize_tool():
@@ -3123,13 +3475,19 @@ class qprof_QWidget(QWidget):
                     self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
 
                 try:
+
                     disconnect_digitize_maptool()
+
                 except:
+
                     pass
 
                 try:
+
                     self.canvas.setMapTool(self.previous_maptool)
+
                 except:
+
                     pass
 
             self.dem_source_profile_line2dt = None
@@ -3137,49 +3495,77 @@ class qprof_QWidget(QWidget):
             stop_profile_digitize_tool()
 
         try:
+
             reset_profile_defs()
+
         except:
+
             pass
 
         try:
+
             self.clear_rubberband()
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerWasAdded.disconnect(self.struct_polygon_refresh_lyr_combobox)
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerWasAdded.disconnect(self.struct_line_refresh_lyr_combobox)
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerWasAdded.disconnect(self.struct_point_refresh_lyr_combobox)
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerRemoved.disconnect(self.struct_polygon_refresh_lyr_combobox)
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerRemoved.disconnect(self.struct_line_refresh_lyr_combobox)
+
         except:
+
             pass
 
         try:
+
             QgsProject.instance().layerRemoved.disconnect(self.struct_point_refresh_lyr_combobox)
+
         except:
+
             pass
 
 
 class SourceDEMsDialog(QDialog):
 
-    def __init__(self, plugin_name, raster_layers, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 raster_layers,
+                 parent=None
+                 ):
 
         super(SourceDEMsDialog, self).__init__(parent)
 
@@ -3213,8 +3599,12 @@ class SourceDEMsDialog(QDialog):
 
         layout = QGridLayout()
 
-        layout.addWidget(self.listDEMs_treeWidget, 0, 0, 1, 3)
-        layout.addLayout(buttonLayout, 1, 0, 1, 3)
+        layout.addWidget(
+            self.listDEMs_treeWidget,
+            0, 0, 1, 3)
+        layout.addLayout(
+            buttonLayout,
+            1, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3236,7 +3626,11 @@ class SourceDEMsDialog(QDialog):
 
 class SourceLineLayerDialog(QDialog):
 
-    def __init__(self, plugin_name, current_line_layers, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 current_line_layers,
+                 parent=None
+                 ):
 
         super(SourceLineLayerDialog, self).__init__(parent)
 
@@ -3245,25 +3639,39 @@ class SourceLineLayerDialog(QDialog):
 
         layout = QGridLayout()
 
-        layout.addWidget(QLabel(self.tr("Input line layer:")), 0, 0, 1, 1)
+        layout.addWidget(
+            QLabel(self.tr("Input line layer:")),
+            0, 0, 1, 1)
         self.LineLayers_comboBox = QComboBox()
-        layout.addWidget(self.LineLayers_comboBox, 0, 1, 1, 3)
+        layout.addWidget(
+            self.LineLayers_comboBox,
+            0, 1, 1, 3)
         self.refresh_input_profile_layer_combobox()
 
         self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer with multiple profiles:"))
-        layout.addWidget(self.qrbtLineIsMultiProfile, 1, 0, 1, 2)
+        layout.addWidget(
+            self.qrbtLineIsMultiProfile,
+            1, 0, 1, 2)
 
-        layout.addWidget(QLabel(self.tr("label field:")), 1, 2, 1, 1)
+        layout.addWidget(
+            QLabel(self.tr("label field:")),
+            1, 2, 1, 1)
         self.Trace2D_label_field_comboBox = QComboBox()
-        layout.addWidget(self.Trace2D_label_field_comboBox, 1, 3, 1, 1)
+        layout.addWidget(
+            self.Trace2D_label_field_comboBox,
+            1, 3, 1, 1)
 
         self.refresh_label_field_combobox()
         self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_label_field_combobox)
 
-        layout.addWidget(QLabel(self.tr("Line order field:")), 2, 0, 1, 1)
+        layout.addWidget(
+            QLabel(self.tr("Line order field:")),
+            2, 0, 1, 1)
 
         self.Trace2D_order_field_comboBox = QComboBox()
-        layout.addWidget(self.Trace2D_order_field_comboBox, 2, 1, 1, 3)
+        layout.addWidget(
+            self.Trace2D_order_field_comboBox,
+            2, 1, 1, 3)
 
         self.refresh_order_field_combobox()
 
@@ -3277,7 +3685,9 @@ class SourceLineLayerDialog(QDialog):
         buttonLayout.addWidget(okButton)
         buttonLayout.addWidget(cancelButton)
 
-        layout.addLayout(buttonLayout, 3, 0, 1, 3)
+        layout.addLayout(
+            buttonLayout,
+            3, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3330,14 +3740,20 @@ class LoadPointListDialog(QDialog):
         self.plugin_name = plugin_name
         layout = QGridLayout()
 
-        layout.addWidget(QLabel(self.tr("Point list, with at least two points.")), 0, 0, 1, 1)
+        layout.addWidget(
+            QLabel(self.tr("Point list, with at least two points.")),
+            0, 0, 1, 1)
         layout.addWidget(
             QLabel(self.tr("Each point is defined by a comma-separated, x-y coordinate pair, one for each row")), 1, 0,
             1, 1)
-        layout.addWidget(QLabel(self.tr("Example:\n549242.7, 242942.2\n578370.3, 322634.5")), 2, 0, 1, 1)
+        layout.addWidget(
+            QLabel(self.tr("Example:\n549242.7, 242942.2\n578370.3, 322634.5")),
+            2, 0, 1, 1)
 
         self.point_list_qtextedit = QTextEdit()
-        layout.addWidget(self.point_list_qtextedit, 3, 0, 1, 1)
+        layout.addWidget(
+            self.point_list_qtextedit,
+            3, 0, 1, 1)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -3347,7 +3763,9 @@ class LoadPointListDialog(QDialog):
         buttonLayout.addWidget(okButton)
         buttonLayout.addWidget(cancelButton)
 
-        layout.addLayout(buttonLayout, 4, 0, 1, 3)
+        layout.addLayout(
+            buttonLayout,
+            4, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3359,13 +3777,16 @@ class LoadPointListDialog(QDialog):
 
 class ElevationLineStyleDialog(QDialog):
 
-    def __init__(self, plugin_name, layer_names, layer_colors, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 layer_names,
+                 layer_colors,
+                 parent=None
+                 ):
 
         super(ElevationLineStyleDialog, self).__init__(parent)
 
         self.plugin_name = plugin_name
-
-        #self.elevation_layers = layer_names
 
         self.qtwdElevationLayers = QTreeWidget()
         self.qtwdElevationLayers.setColumnCount(3)
@@ -3395,8 +3816,12 @@ class ElevationLineStyleDialog(QDialog):
 
         layout = QGridLayout()
 
-        layout.addWidget(self.qtwdElevationLayers, 0, 0, 1, 3)
-        layout.addLayout(buttonLayout, 1, 0, 1, 3)
+        layout.addWidget(
+            self.qtwdElevationLayers,
+            0, 0, 1, 3)
+        layout.addLayout(
+            buttonLayout,
+            1, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3405,7 +3830,10 @@ class ElevationLineStyleDialog(QDialog):
 
         self.setWindowTitle("Define elevation line style")
 
-    def populate_elevation_layer_treewidget(self, layer_names, layer_colors):
+    def populate_elevation_layer_treewidget(self,
+                                            layer_names,
+                                            layer_colors
+                                            ):
 
         self.qtwdElevationLayers.clear()
 
@@ -3429,11 +3857,31 @@ class ElevationLineStyleDialog(QDialog):
 
 class PolygonIntersectionRepresentationDialog(QDialog):
 
-    colors = ["darkseagreen", "darkgoldenrod", "darkviolet", "hotpink", "powderblue", "yellowgreen", "palevioletred",
-              "seagreen", "darkturquoise", "beige", "darkkhaki", "red", "yellow", "magenta", "blue", "cyan",
-              "chartreuse"]
+    colors = [
+        "darkseagreen",
+        "darkgoldenrod",
+        "darkviolet",
+        "hotpink",
+        "powderblue",
+        "yellowgreen",
+        "palevioletred",
+        "seagreen",
+        "darkturquoise",
+        "beige",
+        "darkkhaki",
+        "red",
+        "yellow",
+        "magenta",
+        "blue",
+        "cyan",
+        "chartreuse"
+    ]
 
-    def __init__(self, plugin_name, polygon_classification_set, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 polygon_classification_set,
+                 parent=None
+                 ):
 
         super(PolygonIntersectionRepresentationDialog, self).__init__(parent)
 
@@ -3465,8 +3913,12 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
         layout = QGridLayout()
 
-        layout.addWidget(self.polygon_classifications_treeWidget, 0, 0, 1, 3)
-        layout.addLayout(buttonLayout, 1, 0, 1, 3)
+        layout.addWidget(
+            self.polygon_classifications_treeWidget,
+            0, 0, 1, 3)
+        layout.addLayout(
+            buttonLayout,
+            1, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -3496,7 +3948,15 @@ class PolygonIntersectionRepresentationDialog(QDialog):
 
 class PlotTopoProfileDialog(QDialog):
 
-    def __init__(self, plugin_name, profile_length_set, natural_elev_min_set, natural_elev_max_set, elevation_layer_names, elevation_layer_colors, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 profile_length_set,
+                 natural_elev_min_set,
+                 natural_elev_max_set,
+                 elevation_layer_names,
+                 elevation_layer_colors,
+                 parent=None
+                 ):
 
         super(PlotTopoProfileDialog, self).__init__(parent)
 
@@ -3549,17 +4009,27 @@ class PlotTopoProfileDialog(QDialog):
         qlytAxisSettings.addWidget(self.qcbxSetVerticalExaggeration)
         self.qledtDemExagerationRatio = QLineEdit()
         self.qledtDemExagerationRatio.setText("%f" % sugg_ve)
-        qlytAxisSettings.addWidget(self.qledtDemExagerationRatio, 0, 1, 1, 1)
+        qlytAxisSettings.addWidget(
+            self.qledtDemExagerationRatio,
+            0, 1, 1, 1)
 
-        qlytAxisSettings.addWidget(QLabel(self.tr("Plot z max value")), 0, 2, 1, 1)
+        qlytAxisSettings.addWidget(
+            QLabel(self.tr("Plot z max value")),
+            0, 2, 1, 1)
         self.qledtPlotMaxValue = QLineEdit()
         self.qledtPlotMaxValue.setText("%f" % plot_z_max)
-        qlytAxisSettings.addWidget(self.qledtPlotMaxValue, 0, 3, 1, 1)
+        qlytAxisSettings.addWidget(
+            self.qledtPlotMaxValue,
+            0, 3, 1, 1)
 
         self.qcbxInvertXAxisProfile = QCheckBox(self.tr("Flip x-axis direction"))
-        qlytAxisSettings.addWidget(self.qcbxInvertXAxisProfile, 1, 0, 1, 2)
+        qlytAxisSettings.addWidget(
+            self.qcbxInvertXAxisProfile,
+            1, 0, 1, 2)
 
-        qlytAxisSettings.addWidget(QLabel(self.tr("Plot z min value")), 1, 2, 1, 1)
+        qlytAxisSettings.addWidget(
+            QLabel(self.tr("Plot z min value")),
+            1, 2, 1, 1)
         self.qledtPlotMinValue = QLineEdit()
         self.qledtPlotMinValue.setText("%f" % plot_z_min)
         qlytAxisSettings.addWidget(self.qledtPlotMinValue, 1, 3, 1, 1)
@@ -3576,19 +4046,29 @@ class PlotTopoProfileDialog(QDialog):
 
         self.qcbxPlotProfileHeight = QCheckBox(self.tr("Height"))
         self.qcbxPlotProfileHeight.setChecked(True)
-        qlytYVariables.addWidget(self.qcbxPlotProfileHeight, 0, 0, 1, 1)
+        qlytYVariables.addWidget(
+            self.qcbxPlotProfileHeight,
+            0, 0, 1, 1)
 
         self.qcbxPlotProfileSlope = QCheckBox(self.tr("Slope (degrees)"))
-        qlytYVariables.addWidget(self.qcbxPlotProfileSlope, 1, 0, 1, 1)
+        qlytYVariables.addWidget(
+            self.qcbxPlotProfileSlope,
+            1, 0, 1, 1)
 
         self.qrbtPlotAbsoluteSlope = QRadioButton(self.tr("absolute"))
         self.qrbtPlotAbsoluteSlope.setChecked(True);
-        qlytYVariables.addWidget(self.qrbtPlotAbsoluteSlope, 1, 1, 1, 1)
+        qlytYVariables.addWidget(
+            self.qrbtPlotAbsoluteSlope,
+            1, 1, 1, 1)
 
         self.qrbtPlotDirectionalSlope = QRadioButton(self.tr("directional"))
-        qlytYVariables.addWidget(self.qrbtPlotDirectionalSlope, 1, 2, 1, 1)
+        qlytYVariables.addWidget(
+            self.qrbtPlotDirectionalSlope,
+            1, 2, 1, 1)
 
-        qlytYVariables.addWidget(QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"), 2, 0, 1, 3)
+        qlytYVariables.addWidget(
+            QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"),
+            2, 0, 1, 3)
 
         qgbxYVariables.setLayout(qlytYVariables)
 
@@ -3601,14 +4081,20 @@ class PlotTopoProfileDialog(QDialog):
         qlyStyleParameters = QGridLayout()
 
         self.qcbxPlotFilledHeight = QCheckBox(self.tr("Filled height"))
-        qlyStyleParameters.addWidget(self.qcbxPlotFilledHeight, 0, 0, 1, 1)
+        qlyStyleParameters.addWidget(
+            self.qcbxPlotFilledHeight,
+            0, 0, 1, 1)
 
         self.qcbxPlotFilledSlope = QCheckBox(self.tr("Filled slope"))
-        qlyStyleParameters.addWidget(self.qcbxPlotFilledSlope, 0, 1, 1, 1)
+        qlyStyleParameters.addWidget(
+            self.qcbxPlotFilledSlope,
+            0, 1, 1, 1)
 
         self.qpbtDefineTopoColors = QPushButton(self.tr("Elevation line visibility and colors"))
         self.qpbtDefineTopoColors.clicked.connect(self.define_profile_colors)
-        qlyStyleParameters.addWidget(self.qpbtDefineTopoColors, 1, 0, 1, 3)
+        qlyStyleParameters.addWidget(
+            self.qpbtDefineTopoColors,
+            1, 0, 1, 3)
 
         qgbxStyleParameters.setLayout(qlyStyleParameters)
 
@@ -3653,15 +4139,18 @@ class PlotTopoProfileDialog(QDialog):
             return layer_visibilities, layer_colors
 
         if len(self.elevation_layer_names) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No loaded elevation layer")
+            warn(
+                self,
+                self.plugin_name,
+                "No loaded elevation layer"
+            )
             return
 
         dialog = ElevationLineStyleDialog(
             self.plugin_name,
             self.elevation_layer_names,
-            self.elevation_layer_colors)
+            self.elevation_layer_colors
+        )
 
         if dialog.exec_():
             visible_elevation_layers, layer_colors = layer_styles(dialog)
@@ -3669,9 +4158,11 @@ class PlotTopoProfileDialog(QDialog):
             return
 
         if len(visible_elevation_layers) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No visible layer")
+            warn(
+                self,
+                self.plugin_name,
+                "No visible layer"
+            )
             return
         else:
             self.visible_elevation_layers = visible_elevation_layers
@@ -3680,7 +4171,10 @@ class PlotTopoProfileDialog(QDialog):
 
 class FigureExportDialog(QDialog):
 
-    def __init__(self, plugin_name, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 parent=None
+                 ):
 
         super(FigureExportDialog, self).__init__(parent)
 
@@ -3694,17 +4188,29 @@ class FigureExportDialog(QDialog):
 
         main_params_layout = QGridLayout()
 
-        main_params_layout.addWidget(QLabel(self.tr("Figure width (inches)")), 0, 0, 1, 1)
+        main_params_layout.addWidget(
+            QLabel(self.tr("Figure width (inches)")),
+            0, 0, 1, 1)
         self.figure_width_inches_QLineEdit = QLineEdit("10")
-        main_params_layout.addWidget(self.figure_width_inches_QLineEdit, 0, 1, 1, 1)
+        main_params_layout.addWidget(
+            self.figure_width_inches_QLineEdit,
+            0, 1, 1, 1)
 
-        main_params_layout.addWidget(QLabel(self.tr("Resolution (dpi)")), 0, 2, 1, 1)
+        main_params_layout.addWidget(
+            QLabel(self.tr("Resolution (dpi)")),
+            0, 2, 1, 1)
         self.figure_resolution_dpi_QLineEdit = QLineEdit("200")
-        main_params_layout.addWidget(self.figure_resolution_dpi_QLineEdit, 0, 3, 1, 1)
+        main_params_layout.addWidget(
+            self.figure_resolution_dpi_QLineEdit,
+            0, 3, 1, 1)
 
-        main_params_layout.addWidget(QLabel(self.tr("Font size (pts)")), 0, 4, 1, 1)
+        main_params_layout.addWidget(
+            QLabel(self.tr("Font size (pts)")),
+            0, 4, 1, 1)
         self.figure_fontsize_pts_QLineEdit = QLineEdit("12")
-        main_params_layout.addWidget(self.figure_fontsize_pts_QLineEdit, 0, 5, 1, 1)
+        main_params_layout.addWidget(
+            self.figure_fontsize_pts_QLineEdit,
+            0, 5, 1, 1)
 
         main_params_groupBox.setLayout(main_params_layout)
 
@@ -3716,53 +4222,77 @@ class FigureExportDialog(QDialog):
 
         add_params_layout = QGridLayout()
 
-        add_params_layout.addWidget(QLabel("Top space"), 0, 2, 1, 1)
+        add_params_layout.addWidget(
+            QLabel("Top space"),
+            0, 2, 1, 1)
         self.top_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.top_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.top_space_value_QDoubleSpinBox.setDecimals(2)
         self.top_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.top_space_value_QDoubleSpinBox.setValue(0.96)
-        add_params_layout.addWidget(self.top_space_value_QDoubleSpinBox, 0, 3, 1, 1)
+        add_params_layout.addWidget(
+            self.top_space_value_QDoubleSpinBox,
+            0, 3, 1, 1)
 
-        add_params_layout.addWidget(QLabel("Left space"), 1, 0, 1, 1)
+        add_params_layout.addWidget(
+            QLabel("Left space"),
+            1, 0, 1, 1)
         self.left_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.left_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.left_space_value_QDoubleSpinBox.setDecimals(2)
         self.left_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.left_space_value_QDoubleSpinBox.setValue(0.1)
-        add_params_layout.addWidget(self.left_space_value_QDoubleSpinBox, 1, 1, 1, 1)
+        add_params_layout.addWidget(
+            self.left_space_value_QDoubleSpinBox,
+            1, 1, 1, 1)
 
-        add_params_layout.addWidget(QLabel("Right space"), 1, 4, 1, 1)
+        add_params_layout.addWidget(
+            QLabel("Right space"),
+            1, 4, 1, 1)
         self.right_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.right_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.right_space_value_QDoubleSpinBox.setDecimals(2)
         self.right_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.right_space_value_QDoubleSpinBox.setValue(0.96)
-        add_params_layout.addWidget(self.right_space_value_QDoubleSpinBox, 1, 5, 1, 1)
+        add_params_layout.addWidget(
+            self.right_space_value_QDoubleSpinBox,
+            1, 5, 1, 1)
 
-        add_params_layout.addWidget(QLabel("Bottom space"), 2, 2, 1, 1)
+        add_params_layout.addWidget(
+            QLabel("Bottom space"),
+            2, 2, 1, 1)
         self.bottom_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.bottom_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.bottom_space_value_QDoubleSpinBox.setDecimals(2)
         self.bottom_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.bottom_space_value_QDoubleSpinBox.setValue(0.06)
-        add_params_layout.addWidget(self.bottom_space_value_QDoubleSpinBox, 2, 3, 1, 1)
+        add_params_layout.addWidget(
+            self.bottom_space_value_QDoubleSpinBox,
+            2, 3, 1, 1)
 
-        add_params_layout.addWidget(QLabel("Blank width space between subplots"), 3, 0, 1, 2)
+        add_params_layout.addWidget(
+            QLabel("Blank width space between subplots"),
+            3, 0, 1, 2)
         self.blank_width_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.blank_width_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.blank_width_space_value_QDoubleSpinBox.setDecimals(2)
         self.blank_width_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.blank_width_space_value_QDoubleSpinBox.setValue(0.1)
-        add_params_layout.addWidget(self.blank_width_space_value_QDoubleSpinBox, 3, 2, 1, 1)
+        add_params_layout.addWidget(
+            self.blank_width_space_value_QDoubleSpinBox,
+            3, 2, 1, 1)
 
-        add_params_layout.addWidget(QLabel("Blank height space between subplots"), 3, 3, 1, 2)
+        add_params_layout.addWidget(
+            QLabel("Blank height space between subplots"),
+            3, 3, 1, 2)
         self.blank_height_space_value_QDoubleSpinBox = QDoubleSpinBox()
         self.blank_height_space_value_QDoubleSpinBox.setRange(0.0, 1.0)
         self.blank_height_space_value_QDoubleSpinBox.setDecimals(2)
         self.blank_height_space_value_QDoubleSpinBox.setSingleStep(0.01)
         self.blank_height_space_value_QDoubleSpinBox.setValue(0.1)
-        add_params_layout.addWidget(self.blank_height_space_value_QDoubleSpinBox, 3, 5, 1, 1)
+        add_params_layout.addWidget(
+            self.blank_height_space_value_QDoubleSpinBox,
+            3, 5, 1, 1)
 
         add_params_layout.setRowMinimumHeight(3, 50)
 
@@ -3778,15 +4308,18 @@ class FigureExportDialog(QDialog):
 
         self.graphic_params_save_QPushButton = QPushButton("Save")
         self.graphic_params_save_QPushButton.clicked.connect(self.output_graphic_params_save)
-        graphic_params_io_layout.addWidget(self.graphic_params_save_QPushButton)
+        graphic_params_io_layout.addWidget(
+            self.graphic_params_save_QPushButton)
 
         self.graphic_params_load_QPushButton = QPushButton("Load")
         self.graphic_params_load_QPushButton.clicked.connect(self.output_graphic_params_load)
-        graphic_params_io_layout.addWidget(self.graphic_params_load_QPushButton)
+        graphic_params_io_layout.addWidget(
+            self.graphic_params_load_QPushButton)
 
         graphic_params_io_groupBox.setLayout(graphic_params_io_layout)
 
-        layout.addWidget(graphic_params_io_groupBox)
+        layout.addWidget(
+            graphic_params_io_groupBox)
 
         # output file parameters
 
@@ -3795,11 +4328,15 @@ class FigureExportDialog(QDialog):
         output_file_layout = QGridLayout()
 
         self.figure_outpath_QLineEdit = QLineEdit()
-        output_file_layout.addWidget(self.figure_outpath_QLineEdit, 3, 0, 1, 1)
+        output_file_layout.addWidget(
+            self.figure_outpath_QLineEdit,
+            3, 0, 1, 1)
 
         self.figure_outpath_QPushButton = QPushButton(self.tr("Choose"))
         self.figure_outpath_QPushButton.clicked.connect(self.define_figure_outpath)
-        output_file_layout.addWidget(self.figure_outpath_QPushButton, 3, 1, 1, 1)
+        output_file_layout.addWidget(
+            self.figure_outpath_QPushButton,
+            3, 1, 1, 1)
 
         output_file_groupBox.setLayout(output_file_layout)
 
@@ -3831,7 +4368,12 @@ class FigureExportDialog(QDialog):
 
     def output_graphic_params_save(self):
 
-        output_file_path = new_file_path(self, "Define output configuration file", "*.txt", "txt")
+        output_file_path = new_file_path(
+            self,
+            "Define output configuration file",
+            "*.txt",
+            "txt"
+        )
 
         if not output_file_path:
             return
@@ -3857,13 +4399,20 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
         with open(output_file_path, "w") as ofile:
             ofile.write(out_configuration_string)
 
-        info(self,
-             self.plugin_name,
-             "Graphic parameters saved")
+        info(
+            self,
+            self.plugin_name,
+            "Graphic parameters saved"
+        )
 
     def output_graphic_params_load(self):
 
-        input_file_path = old_file_path(self, "Choose input configuration file", "*.txt", "txt")
+        input_file_path = old_file_path(
+            self,
+            "Choose input configuration file",
+            "*.txt",
+            "txt"
+        )
 
         if not input_file_path:
             return
@@ -3872,6 +4421,7 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
             config_lines = ifile.readlines()
 
         try:
+
             figure_width_inches = float(config_lines[0].split("=")[1])
             figure_resolution_dpi = int(config_lines[1].split("=")[1])
             figure_fontsize_pts = float(config_lines[2].split("=")[1])
@@ -3881,10 +4431,14 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
             bottom_space_value = float(config_lines[6].split("=")[1])
             blank_width_space = float(config_lines[7].split("=")[1])
             blank_height_space = float(config_lines[8].split("=")[1])
+
         except:
-            warn(self,
-                 self.plugin_name,
-                 "Error in configuration file")
+
+            warn(
+                self,
+                self.plugin_name,
+                "Error in configuration file"
+            )
             return
 
         self.figure_width_inches_QLineEdit.setText(str(figure_width_inches))
@@ -3899,14 +4453,23 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
 
     def define_figure_outpath(self):
 
-        outfile_path = new_file_path(self, "Create", "", "Images (*.svg *.pdf *.tif)")
+        outfile_path = new_file_path(
+            self,
+            "Create",
+            "",
+            "Images (*.svg *.pdf *.tif)"
+        )
 
         self.figure_outpath_QLineEdit.setText(outfile_path)
 
 
 class TopographicProfileExportDialog(QDialog):
 
-    def __init__(self, plugin_name, selected_dem_params, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 selected_dem_params,
+                 parent=None
+                 ):
 
         super(TopographicProfileExportDialog, self).__init__(parent)
 
@@ -3926,16 +4489,22 @@ class TopographicProfileExportDialog(QDialog):
         self.src_allselecteddems_QRadioButton.setChecked(True)
 
         self.src_singledem_QRadioButton = QRadioButton(self.tr("Single DEM"))
-        source_layout.addWidget(self.src_singledem_QRadioButton, 2, 0, 1, 1)
+        source_layout.addWidget(
+            self.src_singledem_QRadioButton,
+            2, 0, 1, 1)
 
         self.src_singledemlist_QComboBox = QComboBox()
         selected_dem_layers = [dem_param.layer for dem_param in selected_dem_params]
         for qgsRasterLayer in selected_dem_layers:
             self.src_singledemlist_QComboBox.addItem(qgsRasterLayer.name())
-        source_layout.addWidget(self.src_singledemlist_QComboBox, 2, 1, 1, 1)
+        source_layout.addWidget(
+            self.src_singledemlist_QComboBox,
+            2, 1, 1, 1)
 
         self.src_singlegpx_QRadioButton = QRadioButton(self.tr("GPX file"))
-        source_layout.addWidget(self.src_singlegpx_QRadioButton, 3, 0, 1, 1)
+        source_layout.addWidget(
+            self.src_singlegpx_QRadioButton,
+            3, 0, 1, 1)
 
         source_groupBox.setLayout(source_layout)
 
@@ -3953,10 +4522,14 @@ class TopographicProfileExportDialog(QDialog):
         self.outtype_shapefile_point_QRadioButton.setChecked(True)
 
         self.outtype_shapefile_line_QRadioButton = QRadioButton(self.tr("shapefile - line"))
-        output_type_layout.addWidget(self.outtype_shapefile_line_QRadioButton, 1, 0, 1, 1)
+        output_type_layout.addWidget(
+            self.outtype_shapefile_line_QRadioButton,
+            1, 0, 1, 1)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 2, 0, 1, 1)
+        output_type_layout.addWidget(
+            self.outtype_csv_QRadioButton,
+            2, 0, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -3970,15 +4543,21 @@ class TopographicProfileExportDialog(QDialog):
         output_path_layout = QGridLayout()
 
         self.outpath_QLineEdit = QLineEdit()
-        output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QLineEdit,
+            0, 0, 1, 1)
 
         self.outpath_QPushButton = QPushButton("....")
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
-        output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QPushButton,
+            0, 1, 1, 1)
 
         self.load_output_checkBox = QCheckBox("load output shapefile in project")
         self.load_output_checkBox.setChecked(True)
-        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
+        output_path_layout.addWidget(
+            self.load_output_checkBox,
+            1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)
 
@@ -4009,13 +4588,25 @@ class TopographicProfileExportDialog(QDialog):
     def define_outpath(self):
 
         if self.outtype_shapefile_line_QRadioButton.isChecked() or self.outtype_shapefile_point_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Save file", "", "Shapefiles (*.shp)")
+            outfile_path = new_file_path(
+                self,
+                "Save file",
+                "",
+                "Shapefiles (*.shp)"
+            )
         elif self.outtype_csv_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
+            outfile_path = new_file_path(
+                self,
+                "Save file",
+                "",
+                "Csv (*.csv)"
+            )
         else:
-            warn(self,
-                 self.plugin_name,
-                 self.tr("Output type definiton error"))
+            warn(
+                self,
+                self.plugin_name,
+                self.tr("Output type definiton error")
+            )
             return
 
         self.outpath_QLineEdit.setText(outfile_path)
@@ -4023,7 +4614,10 @@ class TopographicProfileExportDialog(QDialog):
 
 class PointDataExportDialog(QDialog):
 
-    def __init__(self, plugin_name, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 parent=None
+                 ):
 
         super(PointDataExportDialog, self).__init__(parent)
 
@@ -4039,11 +4633,15 @@ class PointDataExportDialog(QDialog):
         output_type_layout = QGridLayout()
 
         self.outtype_shapefile_point_QRadioButton = QRadioButton(self.tr("shapefile - point"))
-        output_type_layout.addWidget(self.outtype_shapefile_point_QRadioButton, 0, 0, 1, 1)
+        output_type_layout.addWidget(
+            self.outtype_shapefile_point_QRadioButton,
+            0, 0, 1, 1)
         self.outtype_shapefile_point_QRadioButton.setChecked(True)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 1, 0, 1, 1)
+        output_type_layout.addWidget(
+            self.outtype_csv_QRadioButton,
+            1, 0, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -4057,15 +4655,21 @@ class PointDataExportDialog(QDialog):
         output_path_layout = QGridLayout()
 
         self.outpath_QLineEdit = QLineEdit()
-        output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QLineEdit,
+            0, 0, 1, 1)
 
         self.outpath_QPushButton = QPushButton(self.tr("Choose"))
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
-        output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QPushButton,
+            0, 1, 1, 1)
 
         self.load_output_checkBox = QCheckBox("load output shapefile in project")
         self.load_output_checkBox.setChecked(True)
-        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
+        output_path_layout.addWidget(
+            self.load_output_checkBox,
+            1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)
 
@@ -4096,13 +4700,25 @@ class PointDataExportDialog(QDialog):
     def define_outpath(self):
 
         if self.outtype_shapefile_point_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.shp", "Shapefile")
+            outfile_path = new_file_path(
+                self,
+                "Path",
+                "*.shp",
+                "Shapefile"
+            )
         elif self.outtype_csv_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Path", "*.csv", "Csv")
+            outfile_path = new_file_path(
+                self,
+                "Path",
+                "*.csv",
+                "Csv"
+            )
         else:
-            warn(self,
-                 self.plugin_name,
-                 self.tr("Output type definiton error"))
+            warn(
+                self,
+                self.plugin_name,
+                self.tr("Output type definiton error")
+            )
             return
 
         self.outpath_QLineEdit.setText(outfile_path)
@@ -4110,7 +4726,10 @@ class PointDataExportDialog(QDialog):
 
 class LineDataExportDialog(QDialog):
 
-    def __init__(self, plugin_name, parent=None):
+    def __init__(self,
+                 plugin_name,
+                 parent=None
+                 ):
 
         super(LineDataExportDialog, self).__init__(parent)
 
@@ -4130,7 +4749,9 @@ class LineDataExportDialog(QDialog):
         self.outtype_shapefile_line_QRadioButton.setChecked(True)
 
         self.outtype_csv_QRadioButton = QRadioButton(self.tr("csv"))
-        output_type_layout.addWidget(self.outtype_csv_QRadioButton, 0, 1, 1, 1)
+        output_type_layout.addWidget(
+            self.outtype_csv_QRadioButton,
+            0, 1, 1, 1)
 
         output_type_groupBox.setLayout(output_type_layout)
 
@@ -4144,15 +4765,21 @@ class LineDataExportDialog(QDialog):
         output_path_layout = QGridLayout()
 
         self.outpath_QLineEdit = QLineEdit()
-        output_path_layout.addWidget(self.outpath_QLineEdit, 0, 0, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QLineEdit,
+            0, 0, 1, 1)
 
         self.outpath_QPushButton = QPushButton("....")
         self.outpath_QPushButton.clicked.connect(self.define_outpath)
-        output_path_layout.addWidget(self.outpath_QPushButton, 0, 1, 1, 1)
+        output_path_layout.addWidget(
+            self.outpath_QPushButton,
+            0, 1, 1, 1)
 
         self.load_output_checkBox = QCheckBox("load output in project")
         self.load_output_checkBox.setChecked(True)
-        output_path_layout.addWidget(self.load_output_checkBox, 1, 0, 1, 2)
+        output_path_layout.addWidget(
+            self.load_output_checkBox,
+            1, 0, 1, 2)
 
         output_path_groupBox.setLayout(output_path_layout)
 
@@ -4183,13 +4810,25 @@ class LineDataExportDialog(QDialog):
     def define_outpath(self):
 
         if self.outtype_shapefile_line_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Save file", "", "Shapefiles (*.shp)")
+            outfile_path = new_file_path(
+                self,
+                "Save file",
+                "",
+                "Shapefiles (*.shp)"
+            )
         elif self.outtype_csv_QRadioButton.isChecked():
-            outfile_path = new_file_path(self, "Save file", "", "Csv (*.csv)")
+            outfile_path = new_file_path(
+                self,
+                "Save file",
+                "",
+                "Csv (*.csv)"
+            )
         else:
-            warn(self,
-                 self.plugin_name,
-                 self.tr("Output type definiton error"))
+            warn(
+                self,
+                self.plugin_name,
+                self.tr("Output type definiton error")
+            )
             return
 
         self.outpath_QLineEdit.setText(outfile_path)
@@ -4214,7 +4853,7 @@ class StatisticsDialog(QDialog):
         self.text_widget.setReadOnly(True)
 
         num_profiles = geoprofile_set.geoprofiles_num
-        stat_report = "\nGeneral statistics for {} profiles\n".format(num_profiles)
+        stat_report = f"\nGeneral statistics for {num_profiles} profiles\n"
 
         for ndx in range(num_profiles):
 
@@ -4233,11 +4872,11 @@ class StatisticsDialog(QDialog):
                 )
             )
 
-            stat_report += "\nStatistics for profile # {}".format(ndx+1)
-            stat_report += "\n\tLength: {}".format(profile_elevations.profile_length)
+            stat_report += f"\nStatistics for profile # {ndx+1}"
+            stat_report += f"\n\tLength: {profile_elevations.profile_length}"
             stat_report += "\n\tTopographic elevations"
-            stat_report += "\n\t - min: {}".format(profile_elevations.natural_elev_range[0])
-            stat_report += "\n\t - max: {}".format(profile_elevations.natural_elev_range[1])
+            stat_report += f"\n\t - min: {profile_elevations.natural_elev_range[0]}"
+            stat_report += f"\n\t - max: {profile_elevations.natural_elev_range[1]}"
             stat_report += self.report_stats(profiles_stats)
 
         for ndx in range(num_profiles):
@@ -4248,10 +4887,10 @@ class StatisticsDialog(QDialog):
 
             if resampled_line_xs is not None:
 
-                stat_report += "\nSampling points ({}) for profile # {}".format(len(resampled_line_xs), ndx + 1)
+                stat_report += f"\nSampling points ({len(resampled_line_xs)}) for profile # {ndx + 1}"
 
                 for ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
-                   stat_report += "\n{}, {}, {}".format(ndx+1, x, y)
+                   stat_report += f"\n{ndx+1}, {x}, {y}"
 
         self.text_widget.insertPlainText(stat_report)
 
@@ -4265,11 +4904,11 @@ class StatisticsDialog(QDialog):
 
         def type_report(values):
 
-            type_report = 'min: %s\n' % (values['min'])
-            type_report += 'max: %s\n' % (values['max'])
-            type_report += 'mean: %s\n' % (values['mean'])
-            type_report += 'variance: %s\n' % (values['var'])
-            type_report += 'standard deviation: %s\n\n' % (values['std'])
+            type_report = f"min: {values['min']}\n"
+            type_report += f"max: {values['max']}\n"
+            type_report += f"mean: {values['mean']}\n"
+            type_report += f"variance: {values['var']}\n"
+            type_report += f"standard deviation: {values['std']}\n\n"
 
             return type_report
 
@@ -4281,9 +4920,9 @@ class StatisticsDialog(QDialog):
         ]
 
         for name, stats in profiles_stats:
-            report += '\ndataset name\n%s\n\n' % name
-            for type, stat_val in zip(types, stats):
-                report += '%s\n\n' % type
+            report += f"\ndataset name\n{name}\n\n"
+            for tp, stat_val in zip(types, stats):
+                report += f"{tp}\n\n"
                 report += type_report(stat_val)
 
         return report

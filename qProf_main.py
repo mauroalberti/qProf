@@ -1,10 +1,4 @@
 
-#from __future__ import absolute_import
-#from builtins import object
-
-import os
-import webbrowser
-
 from qgis.core import *
 
 from qgis.PyQt.QtCore import *
@@ -13,11 +7,11 @@ from qgis.PyQt.QtWidgets import *
 
 from . import resources
 
-from .qt_utils.tools import info, warn, error, update_ComboBox
-from .qgis_utils.utils import create_action
+from .qt_utils.tools import *
+from .qgis_utils.utils import *
 from .config.params import *
 
-from .qProf_QWidget import qprof_QWidget
+from .qProf_QWidget import *
 
 
 class qProf_main(object):
@@ -34,7 +28,7 @@ class qProf_main(object):
     def initGui(self):
 
         self.qactOpenMainWin = create_action(
-            ":/plugins/{}/icons/qprof.png".format(self.plugin_name),
+            ":/plugins/{}/icons/qProf_main.svg".format(self.plugin_name),
             self.plugin_name,
             self.open_qprof,
             whats_this="Topographic and geological profiles",

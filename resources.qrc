@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/plugins/qProf" >
-        <file>icons/qprof.png</file>
+        <file>icons/qProf_main.svg</file>
 		<file>icons/help.ico</file>
     </qresource>
 </RCC>

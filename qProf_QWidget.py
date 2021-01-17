@@ -1,19 +1,9 @@
 
-#from __future__ import absolute_import
 from typing import Optional, Tuple
 
 import numbers
-
-'''
-from builtins import zip
-from builtins import str
-from builtins import range
-'''
-
 import os
 import unicodedata
-
-from qgis.PyQt.QtWidgets import QTextBrowser
 
 from qgis.core import *
 
@@ -21,29 +11,23 @@ from .gsf.geometry import Plane, GPlane, GAxis
 from .gsf.array_utils import to_float
 from .gsf.sorting import *
 
-from .gis_utils.features import Segment, MultiLine, Line, \
-    merge_line, merge_lines, ParamLine3D, xytuple_list_to_Line
-from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from .gis_utils.profile import GeoProfilesSet, GeoProfile, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
-    intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
-    extract_multiline2d_list, profile_polygon_intersection, calculate_projected_3d_pts
+from .gis_utils.features import *
+from .gis_utils.intersections import *
+from .gis_utils.profile import *
 from .gis_utils.qgs_tools import *
-from .gis_utils.statistics import get_statistics
-from .gis_utils.errors import VectorInputException, VectorIOException
+from .gis_utils.statistics import *
+from .gis_utils.errors import *
 
-from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
-from .qt_utils.tools import info, warn, error, update_ComboBox
+from .qt_utils.filesystem import *
+from .qt_utils.tools import *
 
-from .string_utils.utils_string import clean_string
+from .string_utils.utils_string import *
 
 from .config.settings import *
-from .config.output import dem_header_common, dem_single_dem_header, gpx_header
+from .config.output import *
 
-from .qProf_plotting import plot_geoprofiles
-from .qProf_export import write_intersection_polygon_lnshp, write_topography_multidems_csv, write_topography_singledem_csv, \
-          write_generic_csv, write_intersection_line_csv, write_topography_multidems_ptshp, write_topography_multidems_lnshp, \
-          write_geological_attitudes_ptshp, write_rubberband_profile_lnshp, write_topography_gpx_lnshp, write_topography_singledem_lnshp, \
-          write_topography_singledem_ptshp, write_topography_gpx_ptshp, write_intersection_line_ptshp
+from .qProf_plotting import *
+from .qProf_export import *
 
 
 class qprof_QWidget(QWidget):
@@ -106,7 +90,9 @@ class qprof_QWidget(QWidget):
 
         self.dialog_layout = QVBoxLayout()
         self.main_widget = QTabWidget()
+
         self.main_widget.addTab(self.setup_topoprofile_tab(), "Topography")
+        self.main_widget.addTab(self.setup_bandprofiles_tab(), "Multiple bands")
         self.main_widget.addTab(self.setup_geology_section_tab(), "Geology")
         self.main_widget.addTab(self.setup_export_section_tab(), "Export")
         self.main_widget.addTab(self.setup_about_tab(), "Help")
@@ -1043,6 +1029,160 @@ class qprof_QWidget(QWidget):
         qwdgTopoProfile.setLayout(qlytTopoProfile)
 
         return qwdgTopoProfile
+
+    def setup_bandprofiles_tab(self):
+
+        def define_source_bands():
+
+            def get_dem_resolution_in_prj_crs(
+                    dem,
+                    dem_params,
+                    on_the_fly_projection,
+                    prj_crs
+            ):
+
+                def distance_projected_pts(
+                        x,
+                        y,
+                        delta_x,
+                        delta_y,
+                        src_crs,
+                        dest_crs
+                ):
+
+                    qgspt_start_src_crs = qgs_pt(x, y)
+                    qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
+
+                    qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
+                    qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
+
+                    pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
+                    pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
+
+                    return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
+
+                cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
+                xMin, yMin = dem_params.xMin, dem_params.yMin
+
+                if on_the_fly_projection and dem.crs() != prj_crs:
+                    cellsizeEW_prj_crs = distance_projected_pts(xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs)
+                    cellsizeNS_prj_crs = distance_projected_pts(xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs)
+                else:
+                    cellsizeEW_prj_crs = cellsizeEW
+                    cellsizeNS_prj_crs = cellsizeNS
+
+                return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
+
+            def get_dem_parameters(dem):
+
+                return QGisRasterParameters(*raster_qgis_params(dem))
+
+            def get_selected_dems_params(dialog):
+
+                selected_dems = []
+                for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
+                    curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
+                    if curr_DEM_item.checkState(0) == 2:
+                        selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
+
+                return selected_dems
+
+            self.selected_dems = None
+            self.selected_dem_parameters = []
+
+            current_raster_layers = loaded_monoband_raster_layers()
+            if len(current_raster_layers) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No loaded DEM")
+                return
+
+            dialog = SourceDEMsDialog(self.plugin_name, current_raster_layers)
+
+            if dialog.exec_():
+                selected_dems = get_selected_dems_params(dialog)
+            else:
+                warn(self,
+                     self.plugin_name,
+                     "No chosen DEM")
+                return
+
+            if len(selected_dems) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "No selected DEM")
+                return
+            else:
+                self.selected_dems = selected_dems
+
+            # get geodata
+
+            self.selected_dem_parameters = [get_dem_parameters(dem) for dem in selected_dems]
+
+            # get DEMs resolutions in project CRS and choose the min value
+
+            dem_resolutions_prj_crs_list = []
+            for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+                dem_resolutions_prj_crs_list.append(
+                    get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
+
+            max_dem_resolution = max(dem_resolutions_prj_crs_list)
+            if max_dem_resolution > 1:
+                max_dem_proposed_resolution = round(max_dem_resolution)
+            else:
+                max_dem_proposed_resolution = max_dem_resolution
+            self.qledProfileDensifyDistance.setText(str(max_dem_proposed_resolution))
+
+        self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
+
+        bands_qwidget = QWidget()
+        bands_layout = QVBoxLayout()
+
+        bands_qgroupbox = QGroupBox(bands_qwidget)
+        bands_qgroupbox.setTitle("Band/grid processing")
+
+        bands_sources_qgridlayout = QGridLayout()
+
+        self.define_source_bands_qpushbutton = QPushButton(self.tr("Define source bands"))
+        self.define_source_bands_qpushbutton.clicked.connect(define_source_bands)
+        bands_sources_qgridlayout.addWidget(
+            self.define_source_bands_qpushbutton,
+            0, 0, 1, 2)
+
+        bands_sources_qgridlayout.addWidget(
+            QLabel("Line densify distance"),
+            1, 0, 1, 1)
+
+        self.bands_line_densify_distance_lineedit = QLineEdit()
+
+        bands_sources_qgridlayout.addWidget(
+            self.bands_line_densify_distance_lineedit,
+            1, 1, 1, 1)
+
+        self.multiple_graphs_qradiobutton = QRadioButton("multiple graphs")
+        self.multiple_graphs_qradiobutton.setChecked(True)
+        bands_sources_qgridlayout.addWidget(
+            self.multiple_graphs_qradiobutton,
+            2, 0, 1, 1)
+
+        self.single_graph_qradiobutton = QRadioButton("single graph")
+        bands_sources_qgridlayout.addWidget(
+            self.single_graph_qradiobutton,
+            2, 1, 1, 1)
+
+        self.read_bands_qpushbutton = QPushButton("Plot band profiles")
+        self.read_bands_qpushbutton.clicked.connect(self.create_bands_profiles)
+        bands_sources_qgridlayout.addWidget(
+            self.read_bands_qpushbutton,
+            3, 0, 1, 2)
+
+        bands_qgroupbox.setLayout(bands_sources_qgridlayout)
+
+        bands_layout.addWidget(bands_qgroupbox)
+
+        bands_qwidget.setLayout(bands_layout)
+
+        return bands_qwidget
 
     def setup_geology_section_tab(self):
 
@@ -2213,6 +2353,10 @@ class qprof_QWidget(QWidget):
                 return False
 
         return True
+
+    def create_bands_profiles(self):
+
+        pass
 
     def reset_lineaments_intersections(self):
 

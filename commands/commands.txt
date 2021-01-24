@@ -1,1 +1,2 @@
+cd /home/mauro/Documents/projects/qProf/
 pyrcc5 -o resources.py resources.qrc

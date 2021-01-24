@@ -1,17 +1,10 @@
 
-from qgis.core import *
-
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-
 from . import resources
 
-from .qt_utils.tools import *
 from .qgis_utils.utils import *
 from .config.params import *
 
-from .qProf_QWidget import *
+from .qProf_widgets import *
 
 
 class qProf_main(object):
@@ -22,15 +15,15 @@ class qProf_main(object):
         self.interface = interface
         self.main_window = self.interface.mainWindow()
         self.canvas = self.interface.mapCanvas()
-
+        self.current_directory = os.path.dirname(__file__)
         self.actions = []
 
     def initGui(self):
 
         self.qactOpenMainWin = create_action(
-            ":/plugins/{}/icons/qProf_main.svg".format(self.plugin_name),
+            f":/plugins/{self.plugin_name}/icons/qProf_main.svg",
             self.plugin_name,
-            self.open_qprof,
+            self.open_main_widget,
             whats_this="Topographic and geological profiles",
             parent=self.interface.mainWindow())
         self.interface.addPluginToMenu(self.plugin_name,
@@ -41,7 +34,7 @@ class qProf_main(object):
 
         self.interface.removePluginMenu(self.plugin_name, self.qactOpenMainWin)
 
-    def open_qprof(self):
+    def open_main_widget(self):
 
         project = QgsProject.instance()
 
@@ -52,6 +45,16 @@ class qProf_main(object):
                 msg="No project/layer available.\nPlease open project and add layers.")
             return
 
+        self.qProf_QWidget = ActionWidget(
+            self.current_directory,
+            self.plugin_name,
+            self.canvas
+        )
+
+        # show dialog
+        self.qProf_QWidget.show()
+
+        '''
         qprof_DockWidget = QDockWidget(self.plugin_name,
                                        self.interface.mainWindow())
         qprof_DockWidget.setAttribute(Qt.WA_DeleteOnClose)
@@ -61,4 +64,5 @@ class qProf_main(object):
         qprof_DockWidget.setWidget(self.qProf_QWidget)
         qprof_DockWidget.destroyed.connect(self.qProf_QWidget.closeEvent)
         self.interface.addDockWidget(Qt.RightDockWidgetArea, qprof_DockWidget)
+        '''
 

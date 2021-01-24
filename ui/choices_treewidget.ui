@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>256</width>
+    <height>291</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>qProf</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../icons/qProf_main.svg</normaloff>../icons/qProf_main.svg</iconset>
+  </property>
+  <widget class="QTreeWidget" name="actionsTreeWidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>256</width>
+     <height>291</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="tabKeyNavigation">
+    <bool>true</bool>
+   </property>
+   <property name="headerHidden">
+    <bool>true</bool>
+   </property>
+   <column>
+    <property name="text">
+     <string/>
+    </property>
+   </column>
+   <item>
+    <property name="text">
+     <string>Profile definition</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>../icons/profile.svg</normaloff>../icons/profile.svg</iconset>
+    </property>
+    <item>
+     <property name="text">
+      <string>Read from line layer</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Digitize in canvas</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Define in text window</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>From GPX file</string>
+     </property>
+    </item>
+   </item>
+   <item>
+    <property name="text">
+     <string>Elevation source</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Multi-bands</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Geological data</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <item>
+     <property name="text">
+      <string>Geological attitudes projection</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Geological traces projection</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Line layer intersection</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Polygon layer intersection</string>
+     </property>
+    </item>
+   </item>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

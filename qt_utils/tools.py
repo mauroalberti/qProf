@@ -4,7 +4,11 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
-def info(parent, header, msg):
+def info(
+        parent,
+        header,
+        msg
+):
     
     QMessageBox.information(parent, header, str(msg))
 

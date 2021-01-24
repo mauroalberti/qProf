@@ -41,19 +41,163 @@ class ActionWidget(QWidget):
 
         super(ActionWidget, self).__init__()
 
+        self.canvas = canvas
+        self.plugin_name = plugin_name
+
         uic.loadUi(f"{current_directory}/ui/choices_treewidget.ui", self)
 
         self.actions_qtreewidget = self.actionsTreeWidget
+
+        #self.actions_qtreewidget.itemAt(0, 1).setSelected(True)
+
+        self.operations = {
+            "Select from line layer": self.track_from_line_layer,
+            "Digitize in canvas": self.digitize_track_in_canvas,
+            "Define in text window": self.track_from_text_window,
+            "Select from GPX file track": self.track_from_gpx_file,
+            "DEMs": self.elevations_from_dems,
+            "GPX file": self.elevations_from_gpx,
+        }
 
         self.actions_qtreewidget.itemSelectionChanged.connect(self.activate_action_window)
 
     def activate_action_window(self):
 
+        current_item_text = self.actions_qtreewidget.currentItem().text(0)
+
+        operation = self.operations.get(current_item_text)
+
+        if operation is not None:
+
+            operation()
+
+    def track_from_line_layer(self):
+
+        def line_layer_params(dialog):
+
+            line_layer = dialog.line_shape
+            multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
+            label_field_ndx = dialog.Trace2D_label_field_comboBox.currentIndex()
+            order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
+
+            return line_layer, multiple_profiles, label_field_ndx, order_field_ndx
+
+        current_line_layers = loaded_line_layers()
+
+        if len(current_line_layers) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No available line layers")
+            return
+
+        dialog = SourceLineLayerDialog(
+            self.plugin_name,
+            current_line_layers
+        )
+
+        if dialog.exec_():
+            line_layer, multiple_profiles, label_field_ndx, order_field_ndx = line_layer_params(dialog)
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
+            return
+
+        line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
+        line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
+
+        areLinesToReorder = False if line_order_fld_ndx is None else True
+
+        print(line_layer, type(line_layer))
+
+        print(f"multiple profiles: {multiple_profiles}")
+        print(f"line_label_fld_ndx: {line_label_fld_ndx}")
+        print(f"order_field_ndx: {order_field_ndx}")
+        print(f"areLinesToReorder: {areLinesToReorder}")
+
+    def digitize_track_in_canvas(self):
+
         info(
             self,
             "Hey Mauro",
-            "I'm hearing"
+            "digitize_in_canvas"
         )
+
+    def track_from_text_window(self):
+
+        info(
+            self,
+            "Hey Mauro",
+            "define_in_text_window"
+        )
+
+    def track_from_gpx_file(self):
+
+        info(
+            self,
+            "Hey Mauro",
+            "from_GPX_file"
+        )
+
+    def get_dem_parameters(self,
+                           dem):
+
+        return QGisRasterParameters(*raster_qgis_params(dem))
+
+    def get_selected_dems_params(self,
+                                 dialog):
+
+        selected_dems = []
+        for dem_qgis_ndx in range(dialog.listDEMs_treeWidget.topLevelItemCount()):
+            curr_DEM_item = dialog.listDEMs_treeWidget.topLevelItem(dem_qgis_ndx)
+            if curr_DEM_item.checkState(0) == 2:
+                selected_dems.append(dialog.singleband_raster_layers_in_project[dem_qgis_ndx])
+
+        return selected_dems
+
+    def elevations_from_dems(self):
+
+        self.selected_dems = None
+        self.selected_dem_parameters = []
+
+        current_raster_layers = loaded_monoband_raster_layers()
+        if len(current_raster_layers) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No loaded DEM")
+            return
+
+        dialog = SourceDEMsDialog(
+            self.plugin_name,
+            current_raster_layers
+        )
+
+        if dialog.exec_():
+            selected_dems = self.get_selected_dems_params(dialog)
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No chosen DEM")
+            return
+
+        if len(selected_dems) == 0:
+            warn(self,
+                 self.plugin_name,
+                 "No selected DEM")
+            return
+        else:
+            self.selected_dems = selected_dems
+
+        # get geodata
+
+        self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
+
+        print(f"self.selected_dems: {self.selected_dems}")
+        print(f"self.selected_dem_parameters: {self.selected_dem_parameters}")
+
+    def elevations_from_gpx(self):
+
+        pass
 
 
 class qprof_QWidget(QWidget):
@@ -3818,7 +3962,7 @@ class SourceLineLayerDialog(QDialog):
             0, 1, 1, 3)
         self.refresh_input_profile_layer_combobox()
 
-        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer with multiple profiles:"))
+        self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer with multiple profiles ->"))
         layout.addWidget(
             self.qrbtLineIsMultiProfile,
             1, 0, 1, 2)

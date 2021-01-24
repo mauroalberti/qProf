@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>256</width>
-    <height>291</height>
+    <width>273</width>
+    <height>456</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,8 +22,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>256</width>
-     <height>291</height>
+     <width>271</width>
+     <height>451</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -42,7 +42,7 @@
    </column>
    <item>
     <property name="text">
-     <string>Profile definition</string>
+     <string>Profile traces sources</string>
     </property>
     <property name="font">
      <font>
@@ -56,7 +56,7 @@
     </property>
     <item>
      <property name="text">
-      <string>Read from line layer</string>
+      <string>Select from line layer</string>
      </property>
     </item>
     <item>
@@ -71,13 +71,34 @@
     </item>
     <item>
      <property name="text">
-      <string>From GPX file</string>
+      <string>Select from GPX file track</string>
      </property>
     </item>
    </item>
    <item>
     <property name="text">
-     <string>Elevation source</string>
+     <string>Elevation sources</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <item>
+     <property name="text">
+      <string>DEMs</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>GPX file</string>
+     </property>
+    </item>
+   </item>
+   <item>
+    <property name="text">
+     <string>Multi-bands sources</string>
     </property>
     <property name="font">
      <font>
@@ -88,18 +109,7 @@
    </item>
    <item>
     <property name="text">
-     <string>Multi-bands</string>
-    </property>
-    <property name="font">
-     <font>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-   </item>
-   <item>
-    <property name="text">
-     <string>Geological data</string>
+     <string>Geological data elaborations</string>
     </property>
     <property name="font">
      <font>
@@ -127,6 +137,74 @@
       <string>Polygon layer intersection</string>
      </property>
     </item>
+   </item>
+   <item>
+    <property name="text">
+     <string>Profiles plot</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Exports</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <item>
+     <property name="text">
+      <string>Figure</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Data</string>
+     </property>
+     <item>
+      <property name="text">
+       <string>Topographic profile</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Projected geological attitudes</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Projected geological lines</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Line intersections</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Polygons intersections</string>
+      </property>
+     </item>
+    </item>
+   </item>
+   <item>
+    <property name="text">
+     <string>Help</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
    </item>
   </widget>
  </widget>

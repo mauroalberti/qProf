@@ -31,6 +31,46 @@ from .qProf_plotting import *
 from .qProf_export import *
 
 
+def distance_projected_pts(
+        x,
+        y,
+        delta_x,
+        delta_y,
+        src_crs,
+        dest_crs
+):
+    qgspt_start_src_crs = qgs_pt(x, y)
+    qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
+
+    qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
+    qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
+
+    pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
+    pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
+
+    return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
+
+
+def get_dem_resolution_in_prj_crs(
+        dem,
+        dem_params,
+        on_the_fly_projection,
+        prj_crs
+):
+
+    cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
+    xMin, yMin = dem_params.xMin, dem_params.yMin
+
+    if on_the_fly_projection and dem.crs() != prj_crs:
+        cellsizeEW_prj_crs = distance_projected_pts(xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs)
+        cellsizeNS_prj_crs = distance_projected_pts(xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs)
+    else:
+        cellsizeEW_prj_crs = cellsizeEW
+        cellsizeNS_prj_crs = cellsizeNS
+
+    return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
+
+
 class ActionWidget(QWidget):
 
     def __init__(self,
@@ -62,10 +102,10 @@ class ActionWidget(QWidget):
             "Select from GPX file track": self.define_track_source_from_gpx_file,
             "DEMs": self.elevations_from_dems,
             "GPX file": self.elevations_from_gpx,
-            "Single elevation profile": self.plot_topo_profiles,
+            "Single profile": self.plot_single_profile,
         }
 
-        self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
+        self.actions_qtreewidget.itemDoubleClicked .connect(self.activate_action_window)
 
     def activate_action_window(self):
 
@@ -104,20 +144,23 @@ class ActionWidget(QWidget):
         )
 
         if dialog.exec_():
-            line_layer, multiple_profiles, label_field_ndx, order_field_ndx = self.line_layer_params(dialog)
+            line_layer, invert_profile, order_field_ndx = self.line_layer_params(dialog)
         else:
             warn(self,
                  self.plugin_name,
                  "No defined line source")
             return
 
-        line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
+        #line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
         self.line_layer = line_layer
-        self.multiple_profiles = multiple_profiles
-        self.line_label_fld_ndx = line_label_fld_ndx
+        self.invert_line_profile = invert_profile
+        #self.multiple_profiles = multiple_profiles
+        #self.line_label_fld_ndx = line_label_fld_ndx
         self.line_order_fld_ndx = line_order_fld_ndx
+
+        #print(f"self.invert_line_profile: {self.invert_line_profile}")
 
         '''
         areLinesToReorder = False if line_order_fld_ndx is None else True
@@ -257,8 +300,8 @@ class ActionWidget(QWidget):
 
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
 
-        print(f"self.selected_dems: {self.selected_dems}")
-        print(f"self.selected_dem_parameters: {self.selected_dem_parameters}")
+        #print(f"self.selected_dems: {self.selected_dems}")
+        #print(f"self.selected_dem_parameters: {self.selected_dem_parameters}")
 
     def elevations_from_gpx(self):
 
@@ -266,30 +309,31 @@ class ActionWidget(QWidget):
 
     def try_get_line_traces(self,
             line_shape,
-            label_field_ndx: Optional[numbers.Integral],
+            #label_field_ndx: Optional[numbers.Integral],
             order_field_ndx: Optional[numbers.Integral]
     ):
 
         try:
 
-            profile_orig_lines, label_values, order_values = line_geoms_with_infos(line_shape, label_field_ndx, order_field_ndx)
+            profile_orig_lines, order_values = line_geoms_with_infos(line_shape, order_field_ndx)
 
         except VectorInputException as error_msg:
 
             return False, error_msg
 
-        return True, (profile_orig_lines, label_values, order_values)
+        return True, (profile_orig_lines, order_values)
 
     def line_layer_params(
             self,
             dialog):
 
         line_layer = dialog.line_shape
-        multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
-        label_field_ndx = dialog.Trace2D_label_field_comboBox.currentIndex()
+        invert_profile = dialog.qcbxInvertProfile.isChecked()
+        #multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
+        #label_field_ndx = dialog.Trace2D_label_field_comboBox.currentIndex()
         order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
-        return line_layer, multiple_profiles, label_field_ndx, order_field_ndx
+        return line_layer, invert_profile, order_field_ndx
 
     def init_topo_labels(self):
         """
@@ -301,97 +345,83 @@ class ActionWidget(QWidget):
         self.profiles_labels = None
         self.profiles_order = None
 
-    def load_line_layer(self):
+    def try_load_line_layer(self):
 
-        '''
-        self.init_topo_labels()
+        try:
 
-        current_line_layers = loaded_line_layers()
+            areLinesToReorder = False if self.line_order_fld_ndx is None else True
 
-        if len(current_line_layers) == 0:
-            warn(self,
-                 self.plugin_name,
-                 "No available line layers")
-            return
+            # get profile path from input line layer
 
-        dialog = SourceLineLayerDialog(self.plugin_name,
-                                       current_line_layers)
+            success, result = self.try_get_line_traces(
+                self.line_layer,
+                #self.line_label_fld_ndx,
+                self.line_order_fld_ndx
+            )
 
-        if dialog.exec_():
-            line_layer, multiple_profiles, label_field_ndx, order_field_ndx = self.line_layer_params(dialog)
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No defined line source")
-            return
+            if not success:
+                raise VectorIOException(result)
 
-        line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
-        line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
-        '''
+            profile_orig_lines, order_values = result
 
-        areLinesToReorder = False if self.line_order_fld_ndx is None else True
+            processed_lines = []
 
-        # get profile path from input line layer
+            """
+            if self.multiple_profiles:
 
-        success, result = self.try_get_line_traces(
-            self.line_layer,
-            self.line_label_fld_ndx,
-            self.line_order_fld_ndx
-        )
+                if areLinesToReorder:
 
-        if not success:
-            raise VectorIOException(result)
+                    sorted_profiles = sort_by_external_key(
+                        profile_orig_lines,
+                        order_values
+                    )
 
-        profile_orig_lines, label_values, order_values = result
+                    sorted_labels = list(sort_by_external_key(
+                        label_values,
+                        order_values
+                    ))
 
-        processed_lines = []
-        if self.multiple_profiles:
+                    sorted_orders = sorted(order_values)
 
-            if areLinesToReorder:
+                else:
 
-                sorted_profiles = sort_by_external_key(
-                    profile_orig_lines,
-                    order_values
-                )
+                    sorted_profiles = profile_orig_lines
+                    sorted_labels = label_values
+                    sorted_orders = order_values
 
-                sorted_labels = list(sort_by_external_key(
-                    label_values,
-                    order_values
-                ))
-
-                sorted_orders = sorted(order_values)
+                for orig_line in sorted_profiles:
+                    processed_lines.append(merge_line(orig_line))
 
             else:
+            """
+            # single profile
 
-                sorted_profiles = profile_orig_lines
-                sorted_labels = label_values
-                sorted_orders = order_values
-
-            for orig_line in sorted_profiles:
-                processed_lines.append(merge_line(orig_line))
-
-        else:
-
-            sorted_labels = label_values
+            #sorted_labels = label_values
             sorted_orders = order_values
             processed_lines.append(merge_lines(profile_orig_lines, order_values))
 
-        # process input line layer
+            # process input line layer
 
-        projected_lines = []
-        for processed_line in processed_lines:
-            projected_lines.append(
-                self.create_line_in_project_crs(
-                    processed_line,
-                    self.line_layer.crs(),
-                    self.on_the_fly_projection,
-                    self.project_crs
+            projected_lines = []
+            for processed_line in processed_lines:
+                projected_lines.append(
+                    self.create_line_in_project_crs(
+                        processed_line,
+                        self.line_layer.crs(),
+                        self.on_the_fly_projection,
+                        self.project_crs
+                    )
                 )
-            )
 
-        self.profiles_lines = [line.remove_coincident_points() for line in projected_lines]
-        self.profiles_labels = sorted_labels
-        self.profiles_order = sorted_orders
+            profiles_lines = [line.remove_coincident_points() for line in projected_lines]
+            #profiles_labels = sorted_labels
+            profiles_order = sorted_orders
+
+            return True, (profiles_lines, profiles_order)
+
+        except Exception as e:
+
+            return False, str(e)
 
     def check_pre_profile(self):
 
@@ -439,7 +469,7 @@ class ActionWidget(QWidget):
         dialog.exec_()
         """
 
-    def prepare_topo_profiles(self):
+    def try_prepare_topo_profiles(self) -> Tuple[bool, str]:
 
         """
         def stop_rubberband(self):
@@ -479,7 +509,13 @@ class ActionWidget(QWidget):
 
         self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
 
-        self.load_line_layer()
+        success, result = self.try_load_line_layer()
+
+        if not success:
+            msg = result
+            return False, msg
+
+        self.profiles_lines, self.profiles_order = result
 
         self.demline_source = "dem_source"
         topo_source_type = self.demline_source
@@ -492,25 +528,31 @@ class ActionWidget(QWidget):
 
             except Exception as e:
 
-                warn(self,
-                     self.plugin_name,
-                     "Input DEMs definition not correct")
-                return
+                return False, "Input DEMs definition not correct"
 
             try:
 
-                sample_distance = 10.0
-                """
-                sample_distance = float(self.qledProfileDensifyDistance.text())
-                """
-                assert sample_distance > 0.0
+                # get DEMs resolutions in project CRS and choose the min value
+
+                dem_resolutions_prj_crs_list = []
+                for dem, dem_params in zip(self.selected_dems, self.selected_dem_parameters):
+                    dem_resolutions_prj_crs_list.append(
+                        get_dem_resolution_in_prj_crs(
+                            dem,
+                            dem_params,
+                            self.on_the_fly_projection,
+                            self.project_crs)
+                    )
+
+                max_dem_resolution = max(dem_resolutions_prj_crs_list)
+                if max_dem_resolution > 1:
+                    sample_distance = round(max_dem_resolution)
+                else:
+                    sample_distance = max_dem_resolution
 
             except Exception as e:
 
-                warn(self,
-                     self.plugin_name,
-                     "Sample distance value not correct: {}".format(e))
-                return
+                return False, f"Sample distance value not correct: {e}"
 
             """
             if self.qcbxDigitizeLineSource.isChecked():
@@ -535,16 +577,11 @@ class ActionWidget(QWidget):
 
             except:
 
-                warn(self,
-                     self.plugin_name,
-                     "DEM-line profile source not correctly created [1]")
-                return
+                return False, "DEM-line profile source not correctly created [1]"
 
             if source_profile_lines is None:
-                warn(self,
-                     self.plugin_name,
-                     "DEM-line profile source not correctly created [2]")
-                return
+
+                return False, "DEM-line profile source not correctly created [2]"
 
         """
         elif topo_source_type == self.gpxfile_source:
@@ -571,10 +608,7 @@ class ActionWidget(QWidget):
 
         # calculates profiles
 
-        invert_profile = False
-        """
-        invert_profile = self.qcbxInvertProfile.isChecked()
-        """
+        #self.invert_line_profile = self.qcbxInvertProfile.isChecked()
 
         if topo_source_type == self.demline_source:  # sources are DEM(s) and line
 
@@ -589,13 +623,8 @@ class ActionWidget(QWidget):
             estimated_total_num_pts = int(ceil(estimated_total_num_pts))
 
             if estimated_total_num_pts > pt_num_threshold:
-                warn(
-                    parent=self,
-                    header=self.plugin_name,
-                    msg="There are {} estimated points (limit is {}) in profile(s) to create.".format(estimated_total_num_pts, pt_num_threshold) +
-                        "\nPlease increase sample distance value"
-                )
-                return
+
+                return False, f"There are {estimated_total_num_pts} estimated points (limit is {pt_num_threshold}) in profile(s) to create.\nTry increasing sample distance value"
 
             for profile_line in source_profile_lines:
 
@@ -607,21 +636,16 @@ class ActionWidget(QWidget):
                         sample_distance,
                         selected_dems,
                         selected_dem_parameters,
-                        invert_profile
+                        self.invert_line_profile
                     )
 
                 except Exception as e:
 
-                     warn(self,
-                         self.plugin_name,
-                         "Error with data source read: {}".format(e))
-                     return
+                    return False, f"Error with data source read: {e}"
 
                 if topo_profiles is None:
-                    warn(self,
-                         self.plugin_name,
-                         "Debug: profile not created")
-                    return
+
+                    return False, "Debug: profile not created"
 
                 geoprofile = GeoProfile()
                 geoprofile.source_data_type = topo_source_type
@@ -664,6 +688,8 @@ class ActionWidget(QWidget):
                  "Debug: profile calculation not defined")
             return
         """
+
+        return True, ""
 
     def get_profile_plot_params(
             self,
@@ -712,16 +738,38 @@ class ActionWidget(QWidget):
 
         return profile_params
 
-    def plot_topo_profiles(self):
+    def plot_single_profile(self):
 
         '''
         if not self.check_pre_profile():
             return
         '''
 
-        self.prepare_topo_profiles()
+        success, msg = self.try_prepare_topo_profiles()
 
-        self.calculate_profile_statistics()
+        if not success:
+
+            error(
+                self,
+                self.plugin_name,
+                msg
+            )
+
+            return
+
+        try:
+
+            self.calculate_profile_statistics()
+
+        except Exception as e:
+
+            error(
+                self,
+                self.plugin_name,
+                str(e)
+            )
+
+            return
 
         natural_elev_min_set = []
         natural_elev_max_set = []
@@ -764,8 +812,8 @@ class ActionWidget(QWidget):
         plot_addit_params["add_trendplunge_label"] = False
         plot_addit_params["add_ptid_label"] = False
 
-        plot_addit_params["polygon_class_colors"] = None # self.polygon_classification_colors
-        plot_addit_params["plane_attitudes_colors"] = None # self.plane_attitudes_colors
+        plot_addit_params["polygon_class_colors"] = None  # self.polygon_classification_colors
+        plot_addit_params["plane_attitudes_colors"] = None  # self.plane_attitudes_colors
 
         profile_window = plot_geoprofiles(self.input_geoprofiles,
                                           plot_addit_params)
@@ -855,19 +903,21 @@ class SourceLineLayerDialog(QDialog):
         layout.addWidget(
             QLabel(self.tr("Input line layer:")),
             0, 0, 1, 1)
+
         self.LineLayers_comboBox = QComboBox()
         layout.addWidget(
             self.LineLayers_comboBox,
             0, 1, 1, 3)
         self.refresh_input_profile_layer_combobox()
 
+        '''
         self.qrbtLineIsMultiProfile = QCheckBox(self.tr("Layer with multiple profiles ->"))
         layout.addWidget(
             self.qrbtLineIsMultiProfile,
             1, 0, 1, 2)
 
         layout.addWidget(
-            QLabel(self.tr("label field:")),
+            QLabel(self.tr("category field:")),
             1, 2, 1, 1)
         self.Trace2D_label_field_comboBox = QComboBox()
         layout.addWidget(
@@ -876,6 +926,12 @@ class SourceLineLayerDialog(QDialog):
 
         self.refresh_label_field_combobox()
         self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_label_field_combobox)
+        '''
+
+        self.qcbxInvertProfile = QCheckBox("Invert orientation")
+        layout.addWidget(
+            self.qcbxInvertProfile,
+            1, 0, 1, 1)
 
         layout.addWidget(
             QLabel(self.tr("Line order field:")),
@@ -1207,83 +1263,92 @@ class PlotTopoProfileDialog(QDialog):
         w_to_h_rat = float(profile_length) / float(delta_plot_z)
         sugg_ve = 0.2*w_to_h_rat
 
+        # Prepare the dialog
+
         layout = QVBoxLayout()
 
         # Axes
 
         qlytProfilePlot = QVBoxLayout()
 
-        qgbxPlotSettings = QGroupBox("Axes")
+        qgbxPlotSettings = QGroupBox("X axis")
 
-        qlytAxisSettings = QGridLayout()
-
-        self.qcbxSetVerticalExaggeration = QCheckBox("Set vertical exaggeration")
-        self.qcbxSetVerticalExaggeration.setChecked(True)
-        qlytAxisSettings.addWidget(self.qcbxSetVerticalExaggeration)
-        self.qledtDemExagerationRatio = QLineEdit()
-        self.qledtDemExagerationRatio.setText("%f" % sugg_ve)
-        qlytAxisSettings.addWidget(
-            self.qledtDemExagerationRatio,
-            0, 1, 1, 1)
-
-        qlytAxisSettings.addWidget(
-            QLabel(self.tr("Plot z max value")),
-            0, 2, 1, 1)
-        self.qledtPlotMaxValue = QLineEdit()
-        self.qledtPlotMaxValue.setText("%f" % plot_z_max)
-        qlytAxisSettings.addWidget(
-            self.qledtPlotMaxValue,
-            0, 3, 1, 1)
+        XAxisSettings_qgridlayout = QGridLayout()
 
         self.qcbxInvertXAxisProfile = QCheckBox(self.tr("Flip x-axis direction"))
-        qlytAxisSettings.addWidget(
+        XAxisSettings_qgridlayout.addWidget(
             self.qcbxInvertXAxisProfile,
-            1, 0, 1, 2)
-
-        qlytAxisSettings.addWidget(
-            QLabel(self.tr("Plot z min value")),
-            1, 2, 1, 1)
-        self.qledtPlotMinValue = QLineEdit()
-        self.qledtPlotMinValue.setText("%f" % plot_z_min)
-        qlytAxisSettings.addWidget(self.qledtPlotMinValue, 1, 3, 1, 1)
-
-        qgbxPlotSettings.setLayout(qlytAxisSettings)
-
-        qlytProfilePlot.addWidget(qgbxPlotSettings)
+            0, 0, 1, 1)
 
         # Y variables
 
-        qgbxYVariables = QGroupBox("Y variables")
+        qgbxYVariables = QGroupBox("Y axis")
 
-        qlytYVariables = QGridLayout()
+        YAxis_qgridlayout = QGridLayout()
 
-        self.qcbxPlotProfileHeight = QCheckBox(self.tr("Height"))
+        self.qcbxPlotProfileHeight = QCheckBox(self.tr("Elevation"))
         self.qcbxPlotProfileHeight.setChecked(True)
-        qlytYVariables.addWidget(
+        YAxis_qgridlayout.addWidget(
             self.qcbxPlotProfileHeight,
             0, 0, 1, 1)
 
+        self.qcbxSetVerticalExaggeration = QCheckBox("Fixed vertical exaggeration")
+        self.qcbxSetVerticalExaggeration.setChecked(True)
+        YAxis_qgridlayout.addWidget(
+            self.qcbxSetVerticalExaggeration,
+            0, 1, 1, 1)
+
+        self.qledtDemExagerationRatio = QLineEdit()
+        self.qledtDemExagerationRatio.setText("%f" % sugg_ve)
+        YAxis_qgridlayout.addWidget(
+            self.qledtDemExagerationRatio,
+            0, 2, 1, 1)
+
+        YAxis_qgridlayout.addWidget(
+            QLabel(self.tr("Plot z max value")),
+            1, 1, 1, 1)
+
+        self.qledtPlotMaxValue = QLineEdit()
+        self.qledtPlotMaxValue.setText("%f" % plot_z_max)
+        YAxis_qgridlayout.addWidget(
+            self.qledtPlotMaxValue,
+            1, 2, 1, 1)
+
+        YAxis_qgridlayout.addWidget(
+            QLabel(self.tr("Plot z min value")),
+            2, 1, 1, 1)
+
+        self.qledtPlotMinValue = QLineEdit()
+        self.qledtPlotMinValue.setText("%f" % plot_z_min)
+        YAxis_qgridlayout.addWidget(
+            self.qledtPlotMinValue,
+            2, 2, 1, 1)
+
+        qgbxPlotSettings.setLayout(XAxisSettings_qgridlayout)
+
+        qlytProfilePlot.addWidget(qgbxPlotSettings)
+
         self.qcbxPlotProfileSlope = QCheckBox(self.tr("Slope (degrees)"))
-        qlytYVariables.addWidget(
+        YAxis_qgridlayout.addWidget(
             self.qcbxPlotProfileSlope,
-            1, 0, 1, 1)
+            3, 0, 1, 1)
 
         self.qrbtPlotAbsoluteSlope = QRadioButton(self.tr("absolute"))
         self.qrbtPlotAbsoluteSlope.setChecked(True);
-        qlytYVariables.addWidget(
+        YAxis_qgridlayout.addWidget(
             self.qrbtPlotAbsoluteSlope,
-            1, 1, 1, 1)
+            3, 1, 1, 1)
 
         self.qrbtPlotDirectionalSlope = QRadioButton(self.tr("directional"))
-        qlytYVariables.addWidget(
+        YAxis_qgridlayout.addWidget(
             self.qrbtPlotDirectionalSlope,
-            1, 2, 1, 1)
+            3, 2, 1, 1)
 
-        qlytYVariables.addWidget(
-            QLabel("Note: to  calculate correctly the slope, the project must have a CRS set or the DEM(s) must not be in lon-lat"),
-            2, 0, 1, 3)
+        YAxis_qgridlayout.addWidget(
+            QLabel("Note: to  calculate correctly the slope, the project must have\na planar CRS set or the DEM(s) must not be in lon-lat"),
+            4, 1, 1, 3)
 
-        qgbxYVariables.setLayout(qlytYVariables)
+        qgbxYVariables.setLayout(YAxis_qgridlayout)
 
         qlytProfilePlot.addWidget(qgbxYVariables)
 

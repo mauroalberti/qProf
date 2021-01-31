@@ -20,7 +20,11 @@ def warn(parent, header, msg):
 
 def error(parent, header, msg):
 
-    QMessageBox.error(parent, header, str(msg))
+    QMessageBox.critical(
+        parent,
+        header,
+        str(msg)
+    )
     
     
 def update_ComboBox(combobox, init_choice, names):

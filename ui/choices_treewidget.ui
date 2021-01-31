@@ -116,12 +116,12 @@
     </property>
     <item>
      <property name="text">
-      <string>Single elevation profile</string>
+      <string>Single profile</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Multiple elevation profiles</string>
+      <string>Multiple profiles</string>
      </property>
     </item>
    </item>

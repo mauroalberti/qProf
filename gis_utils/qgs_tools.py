@@ -149,13 +149,13 @@ def line_geoms_attrs(line_layer, field_list=None):
 
 def line_geoms_with_infos(
     line_layer,
-    label_field_ndx: Optional[numbers.Integral],
+    #label_field_ndx: Optional[numbers.Integral],
     order_field_ndx: Optional[numbers.Integral]
 ):
 
     lines = []
     order_values = []
-    label_values = []
+    #label_values = []
 
     if line_layer.selectedFeatureCount() > 0:
         features = line_layer.selectedFeatures()
@@ -168,10 +168,10 @@ def line_geoms_with_infos(
 
         dummy_progressive += 1
 
-        label_val = feature[label_field_ndx] if label_field_ndx is not None else ''
+        #label_val = feature[label_field_ndx] if label_field_ndx is not None else ''
         order_val = feature[order_field_ndx] if order_field_ndx is not None else dummy_progressive
 
-        label_values.append(label_val)
+        #label_values.append(label_val)
         order_values.append(order_val)
 
         geom = feature.geometry()
@@ -182,7 +182,7 @@ def line_geoms_with_infos(
         else:
             lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPointXY>
 
-    return lines, label_values, order_values
+    return lines, order_values
 
 
 def polyline_to_xytuple_list(qgsline):

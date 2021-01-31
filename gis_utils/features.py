@@ -696,7 +696,8 @@ def merge_lines(lines, progress_ids):
             continue
         line_list.append(path_line)  # now a list of Lines
 
-    # now the list of Lines is transformed into a single Line
+    # now the list of Lines is transformed into a single Line with coincident points removed
+
     line = MultiLine(line_list).to_line().remove_coincident_points()
 
     return line

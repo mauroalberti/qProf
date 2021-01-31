@@ -300,16 +300,12 @@ class ActionWidget(QWidget):
 
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
 
-        #print(f"self.selected_dems: {self.selected_dems}")
-        #print(f"self.selected_dem_parameters: {self.selected_dem_parameters}")
-
     def elevations_from_gpx(self):
 
         pass
 
     def try_get_line_traces(self,
             line_shape,
-            #label_field_ndx: Optional[numbers.Integral],
             order_field_ndx: Optional[numbers.Integral]
     ):
 
@@ -355,7 +351,6 @@ class ActionWidget(QWidget):
 
             success, result = self.try_get_line_traces(
                 self.line_layer,
-                #self.line_label_fld_ndx,
                 self.line_order_fld_ndx
             )
 
@@ -394,11 +389,15 @@ class ActionWidget(QWidget):
 
             else:
             """
-            # single profile
 
-            #sorted_labels = label_values
-            sorted_orders = order_values
-            processed_lines.append(merge_lines(profile_orig_lines, order_values))
+            if areLinesToReorder:
+
+                sorted_orders = order_values
+                processed_lines.append(merge_lines(profile_orig_lines, order_values))
+
+            else:
+
+                processed_lines = profile_orig_lines
 
             # process input line layer
 
@@ -414,7 +413,7 @@ class ActionWidget(QWidget):
                 )
 
             profiles_lines = [line.remove_coincident_points() for line in projected_lines]
-            #profiles_labels = sorted_labels
+
             profiles_order = sorted_orders
 
             return True, (profiles_lines, profiles_order)
@@ -469,7 +468,7 @@ class ActionWidget(QWidget):
         dialog.exec_()
         """
 
-    def try_prepare_topo_profiles(self) -> Tuple[bool, str]:
+    def try_prepare_single_topo_profiles(self) -> Tuple[bool, str]:
 
         """
         def stop_rubberband(self):
@@ -745,7 +744,7 @@ class ActionWidget(QWidget):
             return
         '''
 
-        success, msg = self.try_prepare_topo_profiles()
+        success, msg = self.try_prepare_single_topo_profiles()
 
         if not success:
 

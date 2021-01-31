@@ -134,7 +134,8 @@ def plot_geoprofiles(
             axes.set_xlim(x_min, x_max)
             axes.set_ylim(y_min, y_max)
 
-            axes.grid(True)
+            axes.grid(True, color='lightgrey', linestyle='-.', linewidth=0.25, alpha=50)
+
 
             return axes
 
@@ -152,17 +153,21 @@ def plot_geoprofiles(
 
         if topo_type == 'elevation':
             ys = topo_profiles.profile_zs
-            plot_y_min = plot_y_range[0]
+            plot_y_filled = plot_y_range[0]
         else:
             if plot_params['plot_slope_absolute']:
                 ys = topo_profiles.absolute_slopes
             else:
                 ys = topo_profiles.profile_dirslopes
-            plot_y_min = 0.0
+            plot_y_filled = 0.0
 
         s = topo_profiles.profile_s
 
-        for y, topoline_color, topoline_visibility in zip(ys, topoline_colors, topoline_visibilities):
+        for y, topoline_color, topoline_visibility in zip(
+                ys,
+                topoline_colors,
+                topoline_visibilities
+        ):
 
             if topoline_visibility:
 
@@ -171,7 +176,7 @@ def plot_geoprofiles(
                         axes,
                         s,
                         y,
-                        plot_y_min,
+                        plot_y_filled,
                         qcolor2rgbmpl(topoline_color))
 
                 plot_line(
@@ -201,7 +206,7 @@ def plot_geoprofiles(
 
     profile_window = MplWidget('Profile')
 
-    num_subplots = (plot_height_choice + plot_slope_choice)*geoprofiles.geoprofiles_num
+    num_subplots = (plot_height_choice + plot_slope_choice) * geoprofiles.geoprofiles_num
     grid_spec = gridspec.GridSpec(num_subplots, 1)
 
     ndx_subplot = -1
@@ -212,19 +217,23 @@ def plot_geoprofiles(
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:
-
+            plot_slope_max = 90.0
             # defines slope value lists and the min and max values
             if plot_params['plot_slope_absolute']:
-                slopes = geoprofile.topo_profiles.absolute_slopes
+                #slopes = geoprofile.topo_profiles.absolute_slopes
+                plot_slope_min = 0.0
             else:
-                slopes = geoprofile.topo_profiles.profile_dirslopes
+                #slopes = geoprofile.topo_profiles.profile_dirslopes
+                plot_slope_min = -90.0
 
+            """
             profiles_slope_min = np.nanmin(np.array(list(map(np.nanmin, slopes))))
             profiles_slope_max = np.nanmax(np.array(list(map(np.nanmax, slopes))))
 
             delta_slope = profiles_slope_max - profiles_slope_min
             plot_slope_min = profiles_slope_min - delta_slope * slope_padding
             plot_slope_max = profiles_slope_max + delta_slope * slope_padding
+            """
 
         # plot topographic profile elevations
 

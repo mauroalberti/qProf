@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>293</width>
-    <height>482</height>
+    <height>533</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,7 +26,7 @@
      <x>0</x>
      <y>10</y>
      <width>291</width>
-     <height>471</height>
+     <height>521</height>
     </rect>
    </property>
    <property name="sizePolicy">
@@ -71,6 +71,21 @@
      <property name="text">
       <string>Digitize in canvas</string>
      </property>
+     <item>
+      <property name="text">
+       <string>digitize line</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>clear line</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>save line</string>
+      </property>
+     </item>
     </item>
     <item>
      <property name="text">

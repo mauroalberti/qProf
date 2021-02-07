@@ -84,6 +84,8 @@ class ActionWidget(QWidget):
         self.plugin_name = plugin_name
         self.canvas = canvas
 
+        self.profile_track_source = ''
+
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
 
@@ -97,7 +99,9 @@ class ActionWidget(QWidget):
 
         self.operations = {
             "Select from line layer": self.define_track_source_from_line_layer,
-            "Digitize in canvas": self.digitize_track_in_canvas,
+            "digitize line": self.digitize_rubberband_line,
+            "clear line": self.clear_rubberband_line,
+            "save line": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
             "Select from GPX file track": self.define_track_source_from_gpx_file,
             "DEMs": self.elevations_from_dems,
@@ -105,7 +109,7 @@ class ActionWidget(QWidget):
             "Single profile": self.plot_single_profile,
         }
 
-        self.actions_qtreewidget.itemDoubleClicked .connect(self.activate_action_window)
+        self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
 
     def activate_action_window(self):
 
@@ -114,7 +118,7 @@ class ActionWidget(QWidget):
         operation = self.operations.get(current_item_text)
 
         if operation is not None:
-
+            print(f"DEBUG: operation -> {operation}")
             operation()
 
     def create_line_in_project_crs(self,
@@ -129,7 +133,8 @@ class ActionWidget(QWidget):
         else:
             return profile_processed_line.crs_project(line_layer_crs, project_crs)
 
-    def define_track_source_from_line_layer(self):
+    def define_track_source_from_line_layer(self
+                                            ):
 
         current_line_layers = loaded_line_layers()
 
@@ -154,6 +159,7 @@ class ActionWidget(QWidget):
 
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
+        self.profile_track_source = 'layer'
         self.line_layer = line_layer
         self.invert_line_profile = invert_profile
         self.line_order_fld_ndx = line_order_fld_ndx
@@ -219,13 +225,38 @@ class ActionWidget(QWidget):
         self.profiles_order = sorted_orders
         '''
 
+    '''
     def digitize_track_in_canvas(self):
 
-        info(
-            self,
-            "Hey Mauro",
-            "digitize_in_canvas"
+        def stop_rubberband(self):
+
+            try:
+                self.canvas_end_profile_line()
+            except:
+                pass
+
+            try:
+                self.clear_rubberband()
+            except:
+                pass
+
+        dialog = DigitizeLineDialog(
+            plugin_name=self.plugin_name,
+            canvas=self.canvas
         )
+
+        if dialog.exec_():
+            pass # selected_dems = self.get_selected_dems_params(dialog)
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No profile line digitized")
+            return
+
+        #source_profile_lines = [self.digitized_profile_line2dt]
+
+        #stop_rubberband()
+    '''
 
     def define_track_source_from_text_window(self):
 
@@ -819,6 +850,224 @@ class ActionWidget(QWidget):
         profile_window = plot_geoprofiles(self.input_geoprofiles,
                                           plot_addit_params)
         self.profile_windows.append(profile_window)
+
+    def digitize_rubberband_line(self):
+
+        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
+
+        self.clear_rubberband_line()
+
+        info(self,
+             self.plugin_name,
+             "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+
+        self.rubberband = QgsRubberBand(self.canvas)
+        self.rubberband.setWidth(2)
+        self.rubberband.setColor(QColor(Qt.red))
+
+        self.digitize_maptool = MapDigitizeTool(self.canvas)
+        self.canvas.setMapTool(self.digitize_maptool)
+
+        self.digitize_maptool.moved.connect(self.canvas_refresh_profile_line)
+        self.digitize_maptool.leftClicked.connect(self.profile_add_point)
+        self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
+
+    def canvas_refresh_profile_line(self, position):
+
+        """
+        if len(self.profile_canvas_points) == 0:
+            return
+        """
+
+        x, y = xy_from_canvas(self.canvas, position)
+        print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
+
+        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
+
+    def profile_add_point(self, position):
+
+        x, y = xy_from_canvas(self.canvas, position)
+        print(f"DEBUG: profile_add_point -> {x} {y}")
+
+        self.profile_canvas_points.append([x, y])
+
+    def canvas_end_profile_line(self):
+
+        self.refresh_rubberband(self.profile_canvas_points)
+
+        self.digitized_profile_line2dt = None
+
+        if len(self.profile_canvas_points) <= 1:
+            warn(
+                self,
+                self.plugin_name,
+                "At least two non-coincident points are required"
+            )
+            return
+
+        raw_line = Line(
+            [Point(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+
+        if raw_line.num_pts <= 1:
+            warn(
+                self,
+                self.plugin_name,
+                "Just one non-coincident point"
+            )
+            return
+
+        self.digitized_profile_line2dt = raw_line
+        self.profile_track_source = 'digitized'
+        
+        self.profile_canvas_points = []
+        self.restore_previous_map_tool()
+
+    def restore_previous_map_tool(self):
+
+        self.canvas.unsetMapTool(self.digitize_maptool)
+        self.canvas.setMapTool(self.previous_maptool)
+
+    def refresh_rubberband(self,
+                           xy_list
+                           ):
+
+        self.rubberband.reset(QgsWkbTypes.LineGeometry)
+        for x, y in xy_list:
+            self.rubberband.addPoint(QgsPointXY(x, y))
+
+    def clear_rubberband_line(self):
+
+        self.profile_canvas_points = []
+        self.digitized_profile_line2dt = None
+
+        try:
+
+            self.rubberband.reset()
+
+        except:
+
+            pass
+
+    def save_rubberband_line(self):
+
+        def output_profile_line(
+                output_format,
+                output_filepath,
+                pts2dt,
+                proj_sr
+        ):
+
+            points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
+            if output_format == "csv":
+                success, msg = write_generic_csv(output_filepath,
+                                                 ['id', 'x', 'y'],
+                                                 points)
+                if not success:
+                    warn(self,
+                         self.plugin_name,
+                         msg)
+            elif output_format == "shapefile - line":
+                success, msg = write_rubberband_profile_lnshp(
+                    output_filepath,
+                    ['id'],
+                    points,
+                    proj_sr)
+                if not success:
+                    warn(self,
+                         self.plugin_name,
+                         msg)
+            else:
+                error(self,
+                      self.plugin_name,
+                      "Debug: error in export format")
+                return
+
+            if success:
+                info(self,
+                     self.plugin_name,
+                     "Line saved")
+
+        def get_format_type():
+
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
+
+        if self.digitized_profile_line2dt is None:
+
+            warn(self,
+                 self.plugin_name,
+                 "No available line to save [1]")
+            return
+
+        elif self.digitized_profile_line2dt.num_pts < 2:
+
+            warn(self,
+                 self.plugin_name,
+                 "No available line to save [2]")
+            return
+
+        dialog = LineDataExportDialog(self.plugin_name)
+        if dialog.exec_():
+            output_format = get_format_type()
+            if output_format == "":
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
+                return
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
+                return
+            add_to_project = dialog.load_output_checkBox.isChecked()
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No export defined")
+            return
+
+        # get project CRS information
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+        output_profile_line(
+            output_format,
+            output_filepath,
+            self.digitized_profile_line2dt.pts,
+            project_crs_osr)
+
+        # add theme to QGis project
+        if output_format == "shapefile - line" and add_to_project:
+            try:
+
+                digitized_line_layer = QgsVectorLayer(output_filepath,
+                                                      QFileInfo(output_filepath).baseName(),
+                                                      "ogr")
+                QgsProject.instance().addMapLayer(digitized_line_layer)
+
+            except:
+
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    """
+    def closeEvent(self, evnt):
+
+        try:
+
+            self.digitize_maptool.moved.disconnect(self.canvas_refresh_profile_line)
+            self.digitize_maptool.leftClicked.disconnect(self.profile_add_point)
+            self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
+            self.restore_previous_map_tool()
+
+        except:
+
+            pass
+    """
 
 
 class SourceDEMsDialog(QDialog):
@@ -2198,3 +2447,260 @@ class StatisticsDialog(QDialog):
                 report += type_report(stat_val)
 
         return report
+
+
+class DigitizeLineDialog(QDialog):
+
+    def __init__(
+            self,
+            plugin_name,
+            canvas,
+            parent=None
+    ):
+
+        super(DigitizeLineDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
+        self.canvas = canvas
+        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
+
+        layout = QVBoxLayout()
+
+        self.qpbtDigitizeLine = QPushButton(self.tr("Digitize line"))
+        self.qpbtDigitizeLine.setToolTip(
+            "Digitize a line on the map.\n"
+            "Left click: add point\n"
+            "Right click: end adding point"
+        )
+        self.qpbtDigitizeLine.clicked.connect(self.digitize_line)
+
+        layout.addWidget(self.qpbtDigitizeLine)
+
+        self.qpbtClearLine = QPushButton(self.tr("Clear"))
+        self.qpbtClearLine.clicked.connect(self.clear_rubberband)
+        layout.addWidget(self.qpbtClearLine)
+
+        self.qpbtClearLine = QPushButton(self.tr("Save"))
+        self.qpbtClearLine.clicked.connect(self.save_rubberband)
+        layout.addWidget(self.qpbtClearLine)
+
+        self.setLayout(layout)
+
+        self.setWindowTitle("Digitize line")
+
+
+    '''
+    def connect_digitize_maptool(self):
+
+        self.digitize_maptool.moved.connect(self.canvas_refresh_profile_line)
+        self.digitize_maptool.leftClicked.connect(self.profile_add_point)
+        self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
+    '''
+
+    def digitize_line(self):
+
+        self.clear_rubberband()
+
+        info(self,
+             self.plugin_name,
+             "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+
+        self.rubberband = QgsRubberBand(self.canvas)
+        self.rubberband.setWidth(2)
+        self.rubberband.setColor(QColor(Qt.red))
+
+        self.digitize_maptool = MapDigitizeTool(self.canvas)
+        self.canvas.setMapTool(self.digitize_maptool)
+
+        self.digitize_maptool.moved.connect(self.canvas_refresh_profile_line)
+        self.digitize_maptool.leftClicked.connect(self.profile_add_point)
+        self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
+
+        print(f"DEBUG: exiting digitize_line")
+
+    def canvas_refresh_profile_line(self, position):
+
+        """
+        if len(self.profile_canvas_points) == 0:
+            return
+        """
+
+        x, y = xy_from_canvas(self.canvas, position)
+        print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
+
+        self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
+
+    def profile_add_point(self, position):
+
+        x, y = xy_from_canvas(self.canvas, position)
+        print(f"DEBUG: profile_add_point -> {x} {y}")
+
+        self.profile_canvas_points.append([x, y])
+
+    def canvas_end_profile_line(self):
+
+        self.refresh_rubberband(self.profile_canvas_points)
+
+        self.digitized_profile_line2dt = None
+        if len(self.profile_canvas_points) > 1:
+            raw_line = Line(
+                [Point(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+            if raw_line.num_pts > 1:
+                self.digitized_profile_line2dt = raw_line
+
+        self.profile_canvas_points = []
+
+        self.restore_previous_map_tool()
+
+    def restore_previous_map_tool(self):
+
+        self.canvas.unsetMapTool(self.digitize_maptool)
+        self.canvas.setMapTool(self.previous_maptool)
+
+    def refresh_rubberband(self,
+                           xy_list
+                           ):
+
+        self.rubberband.reset(QgsWkbTypes.LineGeometry)
+        for x, y in xy_list:
+            self.rubberband.addPoint(QgsPointXY(x, y))
+
+    def clear_rubberband(self):
+
+        self.profile_canvas_points = []
+        self.digitized_profile_line2dt = None
+
+        try:
+
+            self.rubberband.reset()
+
+        except:
+
+            pass
+
+    def save_rubberband(self):
+
+        def output_profile_line(
+                output_format,
+                output_filepath,
+                pts2dt,
+                proj_sr
+        ):
+
+            points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
+            if output_format == "csv":
+                success, msg = write_generic_csv(output_filepath,
+                                                 ['id', 'x', 'y'],
+                                                 points)
+                if not success:
+                    warn(self,
+                         self.plugin_name,
+                         msg)
+            elif output_format == "shapefile - line":
+                success, msg = write_rubberband_profile_lnshp(
+                    output_filepath,
+                    ['id'],
+                    points,
+                    proj_sr)
+                if not success:
+                    warn(self,
+                         self.plugin_name,
+                         msg)
+            else:
+                error(self,
+                      self.plugin_name,
+                      "Debug: error in export format")
+                return
+
+            if success:
+                info(self,
+                     self.plugin_name,
+                     "Line saved")
+
+        def get_format_type():
+
+            if dialog.outtype_shapefile_line_QRadioButton.isChecked():
+                return "shapefile - line"
+            elif dialog.outtype_csv_QRadioButton.isChecked():
+                return "csv"
+            else:
+                return ""
+
+        if self.digitized_profile_line2dt is None:
+
+            warn(self,
+                 self.plugin_name,
+                 "No available line to save [1]")
+            return
+
+        elif self.digitized_profile_line2dt.num_pts < 2:
+
+            warn(self,
+                 self.plugin_name,
+                 "No available line to save [2]")
+            return
+
+        dialog = LineDataExportDialog(self.plugin_name)
+        if dialog.exec_():
+            output_format = get_format_type()
+            if output_format == "":
+                warn(self,
+                     self.plugin_name,
+                     "Error in output format")
+                return
+            output_filepath = dialog.outpath_QLineEdit.text()
+            if len(output_filepath) == 0:
+                warn(self,
+                     self.plugin_name,
+                     "Error in output path")
+                return
+            add_to_project = dialog.load_output_checkBox.isChecked()
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No export defined")
+            return
+
+        # get project CRS information
+        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+
+        output_profile_line(
+            output_format,
+            output_filepath,
+            self.digitized_profile_line2dt.pts,
+            project_crs_osr)
+
+        # add theme to QGis project
+        if output_format == "shapefile - line" and add_to_project:
+            try:
+
+                digitized_line_layer = QgsVectorLayer(output_filepath,
+                                                      QFileInfo(output_filepath).baseName(),
+                                                      "ogr")
+                QgsProject.instance().addMapLayer(digitized_line_layer)
+
+            except:
+
+                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                return
+
+    """
+    def closeEvent(self, evnt):
+
+        try:
+
+            self.digitize_maptool.moved.disconnect(self.canvas_refresh_profile_line)
+            self.digitize_maptool.leftClicked.disconnect(self.profile_add_point)
+            self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
+            self.restore_previous_map_tool()
+            
+        except:
+
+            pass
+    """
+
+
+
+
+
+

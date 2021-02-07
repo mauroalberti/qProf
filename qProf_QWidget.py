@@ -556,7 +556,7 @@ class qprof_QWidget(QWidget):
 
                 try:
 
-                    profile_orig_lines, label_values, order_values = line_geoms_with_infos(line_shape, label_field_ndx, order_field_ndx)
+                    profile_orig_lines, label_values, order_values = try_line_geoms_with_order_infos(line_shape, label_field_ndx, order_field_ndx)
 
                 except VectorInputException as error_msg:
 

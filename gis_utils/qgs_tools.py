@@ -1,7 +1,7 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, List
+
 import numbers
 
-#from __future__ import division
 
 from builtins import str
 from builtins import object
@@ -147,42 +147,57 @@ def line_geoms_attrs(line_layer, field_list=None):
     return lines
 
 
-def line_geoms_with_infos(
+def try_line_geoms_with_order_infos(
     line_layer,
-    #label_field_ndx: Optional[numbers.Integral],
-    order_field_ndx: Optional[numbers.Integral]
-):
+    order_field_ndx: Optional[numbers.Integral] = None
+) -> Tuple[bool, Union[str, Tuple[List, List]]]:
 
-    lines = []
-    order_values = []
-    #label_values = []
+    try:
 
-    if line_layer.selectedFeatureCount() > 0:
-        features = line_layer.selectedFeatures()
-    else:
-        features = line_layer.getFeatures()
+        lines = []
+        order_values = []
 
-    dummy_progressive = 0
-
-    for feature in features:
-
-        dummy_progressive += 1
-
-        #label_val = feature[label_field_ndx] if label_field_ndx is not None else ''
-        order_val = feature[order_field_ndx] if order_field_ndx is not None else dummy_progressive
-
-        #label_values.append(label_val)
-        order_values.append(order_val)
-
-        geom = feature.geometry()
-        if geom.isMultipart():
-            lines.append(
-                ('multiline', multipolyline_to_xytuple_list2(geom.asMultiPolyline())))  # typedef QVector<QgsPolyline>
-            # now it's a list of list of (x,y) tuples
+        if line_layer.selectedFeatureCount() > 0:
+            features = line_layer.selectedFeatures()
         else:
-            lines.append(('line', polyline_to_xytuple_list(geom.asPolyline())))  # typedef QVector<QgsPointXY>
+            features = line_layer.getFeatures()
 
-    return lines, order_values
+        dummy_progressive = 0
+
+        for feature in features:
+
+            dummy_progressive += 1
+
+            order_val = feature[order_field_ndx] if order_field_ndx is not None else dummy_progressive
+
+            order_values.append(order_val)
+
+            geom = feature.geometry()
+
+            if geom.isMultipart():
+
+                lines.append(
+                    (
+                        'multiline',
+                        multipolyline_to_xytuple_list2(geom.asMultiPolyline())  # geom is QVector<QgsPolyline>
+                     )
+                )
+                # now it's a list of list of (x,y) tuples
+
+            else:
+
+                lines.append(
+                    (
+                        'line',
+                        polyline_to_xytuple_list(geom.asPolyline())  # geom is QVector<QgsPointXY>
+                    )
+                )
+
+        return True, (lines, order_values)
+
+    except Exception as e:
+
+        return False, str(e)
 
 
 def polyline_to_xytuple_list(qgsline):

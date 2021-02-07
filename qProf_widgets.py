@@ -121,7 +121,8 @@ class ActionWidget(QWidget):
             profile_processed_line,
             line_layer_crs,
             on_the_fly_projection,
-            project_crs):
+            project_crs
+    ):
 
         if not on_the_fly_projection:
             return profile_processed_line
@@ -151,16 +152,11 @@ class ActionWidget(QWidget):
                  "No defined line source")
             return
 
-        #line_label_fld_ndx = int(label_field_ndx) - 1 if label_field_ndx else None
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
         self.line_layer = line_layer
         self.invert_line_profile = invert_profile
-        #self.multiple_profiles = multiple_profiles
-        #self.line_label_fld_ndx = line_label_fld_ndx
         self.line_order_fld_ndx = line_order_fld_ndx
-
-        #print(f"self.invert_line_profile: {self.invert_line_profile}")
 
         '''
         areLinesToReorder = False if line_order_fld_ndx is None else True
@@ -306,18 +302,27 @@ class ActionWidget(QWidget):
 
     def try_get_line_traces(self,
             line_shape,
-            order_field_ndx: Optional[numbers.Integral]
-    ):
+            order_field_ndx: Optional[numbers.Integral] = None
+    ) -> Tuple[bool, Union[str, Tuple]]:
 
         try:
 
-            profile_orig_lines, order_values = line_geoms_with_infos(line_shape, order_field_ndx)
+            success, result = try_line_geoms_with_order_infos(
+                line_shape,
+                order_field_ndx
+            )
 
-        except VectorInputException as error_msg:
+            if not success:
+                msg = result
+                return False, msg
 
-            return False, error_msg
+            profile_orig_lines, order_values = result
 
-        return True, (profile_orig_lines, order_values)
+            return True, (profile_orig_lines, order_values)
+
+        except Exception as e:
+
+            return False, str(e)
 
     def line_layer_params(
             self,
@@ -325,8 +330,6 @@ class ActionWidget(QWidget):
 
         line_layer = dialog.line_shape
         invert_profile = dialog.qcbxInvertProfile.isChecked()
-        #multiple_profiles = dialog.qrbtLineIsMultiProfile.isChecked()
-        #label_field_ndx = dialog.Trace2D_label_field_comboBox.currentIndex()
         order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
         return line_layer, invert_profile, order_field_ndx
@@ -341,7 +344,8 @@ class ActionWidget(QWidget):
         self.profiles_labels = None
         self.profiles_order = None
 
-    def try_load_line_layer(self):
+    def try_load_line_layer(self
+                            ) -> Tuple[bool, Union[str, List[Line]]]:
 
         try:
 
@@ -358,8 +362,6 @@ class ActionWidget(QWidget):
                 raise VectorIOException(result)
 
             profile_orig_lines, order_values = result
-
-            processed_lines = []
 
             """
             if self.multiple_profiles:
@@ -390,6 +392,8 @@ class ActionWidget(QWidget):
             else:
             """
 
+            processed_lines = []
+
             if areLinesToReorder:
 
                 sorted_orders = order_values
@@ -397,12 +401,14 @@ class ActionWidget(QWidget):
 
             else:
 
-                processed_lines = profile_orig_lines
+                for orig_line in profile_orig_lines:
+                    processed_lines.append(merge_line(orig_line))
 
             # process input line layer
 
             projected_lines = []
-            for processed_line in processed_lines:
+            for ndx, processed_line in enumerate(processed_lines):
+
                 projected_lines.append(
                     self.create_line_in_project_crs(
                         processed_line,
@@ -414,9 +420,7 @@ class ActionWidget(QWidget):
 
             profiles_lines = [line.remove_coincident_points() for line in projected_lines]
 
-            profiles_order = sorted_orders
-
-            return True, (profiles_lines, profiles_order)
+            return True, profiles_lines
 
         except Exception as e:
 
@@ -514,7 +518,7 @@ class ActionWidget(QWidget):
             msg = result
             return False, msg
 
-        self.profiles_lines, self.profiles_order = result
+        self.profiles_lines = result
 
         self.demline_source = "dem_source"
         topo_source_type = self.demline_source
@@ -527,7 +531,7 @@ class ActionWidget(QWidget):
 
             except Exception as e:
 
-                return False, "Input DEMs definition not correct"
+                return False, f"Input DEMs definition not correct: {e}"
 
             try:
 
@@ -606,8 +610,6 @@ class ActionWidget(QWidget):
         """
 
         # calculates profiles
-
-        #self.invert_line_profile = self.qcbxInvertProfile.isChecked()
 
         if topo_source_type == self.demline_source:  # sources are DEM(s) and line
 
@@ -1754,7 +1756,6 @@ class TopographicProfileExportDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        ##
         # Profile source
 
         source_groupBox = QGroupBox(self.tr("Profile sources"))
@@ -1787,7 +1788,6 @@ class TopographicProfileExportDialog(QDialog):
 
         layout.addWidget(source_groupBox)
 
-        ##
         # Output type
 
         output_type_groupBox = QGroupBox(self.tr("Output format"))
@@ -1812,7 +1812,6 @@ class TopographicProfileExportDialog(QDialog):
 
         layout.addWidget(output_type_groupBox)
 
-        ##
         # Output name/path
 
         output_path_groupBox = QGroupBox(self.tr("Output file"))
@@ -1902,7 +1901,6 @@ class PointDataExportDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        ##
         # Output type
 
         output_type_groupBox = QGroupBox(self.tr("Output format"))
@@ -1924,7 +1922,6 @@ class PointDataExportDialog(QDialog):
 
         layout.addWidget(output_type_groupBox)
 
-        ##
         # Output name/path
 
         output_path_groupBox = QGroupBox(self.tr("Output path"))
@@ -2014,7 +2011,6 @@ class LineDataExportDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        ##
         # Output type
 
         output_type_groupBox = QGroupBox(self.tr("Output format"))
@@ -2034,7 +2030,6 @@ class LineDataExportDialog(QDialog):
 
         layout.addWidget(output_type_groupBox)
 
-        ##
         # Output name/path
 
         output_path_groupBox = QGroupBox(self.tr("Output file"))

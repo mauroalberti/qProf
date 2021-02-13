@@ -1,6 +1,8 @@
 
 from typing import Optional, Tuple
 
+from enum import Enum, auto
+
 import numbers
 import os
 import unicodedata
@@ -71,6 +73,18 @@ def get_dem_resolution_in_prj_crs(
     return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
 
+class TrackSource(Enum):
+    """
+    The profile source type.
+    """
+
+    UNDEFINED  = auto()
+    LINE_LAYER = auto()
+    DIGITATION = auto()
+    POINT_LIST = auto()
+    GPX_FILE   = auto()
+
+
 class ActionWidget(QWidget):
 
     def __init__(self,
@@ -84,7 +98,8 @@ class ActionWidget(QWidget):
         self.plugin_name = plugin_name
         self.canvas = canvas
 
-        self.profile_track_source = ''
+        self.profile_track_source = TrackSource.UNDEFINED
+        self.invert_line_profile = False
 
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
@@ -97,7 +112,7 @@ class ActionWidget(QWidget):
 
         self.actions_qtreewidget = self.actionsTreeWidget
 
-        self.operations = {
+        self.profile_operations = {
             "Select from line layer": self.define_track_source_from_line_layer,
             "digitize line": self.digitize_rubberband_line,
             "clear line": self.clear_rubberband_line,
@@ -115,7 +130,7 @@ class ActionWidget(QWidget):
 
         current_item_text = self.actions_qtreewidget.currentItem().text(0)
 
-        operation = self.operations.get(current_item_text)
+        operation = self.profile_operations.get(current_item_text)
 
         if operation is not None:
             print(f"DEBUG: operation -> {operation}")
@@ -135,6 +150,8 @@ class ActionWidget(QWidget):
 
     def define_track_source_from_line_layer(self
                                             ):
+
+        self.clear_rubberband_line()
 
         current_line_layers = loaded_line_layers()
 
@@ -159,7 +176,7 @@ class ActionWidget(QWidget):
 
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
-        self.profile_track_source = 'layer'
+        self.profile_track_source = TrackSource.LINE_LAYER
         self.line_layer = line_layer
         self.invert_line_profile = invert_profile
         self.line_order_fld_ndx = line_order_fld_ndx
@@ -260,6 +277,8 @@ class ActionWidget(QWidget):
 
     def define_track_source_from_text_window(self):
 
+        self.clear_rubberband_line()
+
         info(
             self,
             "Hey Mauro",
@@ -267,6 +286,8 @@ class ActionWidget(QWidget):
         )
 
     def define_track_source_from_gpx_file(self):
+
+        self.clear_rubberband_line()
 
         info(
             self,
@@ -503,21 +524,10 @@ class ActionWidget(QWidget):
         dialog.exec_()
         """
 
-    def try_prepare_single_topo_profiles(self) -> Tuple[bool, str]:
+    def try_prepare_single_topo_profiles(self
+                                         ) -> Tuple[bool, str]:
 
         """
-        def stop_rubberband(self):
-
-            try:
-                self.canvas_end_profile_line()
-            except:
-                pass
-
-            try:
-                self.clear_rubberband()
-            except:
-                pass
-
         selected_dems = None
         selected_dem_parameters = None
 
@@ -527,29 +537,38 @@ class ActionWidget(QWidget):
         topo_source_type = self.demline_source
         """
 
-        """
-        if self.qrbtDEMDataType.isChecked():
-            topo_source_type = self.demline_source
-        elif self.qrbtGPXDataType.isChecked():
-            topo_source_type = self.gpxfile_source
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "Debug: source data type undefined")
-            return
-        """
-
         self.input_geoprofiles = GeoProfilesSet()  # reset any previous created profiles
 
         self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
 
-        success, result = self.try_load_line_layer()
+        if self.profile_track_source == TrackSource.LINE_LAYER:
 
-        if not success:
-            msg = result
+            success, result = self.try_load_line_layer()
+
+            if not success:
+                msg = result
+                return False, msg
+
+            self.profiles_lines = result
+
+        elif self.profile_track_source == TrackSource.DIGITATION:
+
+            self.profiles_lines = [self.digitized_profile_line2dt]
+
+        elif self.profile_track_source == TrackSource.POINT_LIST:
+
+            msg = "Sorry, not yet implemented"
             return False, msg
 
-        self.profiles_lines = result
+        elif self.profile_track_source == TrackSource.GPX_FILE:
+
+            msg = "Sorry, not yet implemented"
+            return False, msg
+
+        else:
+
+            msg = f"Error in self.profile_track_source case: {self.profile_track_source}"
+            return False, msg
 
         self.demline_source = "dem_source"
         topo_source_type = self.demline_source
@@ -772,10 +791,13 @@ class ActionWidget(QWidget):
 
     def plot_single_profile(self):
 
-        '''
-        if not self.check_pre_profile():
+        if self.profile_track_source == TrackSource.UNDEFINED:
+            warn(
+                self,
+                self.plugin_name,
+                "No profile track source defined"
+            )
             return
-        '''
 
         success, msg = self.try_prepare_single_topo_profiles()
 
@@ -917,9 +939,10 @@ class ActionWidget(QWidget):
             return
 
         self.digitized_profile_line2dt = raw_line
-        self.profile_track_source = 'digitized'
+        self.profile_track_source = TrackSource.DIGITATION
         
         self.profile_canvas_points = []
+
         self.restore_previous_map_tool()
 
     def restore_previous_map_tool(self):
@@ -937,6 +960,8 @@ class ActionWidget(QWidget):
 
     def clear_rubberband_line(self):
 
+        self.profile_track_source = TrackSource.UNDEFINED
+        
         self.profile_canvas_points = []
         self.digitized_profile_line2dt = None
 
@@ -1054,11 +1079,13 @@ class ActionWidget(QWidget):
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
 
-    """
     def closeEvent(self, evnt):
 
-        try:
+        self.clear_rubberband_line()
 
+        """
+        try:
+            
             self.digitize_maptool.moved.disconnect(self.canvas_refresh_profile_line)
             self.digitize_maptool.leftClicked.disconnect(self.profile_add_point)
             self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
@@ -1067,7 +1094,7 @@ class ActionWidget(QWidget):
         except:
 
             pass
-    """
+        """
 
 
 class SourceDEMsDialog(QDialog):

@@ -1,8 +1,15 @@
 
+"""
 from builtins import map
 from builtins import zip
 from builtins import range
 from builtins import object
+"""
+
+from typing import Tuple
+
+import numbers
+
 import numpy as np
 
 from .qgs_tools import project_point
@@ -639,7 +646,9 @@ def remove_equal_consecutive_xypairs(xy_list):
     return out_xy_list
 
 
-def xytuple_list_to_Line(xy_list):
+def xytuple_list_to_Line(
+        xy_list: Tuple[numbers.Real, numbers.Real]
+) -> Line:
 
     return Line([Point(x, y) for (x, y) in xy_list])
 

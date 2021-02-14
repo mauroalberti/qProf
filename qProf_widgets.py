@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 
 from enum import Enum, auto
 
+import math
 import numbers
 import os
 import unicodedata
@@ -100,6 +101,7 @@ class ActionWidget(QWidget):
 
         self.profile_track_source = TrackSource.UNDEFINED
         self.invert_line_profile = False
+        self.line_from_points_list = None
 
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
@@ -275,15 +277,69 @@ class ActionWidget(QWidget):
         #stop_rubberband()
     '''
 
+    def try_get_point_list(self,
+                           dialog
+                           ) -> Tuple[bool, Union[str, Line]]:
+
+        try:
+
+            raw_point_string = dialog.point_list_qtextedit.toPlainText()
+            raw_point_list = raw_point_string.split("\n")
+            raw_point_list = [clean_string(str(unicode_txt)) for unicode_txt in raw_point_list]
+            data_list = [rp for rp in raw_point_list if rp != ""]
+
+            point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
+            line_2d = xytuple_list_to_Line(point_list)
+
+            return True, line_2d
+
+        except Exception as e:
+
+            return False, str(e)
+
     def define_track_source_from_text_window(self):
 
         self.clear_rubberband_line()
 
-        info(
-            self,
-            "Hey Mauro",
-            "define_in_text_window"
-        )
+        self.init_topo_labels()
+
+        dialog = LoadPointListDialog(self.plugin_name)
+
+        if dialog.exec_():
+
+            success, result = self.try_get_point_list(dialog)
+            if not success:
+                msg = result
+                warn(self,
+                     self.plugin_name,
+                     msg)
+                return
+            line2d = result
+        else:
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
+            return
+
+        try:
+
+            npts = line2d.num_pts
+            if npts < 2:
+                warn(self,
+                     self.plugin_name,
+                     "Defined line source with less than two points")
+                return
+
+        except:
+
+            warn(self,
+                 self.plugin_name,
+                 "No defined line source")
+            return
+
+        self.profile_track_source = TrackSource.POINT_LIST
+        self.line_from_points_list = line2d
+        print(f"DEBUG: line2d: {line2d}")
 
     def define_track_source_from_gpx_file(self):
 
@@ -553,12 +609,11 @@ class ActionWidget(QWidget):
 
         elif self.profile_track_source == TrackSource.DIGITATION:
 
-            self.profiles_lines = [self.digitized_profile_line2dt]
+            self.profiles_lines = [self.line_from_digitation]
 
         elif self.profile_track_source == TrackSource.POINT_LIST:
 
-            msg = "Sorry, not yet implemented"
-            return False, msg
+            self.profiles_lines = [self.line_from_points_list]
 
         elif self.profile_track_source == TrackSource.GPX_FILE:
 
@@ -842,6 +897,34 @@ class ActionWidget(QWidget):
         else:
             surface_colors = self.input_geoprofiles.plot_params.get('elev_lyr_colors')
 
+        # pre-process input data to account for multi.profiles
+
+        profile_length = np.nanmax(profile_length_set)
+        natural_elev_min = np.nanmin(natural_elev_min_set)
+        natural_elev_max = np.nanmax(natural_elev_max_set)
+
+        if np.isnan(profile_length) or profile_length == 0.0:
+            error(
+                self,
+                self.plugin_name,
+                f"Max profile length is {profile_length}.\nCheck profile trace."
+            )
+            return
+
+        if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
+            error(
+                self,
+                self.plugin_name,
+                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s)."
+            )
+            return
+
+        if natural_elev_max <= natural_elev_min:
+            warn(self,
+                 self.plugin_name,
+                 "Error: min elevation larger then max elevation")
+            return
+
         dialog = PlotTopoProfileDialog(self.plugin_name,
                                        profile_length_set,
                                        natural_elev_min_set,
@@ -917,7 +1000,7 @@ class ActionWidget(QWidget):
 
         self.refresh_rubberband(self.profile_canvas_points)
 
-        self.digitized_profile_line2dt = None
+        self.line_from_digitation = None
 
         if len(self.profile_canvas_points) <= 1:
             warn(
@@ -938,7 +1021,7 @@ class ActionWidget(QWidget):
             )
             return
 
-        self.digitized_profile_line2dt = raw_line
+        self.line_from_digitation = raw_line
         self.profile_track_source = TrackSource.DIGITATION
         
         self.profile_canvas_points = []
@@ -961,9 +1044,9 @@ class ActionWidget(QWidget):
     def clear_rubberband_line(self):
 
         self.profile_track_source = TrackSource.UNDEFINED
-        
+
         self.profile_canvas_points = []
-        self.digitized_profile_line2dt = None
+        self.line_from_digitation = None
 
         try:
 
@@ -1021,14 +1104,14 @@ class ActionWidget(QWidget):
             else:
                 return ""
 
-        if self.digitized_profile_line2dt is None:
+        if self.line_from_digitation is None:
 
             warn(self,
                  self.plugin_name,
                  "No available line to save [1]")
             return
 
-        elif self.digitized_profile_line2dt.num_pts < 2:
+        elif self.line_from_digitation.num_pts < 2:
 
             warn(self,
                  self.plugin_name,
@@ -1062,7 +1145,7 @@ class ActionWidget(QWidget):
         output_profile_line(
             output_format,
             output_filepath,
-            self.digitized_profile_line2dt.pts,
+            self.line_from_digitation.pts,
             project_crs_osr)
 
         # add theme to QGis project
@@ -1512,9 +1595,27 @@ class PlotTopoProfileDialog(QDialog):
 
         # pre-process input data to account for multi.profiles
 
-        profile_length = max(profile_length_set)
-        natural_elev_min = min(natural_elev_min_set)
-        natural_elev_max = max(natural_elev_max_set)
+        profile_length = np.nanmax(profile_length_set)
+        natural_elev_min = np.nanmin(natural_elev_min_set)
+        natural_elev_max = np.nanmax(natural_elev_max_set)
+
+        '''
+        if np.isnan(profile_length) or profile_length == 0.0:
+            error(
+                self,
+                self.plugin_name,
+                f"Max profile length is {profile_length}.\nCheck profile trace."
+            )
+            return
+
+        if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
+            error(
+                self,
+                self.plugin_name,
+                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace."
+            )
+            return
+        '''
 
         # pre-process elevation values
 

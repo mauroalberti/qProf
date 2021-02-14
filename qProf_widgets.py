@@ -353,11 +353,20 @@ class ActionWidget(QWidget):
         )
 
         if dialog.exec_():
-            self.input_gpx_file_path = dialog.qlneInputGPXFile.text()
+            source_gpx_path = str(self.qlneInputGPXFile.text())
+            self.input_gpx_file_path = str(dialog.input_gpx_file_path.text())
+            self.invert_line_profile = dialog.invert_track_direction.isChecked()
+
+            topo_profiles = topoprofiles_from_gpxfile(
+                source_gpx_path,
+                invert_profile,
+                self.gpxfile_source
+            )
+
+
+            self.profile_track_source = TrackSource.GPX_FILE
         else:
             return
-
-        print(f"DEBUG: self.input_gpx_file_path -> {self.input_gpx_file_path}")
 
     def get_dem_parameters(self,
                            dem):
@@ -460,7 +469,8 @@ class ActionWidget(QWidget):
         self.profiles_labels = None
         self.profiles_order = None
 
-    def try_load_line_layer(self
+    def try_load_line_layer(self,
+                            invert_direction: bool
                             ) -> Tuple[bool, Union[str, List[Line]]]:
 
         try:
@@ -536,6 +546,9 @@ class ActionWidget(QWidget):
 
             profiles_lines = [line.remove_coincident_points() for line in projected_lines]
 
+            if invert_direction:
+                profiles_lines = [line.invert_direction() for line in profiles_lines]
+
             return True, profiles_lines
 
         except Exception as e:
@@ -607,7 +620,9 @@ class ActionWidget(QWidget):
 
         if self.profile_track_source == TrackSource.LINE_LAYER:
 
-            success, result = self.try_load_line_layer()
+            success, result = self.try_load_line_layer(
+                invert_direction=self.invert_line_profile
+            )
 
             if not success:
                 msg = result
@@ -749,8 +764,7 @@ class ActionWidget(QWidget):
                         profile_line,
                         sample_distance,
                         selected_dems,
-                        selected_dem_parameters,
-                        self.invert_line_profile
+                        selected_dem_parameters
                     )
 
                 except Exception as e:
@@ -2842,17 +2856,25 @@ class GpxInputDialog(QDialog):
             QLabel(self.tr("Choose input file:")),
             0, 0, 1, 1)
 
-        self.qlneInputGPXFile = QLineEdit()
-        self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
+        self.input_gpx_file_path = QLineEdit()
+        self.input_gpx_file_path.setPlaceholderText("my_track.gpx")
         layout.addWidget(
-            self.qlneInputGPXFile,
+            self.input_gpx_file_path,
             0, 1, 1, 1)
 
-        self.qphbInputGPXFile = QPushButton("...")
-        self.qphbInputGPXFile.clicked.connect(self.select_input_gpx_file)
+        self.define_input_gpx_file = QPushButton("...")
+        self.define_input_gpx_file.clicked.connect(self.select_input_gpx_file)
         layout.addWidget(
-            self.qphbInputGPXFile,
+            self.define_input_gpx_file,
             0, 2, 1, 1)
+
+        self.invert_track_direction = QCheckBox(
+            "Invert direction"
+        )
+
+        layout.addWidget(
+            self.invert_track_direction,
+            1, 0, 1, 2)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -2860,14 +2882,13 @@ class GpxInputDialog(QDialog):
         cancelButton.clicked.connect(self.reject)
 
         layout.addWidget(okButton,
-                         1, 0, 1, 2)
+                         2, 1, 1, 1)
         layout.addWidget(cancelButton,
-                         1, 2, 1, 1)
+                         2, 2, 1, 1)
 
         self.setLayout(layout)
 
         self.setWindowTitle("Input GPX")
-
 
     def select_input_gpx_file(self):
 
@@ -2883,7 +2904,7 @@ class GpxInputDialog(QDialog):
             update_directory_key(self.settings,
                                  self.settings_gpxdir_key,
                                  file_name)
-            self.qlneInputGPXFile.setText(file_name)
+            self.input_gpx_file_path.setText(file_name)
 
 
 

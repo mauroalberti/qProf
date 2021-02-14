@@ -268,19 +268,13 @@ def topoprofiles_from_dems(
         source_profile_line,
         sample_distance,
         selected_dems,
-        selected_dem_parameters,
-        invert_profile
+        selected_dem_parameters
 ):
     
     # get project CRS information
     on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
 
-    if invert_profile:
-        line = source_profile_line.reverse_direction()
-    else:
-        line = source_profile_line
-
-    resampled_line = line.densify_2d_line(sample_distance)  # line resampled by sample distance
+    resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs
 
@@ -314,7 +308,11 @@ def topoprofiles_from_dems(
     return topo_profiles
 
 
-def topoprofiles_from_gpxfile(source_gpx_path, invert_profile, gpx_source):
+def topoprofiles_from_gpxfile(
+        source_gpx_path,
+        invert_profile,
+        gpx_source
+):
 
     doc = xml.dom.minidom.parse(source_gpx_path)
 

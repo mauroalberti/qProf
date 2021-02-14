@@ -442,7 +442,7 @@ class Line(object):
 
         return lIncrementalLengths
 
-    def reverse_direction(self):
+    def invert_direction(self):
 
         new_line = self.clone()
         new_line.pts.reverse()  # in-place operation on new_line

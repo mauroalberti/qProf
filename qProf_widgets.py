@@ -102,6 +102,7 @@ class ActionWidget(QWidget):
         self.profile_track_source = TrackSource.UNDEFINED
         self.invert_line_profile = False
         self.line_from_points_list = None
+        self.input_gpx_file_path = None
 
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
@@ -345,11 +346,18 @@ class ActionWidget(QWidget):
 
         self.clear_rubberband_line()
 
-        info(
-            self,
-            "Hey Mauro",
-            "from_GPX_file"
+        dialog = GpxInputDialog(
+            self.plugin_name,
+            self.settings,
+            self.settings_gpxdir_key
         )
+
+        if dialog.exec_():
+            self.input_gpx_file_path = dialog.qlneInputGPXFile.text()
+        else:
+            return
+
+        print(f"DEBUG: self.input_gpx_file_path -> {self.input_gpx_file_path}")
 
     def get_dem_parameters(self,
                            dem):
@@ -958,9 +966,9 @@ class ActionWidget(QWidget):
 
     def digitize_rubberband_line(self):
 
-        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
-
         self.clear_rubberband_line()
+
+        self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
 
         info(self,
              self.plugin_name,
@@ -2812,20 +2820,70 @@ class DigitizeLineDialog(QDialog):
                 QMessageBox.critical(self, "Result", "Unable to load layer in project")
                 return
 
-    """
-    def closeEvent(self, evnt):
 
-        try:
+class GpxInputDialog(QDialog):
 
-            self.digitize_maptool.moved.disconnect(self.canvas_refresh_profile_line)
-            self.digitize_maptool.leftClicked.disconnect(self.profile_add_point)
-            self.digitize_maptool.rightClicked.disconnect(self.canvas_end_profile_line)
-            self.restore_previous_map_tool()
-            
-        except:
+    def __init__(self,
+                 plugin_name,
+                 settings,
+                 settings_gpxdir_key,
+                 parent=None
+                 ):
 
-            pass
-    """
+        super(GpxInputDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
+        self.settings = settings
+        self.settings_gpxdir_key = settings_gpxdir_key
+
+        layout = QGridLayout()
+
+        layout.addWidget(
+            QLabel(self.tr("Choose input file:")),
+            0, 0, 1, 1)
+
+        self.qlneInputGPXFile = QLineEdit()
+        self.qlneInputGPXFile.setPlaceholderText("my_track.gpx")
+        layout.addWidget(
+            self.qlneInputGPXFile,
+            0, 1, 1, 1)
+
+        self.qphbInputGPXFile = QPushButton("...")
+        self.qphbInputGPXFile.clicked.connect(self.select_input_gpx_file)
+        layout.addWidget(
+            self.qphbInputGPXFile,
+            0, 2, 1, 1)
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
+
+        layout.addWidget(okButton,
+                         1, 0, 1, 2)
+        layout.addWidget(cancelButton,
+                         1, 2, 1, 1)
+
+        self.setLayout(layout)
+
+        self.setWindowTitle("Input GPX")
+
+
+    def select_input_gpx_file(self):
+
+        gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
+                                                "")
+        file_name, __ = QFileDialog.getOpenFileName(self,
+                                               self.tr("Open GPX file"),
+                                               gpx_last_used_dir,
+                                               "GPX (*.gpx *.GPX)")
+        if not file_name:
+            return
+        else:
+            update_directory_key(self.settings,
+                                 self.settings_gpxdir_key,
+                                 file_name)
+            self.qlneInputGPXFile.setText(file_name)
 
 
 

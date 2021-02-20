@@ -73,17 +73,17 @@
      </property>
      <item>
       <property name="text">
-       <string>digitize line</string>
+       <string>digitize trace</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>clear line</string>
+       <string>clear trace</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>save line</string>
+       <string>save trace</string>
       </property>
      </item>
     </item>
@@ -131,12 +131,17 @@
     </property>
     <item>
      <property name="text">
-      <string>Single profile</string>
+      <string>Single trace -&gt;  single profile</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Multiple profiles</string>
+      <string>Single trace -&gt; multiple parallel profiles</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Multiple traces -&gt; multiple profiles</string>
      </property>
     </item>
    </item>

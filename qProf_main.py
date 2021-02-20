@@ -36,13 +36,15 @@ class qProf_main(object):
 
     def open_main_widget(self):
 
-        project = QgsProject.instance()
+        correct, msg = check_project_planar_crs()
 
-        if project.count() == 0:
+        if not correct:
+
             warn(
-                parent=None,
-                header=plugin_name,
-                msg="No project/layer available.\nPlease open project and add layers.")
+                None,
+                self.plugin_name,
+                msg
+            )
             return
 
         self.qProf_QWidget = ActionWidget(
@@ -53,16 +55,4 @@ class qProf_main(object):
 
         # show dialog
         self.qProf_QWidget.show()
-
-        '''
-        qprof_DockWidget = QDockWidget(self.plugin_name,
-                                       self.interface.mainWindow())
-        qprof_DockWidget.setAttribute(Qt.WA_DeleteOnClose)
-        qprof_DockWidget.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.qProf_QWidget = qprof_QWidget(self.plugin_name,
-                                           self.canvas)
-        qprof_DockWidget.setWidget(self.qProf_QWidget)
-        qprof_DockWidget.destroyed.connect(self.qProf_QWidget.closeEvent)
-        self.interface.addDockWidget(Qt.RightDockWidgetArea, qprof_DockWidget)
-        '''
 

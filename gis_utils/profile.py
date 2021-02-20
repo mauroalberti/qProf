@@ -309,10 +309,9 @@ def topoprofiles_from_dems(
 
 
 def topoprofiles_from_gpxfile(
-        source_gpx_path,
-        invert_profile,
-        gpx_source
-):
+        source_gpx_path: str,
+        invert_profile: bool
+) -> ProfileElevations:
 
     doc = xml.dom.minidom.parse(source_gpx_path)
 
@@ -395,7 +394,7 @@ def topoprofiles_from_gpxfile(
 
     topo_profiles = ProfileElevations()
 
-    topo_profiles.line_source = gpx_source
+    #topo_profiles.line_source = gpx_source
     topo_profiles.inverted = invert_profile
 
     topo_profiles.lons = np.asarray(lon_values)

@@ -117,14 +117,14 @@ class ActionWidget(QWidget):
 
         self.profile_operations = {
             "Select from line layer": self.define_track_source_from_line_layer,
-            "digitize line": self.digitize_rubberband_line,
-            "clear line": self.clear_rubberband_line,
-            "save line": self.save_rubberband_line,
+            "digitize trace": self.digitize_rubberband_line,
+            "clear trace": self.clear_rubberband_line,
+            "save trace": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
             "Select from GPX file track": self.define_track_source_from_gpx_file,
             "DEMs": self.elevations_from_dems,
             "GPX file": self.elevations_from_gpx,
-            "Single profile": self.plot_single_profile,
+            "Single trace -> single profile": self.plot_single_profile,
         }
 
         self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
@@ -353,19 +353,19 @@ class ActionWidget(QWidget):
         )
 
         if dialog.exec_():
-            source_gpx_path = str(self.qlneInputGPXFile.text())
+
             self.input_gpx_file_path = str(dialog.input_gpx_file_path.text())
             self.invert_line_profile = dialog.invert_track_direction.isChecked()
 
             topo_profiles = topoprofiles_from_gpxfile(
-                source_gpx_path,
-                invert_profile,
-                self.gpxfile_source
+                self.input_gpx_file_path,
+                self.invert_line_profile
             )
 
-
             self.profile_track_source = TrackSource.GPX_FILE
+
         else:
+
             return
 
     def get_dem_parameters(self,
@@ -663,6 +663,8 @@ class ActionWidget(QWidget):
 
             try:
 
+                print(f"DEBUG: I am at the start")
+
                 # get DEMs resolutions in project CRS and choose the min value
 
                 dem_resolutions_prj_crs_list = []
@@ -675,11 +677,16 @@ class ActionWidget(QWidget):
                             self.project_crs)
                     )
 
-                max_dem_resolution = max(dem_resolutions_prj_crs_list)
-                if max_dem_resolution > 1:
-                    sample_distance = round(max_dem_resolution)
+                print(f"DEBUG: dem_resolutions_prj_crs_list -> {dem_resolutions_prj_crs_list}")
+
+                min_dem_resolution = min(dem_resolutions_prj_crs_list)
+
+                print(f"DEBUG: min_dem_resolution -> {min_dem_resolution}")
+
+                if min_dem_resolution > 1:
+                    sample_distance = round(min_dem_resolution)
                 else:
-                    sample_distance = max_dem_resolution
+                    sample_distance = min_dem_resolution
 
             except Exception as e:
 
@@ -986,7 +993,7 @@ class ActionWidget(QWidget):
 
         info(self,
              self.plugin_name,
-             "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+             "Now you can digitize the trace on the map.\nLeft click: add point\nRight click: end adding point")
 
         self.rubberband = QgsRubberBand(self.canvas)
         self.rubberband.setWidth(2)
@@ -1395,7 +1402,7 @@ class LoadPointListDialog(QDialog):
             QLabel(self.tr("Point list, with at least two points.")),
             0, 0, 1, 1)
         layout.addWidget(
-            QLabel(self.tr("Each point is defined by a comma-separated, x-y coordinate pair, one for each row")), 1, 0,
+            QLabel(self.tr("Each point is defined by a comma-separated, x-y coordinate pair (same CRS as project), one for each row")), 1, 0,
             1, 1)
         layout.addWidget(
             QLabel(self.tr("Example:\n549242.7, 242942.2\n578370.3, 322634.5")),
@@ -2616,9 +2623,9 @@ class DigitizeLineDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        self.qpbtDigitizeLine = QPushButton(self.tr("Digitize line"))
+        self.qpbtDigitizeLine = QPushButton(self.tr("Digitize trace"))
         self.qpbtDigitizeLine.setToolTip(
-            "Digitize a line on the map.\n"
+            "Digitize the trace on the map.\n"
             "Left click: add point\n"
             "Right click: end adding point"
         )

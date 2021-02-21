@@ -1,77 +1,21 @@
 
-from typing import Optional, Tuple
-
 from enum import Enum, auto
 
-import math
-import numbers
-import os
-import unicodedata
-
-from qgis.core import *
 from qgis.PyQt import uic
 
-from .gsf.geometry import Plane, GPlane, GAxis
 from .gsf.array_utils import to_float
-from .gsf.sorting import *
 
-from .gis_utils.features import *
-from .gis_utils.intersections import *
-from .gis_utils.profile import *
-from .gis_utils.qgs_tools import *
 from .gis_utils.statistics import *
-from .gis_utils.errors import *
 
-from .qt_utils.filesystem import *
+from .qgis_utils.canvas import *
+from .qgis_utils.lines import *
+
 from .qt_utils.tools import *
 
 from .string_utils.utils_string import *
 
-from .config.settings import *
-from .config.output import *
-
 from .qProf_plotting import *
 from .qProf_export import *
-
-
-def distance_projected_pts(
-        x,
-        y,
-        delta_x,
-        delta_y,
-        src_crs,
-        dest_crs
-):
-    qgspt_start_src_crs = qgs_pt(x, y)
-    qgspt_end_src_crs = qgs_pt(x + delta_x, y + delta_y)
-
-    qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
-    qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
-
-    pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
-    pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
-
-    return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
-
-
-def get_dem_resolution_in_prj_crs(
-        dem,
-        dem_params,
-        on_the_fly_projection,
-        prj_crs
-):
-
-    cellsizeEW, cellsizeNS = dem_params.cellsizeEW, dem_params.cellsizeNS
-    xMin, yMin = dem_params.xMin, dem_params.yMin
-
-    if on_the_fly_projection and dem.crs() != prj_crs:
-        cellsizeEW_prj_crs = distance_projected_pts(xMin, yMin, cellsizeEW, 0, dem.crs(), prj_crs)
-        cellsizeNS_prj_crs = distance_projected_pts(xMin, yMin, 0, cellsizeNS, dem.crs(), prj_crs)
-    else:
-        cellsizeEW_prj_crs = cellsizeEW
-        cellsizeNS_prj_crs = cellsizeNS
-
-    return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
 
 class TrackSource(Enum):
@@ -116,7 +60,7 @@ class ActionWidget(QWidget):
         self.actions_qtreewidget = self.actionsTreeWidget
 
         self.profile_operations = {
-            "Select from line layer": self.define_track_source_from_line_layer,
+            "Select from line layer": self.define_profile_lines_from_line_layer,
             "digitize trace": self.digitize_rubberband_line,
             "clear trace": self.clear_rubberband_line,
             "save trace": self.save_rubberband_line,
@@ -139,20 +83,14 @@ class ActionWidget(QWidget):
             print(f"DEBUG: operation -> {operation}")
             operation()
 
-    def create_line_in_project_crs(self,
-            profile_processed_line,
-            line_layer_crs,
-            on_the_fly_projection,
-            project_crs
-    ):
+    def define_profile_lines_from_line_layer(self
+                                             ):
+        """
+        Should define:
+         - source type -> self.profile_track_source = TrackSource.LINE_LAYER
+         - list of undensified, inverted-in-case, CRS-projected lines
 
-        if not on_the_fly_projection:
-            return profile_processed_line
-        else:
-            return profile_processed_line.crs_project(line_layer_crs, project_crs)
-
-    def define_track_source_from_line_layer(self
-                                            ):
+        """
 
         self.clear_rubberband_line()
 
@@ -170,7 +108,7 @@ class ActionWidget(QWidget):
         )
 
         if dialog.exec_():
-            line_layer, invert_profile, order_field_ndx = self.line_layer_params(dialog)
+            line_qgsvectorlayer, invert_profile, order_field_ndx = self.line_layer_params(dialog)
         else:
             warn(self,
                  self.plugin_name,
@@ -179,104 +117,22 @@ class ActionWidget(QWidget):
 
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
 
-        self.profile_track_source = TrackSource.LINE_LAYER
-        self.line_layer = line_layer
-        self.invert_line_profile = invert_profile
-        self.line_order_fld_ndx = line_order_fld_ndx
-
-        '''
-        areLinesToReorder = False if line_order_fld_ndx is None else True
-
-        # get profile path from input line layer
-
-        success, result = self.try_get_line_traces(line_layer, line_label_fld_ndx, line_order_fld_ndx)
-        if not success:
-            raise VectorIOException(result)
-
-        profile_orig_lines, label_values, order_values = result
-
-        processed_lines = []
-        if multiple_profiles:
-
-            if areLinesToReorder:
-
-                sorted_profiles = sort_by_external_key(
-                    profile_orig_lines,
-                    order_values
-                )
-
-                sorted_labels = list(sort_by_external_key(
-                    label_values,
-                    order_values
-                ))
-
-                sorted_orders = sorted(order_values)
-
-            else:
-
-                sorted_profiles = profile_orig_lines
-                sorted_labels = label_values
-                sorted_orders = order_values
-
-            for orig_line in sorted_profiles:
-                processed_lines.append(merge_line(orig_line))
-
-        else:
-
-            sorted_labels = label_values
-            sorted_orders = order_values
-            processed_lines.append(merge_lines(profile_orig_lines, order_values))
-
-        # process input line layer
-
-        projected_lines = []
-        for processed_line in processed_lines:
-            projected_lines.append(
-                self.create_line_in_project_crs(
-                    processed_line,
-                    line_layer.crs(),
-                    self.on_the_fly_projection,
-                    self.project_crs
-                )
-            )
-
-        self.profiles_lines = [line.remove_coincident_points() for line in projected_lines]
-        self.profiles_labels = sorted_labels
-        self.profiles_order = sorted_orders
-        '''
-
-    '''
-    def digitize_track_in_canvas(self):
-
-        def stop_rubberband(self):
-
-            try:
-                self.canvas_end_profile_line()
-            except:
-                pass
-
-            try:
-                self.clear_rubberband()
-            except:
-                pass
-
-        dialog = DigitizeLineDialog(
-            plugin_name=self.plugin_name,
-            canvas=self.canvas
+        success, result = try_load_line_layer(
+            line_layer=line_qgsvectorlayer,
+            project_crs=projectCrs(),
+            line_order_fld_ndx=line_order_fld_ndx,
+            invert_direction=invert_profile
         )
 
-        if dialog.exec_():
-            pass # selected_dems = self.get_selected_dems_params(dialog)
-        else:
-            warn(self,
-                 self.plugin_name,
-                 "No profile line digitized")
-            return
+        if not success:
+            msg = result
+            warn(
+                self,
+                self.plugin_name,
+                msg
+            )
 
-        #source_profile_lines = [self.digitized_profile_line2dt]
-
-        #stop_rubberband()
-    '''
+        self.profile_track_source = TrackSource.LINE_LAYER
 
     def try_get_point_list(self,
                            dialog
@@ -425,30 +281,6 @@ class ActionWidget(QWidget):
 
         pass
 
-    def try_get_line_traces(self,
-            line_shape,
-            order_field_ndx: Optional[numbers.Integral] = None
-    ) -> Tuple[bool, Union[str, Tuple]]:
-
-        try:
-
-            success, result = try_line_geoms_with_order_infos(
-                line_shape,
-                order_field_ndx
-            )
-
-            if not success:
-                msg = result
-                return False, msg
-
-            profile_orig_lines, order_values = result
-
-            return True, (profile_orig_lines, order_values)
-
-        except Exception as e:
-
-            return False, str(e)
-
     def line_layer_params(
             self,
             dialog):
@@ -468,92 +300,6 @@ class ActionWidget(QWidget):
 
         self.profiles_labels = None
         self.profiles_order = None
-
-    def try_load_line_layer(self,
-                            invert_direction: bool
-                            ) -> Tuple[bool, Union[str, List[Line]]]:
-
-        try:
-
-            areLinesToReorder = False if self.line_order_fld_ndx is None else True
-
-            # get profile path from input line layer
-
-            success, result = self.try_get_line_traces(
-                self.line_layer,
-                self.line_order_fld_ndx
-            )
-
-            if not success:
-                raise VectorIOException(result)
-
-            profile_orig_lines, order_values = result
-
-            """
-            if self.multiple_profiles:
-
-                if areLinesToReorder:
-
-                    sorted_profiles = sort_by_external_key(
-                        profile_orig_lines,
-                        order_values
-                    )
-
-                    sorted_labels = list(sort_by_external_key(
-                        label_values,
-                        order_values
-                    ))
-
-                    sorted_orders = sorted(order_values)
-
-                else:
-
-                    sorted_profiles = profile_orig_lines
-                    sorted_labels = label_values
-                    sorted_orders = order_values
-
-                for orig_line in sorted_profiles:
-                    processed_lines.append(merge_line(orig_line))
-
-            else:
-            """
-
-            processed_lines = []
-
-            if areLinesToReorder:
-
-                sorted_orders = order_values
-                processed_lines.append(merge_lines(profile_orig_lines, order_values))
-
-            else:
-
-                for orig_line in profile_orig_lines:
-                    processed_lines.append(merge_line(orig_line))
-
-            # process input line layer
-
-            projected_lines = []
-            for ndx, processed_line in enumerate(processed_lines):
-
-                projected_lines.append(
-                    self.create_line_in_project_crs(
-                        processed_line,
-                        self.line_layer.crs(),
-                        self.on_the_fly_projection,
-                        self.project_crs
-                    )
-                )
-
-            profiles_lines = [line.remove_coincident_points() for line in projected_lines]
-
-            if invert_direction:
-                profiles_lines = [line.invert_direction() for line in profiles_lines]
-
-            return True, profiles_lines
-
-        except Exception as e:
-
-            return False, str(e)
 
     def check_pre_profile(self):
 
@@ -616,8 +362,6 @@ class ActionWidget(QWidget):
 
         self.input_geoprofiles = GeoProfilesSet()  # reset any previous created profiles
 
-        self.on_the_fly_projection, self.project_crs = get_on_the_fly_projection(self.canvas)
-
         if self.profile_track_source == TrackSource.LINE_LAYER:
 
             success, result = self.try_load_line_layer(
@@ -673,7 +417,6 @@ class ActionWidget(QWidget):
                         get_dem_resolution_in_prj_crs(
                             dem,
                             dem_params,
-                            self.on_the_fly_projection,
                             self.project_crs)
                     )
 
@@ -1169,7 +912,7 @@ class ActionWidget(QWidget):
             return
 
         # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+        project_crs_osr = proj4str()
 
         output_profile_line(
             output_format,
@@ -2567,8 +2310,8 @@ class StatisticsDialog(QDialog):
 
                 stat_report += f"\nSampling points ({len(resampled_line_xs)}) for profile # {ndx + 1}"
 
-                for ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
-                   stat_report += f"\n{ndx+1}, {x}, {y}"
+                for ndx2, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
+                   stat_report += f"\n{ndx2+1}, {x}, {y}"
 
         self.text_widget.insertPlainText(stat_report)
 
@@ -2819,7 +2562,7 @@ class DigitizeLineDialog(QDialog):
             return
 
         # get project CRS information
-        project_crs_osr = get_prjcrs_as_proj4str(self.canvas)
+        project_crs_osr = proj4str()
 
         output_profile_line(
             output_format,
@@ -2838,7 +2581,11 @@ class DigitizeLineDialog(QDialog):
 
             except:
 
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                QMessageBox.critical(
+                    self,
+                    "Result",
+                    "Unable to load layer in project"
+                )
                 return
 
 

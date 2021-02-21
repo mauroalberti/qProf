@@ -1,10 +1,4 @@
 
-"""
-from builtins import map
-from builtins import zip
-from builtins import range
-from builtins import object
-"""
 
 from typing import Tuple
 
@@ -12,9 +6,10 @@ import numbers
 
 import numpy as np
 
-from .qgs_tools import project_point
+from ..qgis_utils.points import project_point
 
 from ..gsf.geometry import Vect, Point
+
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10
 MINIMUM_SEPARATION_THRESHOLD = 1e-10

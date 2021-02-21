@@ -1,30 +1,6 @@
-from typing import Tuple
 
-from qgis.core import QgsProject
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-
-
-def check_project_planar_crs() -> Tuple[bool, str]:
-
-    project = QgsProject.instance()
-
-    if project.count() == 0:
-        msg = "Is a project open or has layers loaded?"
-        return False, msg
-
-    curr_proj_crs = project.crs()
-
-    if not curr_proj_crs.isValid():
-        msg = "Current project crs is not valid.\nPlease apply a valid crs to the current project."
-        return False, msg
-
-    if curr_proj_crs.isGeographic():
-        msg = "Current project crs is geographic.\nPlease apply a planar crs to the current project."
-        return False, msg
-
-    msg = "Project open and with planar crs defined."
-    return True, msg
 
 
 def create_action(
@@ -35,7 +11,8 @@ def create_action(
         status_tip=None,
         whats_this=None,
         parent=None,
-        object_name=None):
+        object_name=None
+):
 
     """
     # adapted from RedLayers by E. Ferreguti

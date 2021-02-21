@@ -1,16 +1,15 @@
 
-from __future__ import division
+from math import asin
 
-from builtins import zip
-from builtins import map
-from builtins import range
-from builtins import object
 import copy
+
 import xml.dom.minidom
 
-from .features import Line, xytuple_l2_to_MultiLine
-
-from .qgs_tools import *
+from ..qgis_utils.lines import *
+from ..qgis_utils.project import *
+from ..qgis_utils.rasters import *
+from ..qgis_utils.tables import *
+from ..qgis_utils.vector_layers import *
 
 from .geodetic import TrackPointGPX
 
@@ -245,10 +244,18 @@ class PlaneAttitude(object):
         self.sign_hor_dist = sign_hor_dist
 
 
-def topoline_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, dem_params):
+def topoline_from_dem(
+    resampled_trace2d,
+    dem,
+    dem_params
+):
 
-    if bOnTheFlyProjection and dem.crs() != project_crs:
-        trace2d_in_dem_crs = resampled_trace2d.crs_project(project_crs, dem.crs())
+    project_crs = projectCrs()
+    if dem.crs() != projectCrs():
+        trace2d_in_dem_crs = resampled_trace2d.crs_project(
+            project_crs,
+            dem.crs()
+        )
     else:
         trace2d_in_dem_crs = resampled_trace2d
 
@@ -264,7 +271,6 @@ def topoline_from_dem(resampled_trace2d, bOnTheFlyProjection, project_crs, dem, 
 
 
 def topoprofiles_from_dems(
-        canvas,
         source_profile_line,
         sample_distance,
         selected_dems,
@@ -272,7 +278,7 @@ def topoprofiles_from_dems(
 ):
     
     # get project CRS information
-    on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
+    project_crs = projectCrs()
 
     resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
@@ -283,8 +289,6 @@ def topoprofiles_from_dems(
 
         dem_topoline3d = topoline_from_dem(
             resampled_line,
-            on_the_fly_projection,
-            project_crs,
             dem,
             dem_params
         )
@@ -409,19 +413,23 @@ def topoprofiles_from_gpxfile(
     return topo_profiles
 
 
-def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, lIntersPts):
+def intersect_with_dem(
+        demLayer,
+        demParams,
+        project_crs,
+        lIntersPts
+):
     """
     
     :param demLayer: 
-    :param demParams: 
-    :param on_the_fly_projection: 
+    :param demParams:
     :param project_crs: 
     :param lIntersPts: 
     :return: a list of Point instances
     """
 
     # project to Dem CRS
-    if on_the_fly_projection and demParams.crs != project_crs:
+    if demParams.crs != project_crs:
         lQgsPoints = [QgsPointXY(pt.x, pt.y) for pt in lIntersPts]
         lDemCrsIntersQgsPoints = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                lQgsPoints]
@@ -437,7 +445,11 @@ def intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs, 
     return [Point(x, y, z) for x, y, z in lXYZVals]
 
 
-def calculate_profile_lines_intersection(multilines2d_list, id_list, profile_line2d):
+def calculate_profile_lines_intersection(
+        multilines2d_list,
+        id_list,
+        profile_line2d
+):
 
     profile_segment2d_list = profile_line2d.as_segments()
 
@@ -536,7 +548,10 @@ def profile_polygon_intersection(profile_qgsgeometry, polygon_layer, inters_poly
     return True, intersection_polyline_polygon_crs_list
 
 
-def extract_multiline2d_list(structural_line_layer, on_the_fly_projection, project_crs):
+def extract_multiline2d_list(
+        structural_line_layer,
+        project_crs
+):
 
     line_orig_crs_geoms_attrs = line_geoms_attrs(structural_line_layer)
 
@@ -549,11 +564,8 @@ def extract_multiline2d_list(structural_line_layer, on_the_fly_projection, proje
     structural_line_layer_crs = structural_line_layer.crs()
 
     # project input line layer to project CRS
-    if on_the_fly_projection:
-        line_proj_crs_MultiLine2D_list = [multiline2d.crs_project(structural_line_layer_crs, project_crs) for
+    line_proj_crs_MultiLine2D_list = [multiline2d.crs_project(structural_line_layer_crs, project_crs) for
                                           multiline2d in line_orig_crs_clean_MultiLine2D_list]
-    else:
-        line_proj_crs_MultiLine2D_list = line_orig_crs_clean_MultiLine2D_list
 
     return line_proj_crs_MultiLine2D_list
 
@@ -594,15 +606,19 @@ def define_plot_structural_segment(structural_attitude, profile_length, vertical
     return structural_segment_s, structural_segment_z
 
 
-def calculate_projected_3d_pts(canvas, struct_pts, structural_pts_crs, demObj):
+def calculate_projected_3d_pts(
+    struct_pts,
+    structural_pts_crs,
+    demObj
+):
 
     demCrs = demObj.params.crs
 
     # check if on-the-fly-projection is set on
-    on_the_fly_projection, project_crs = get_on_the_fly_projection(canvas)
+    project_crs = projectCrs()
 
     # set points in the project crs
-    if on_the_fly_projection and structural_pts_crs != project_crs:
+    if structural_pts_crs != project_crs:
         struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
     else:
         struct_pts_in_prj_crs = copy.deepcopy(struct_pts)

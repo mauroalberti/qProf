@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 
-from builtins import str
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
 from ..qt_utils.filesystem import new_file_path, old_file_path
 

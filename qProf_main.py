@@ -1,7 +1,8 @@
 
 from . import resources
 
-from .qgis_utils.utils import *
+from .qt_utils.actions import *
+
 from .config.params import *
 
 from .qProf_widgets import *

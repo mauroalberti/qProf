@@ -1,18 +1,9 @@
 
-'''
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-'''
-
-import numpy as np
-
 from matplotlib import gridspec
 
-from .gis_utils.qgs_tools import qcolor2rgbmpl
-from .gis_utils.profile import define_plot_structural_segment
-from .mpl_utils.mpl_widget import MplWidget, plot_line, plot_filled_line
+from .qt_utils.colors import *
+from .gis_utils.profile import *
+from .mpl_utils.mpl_widget import *
 from .config.settings import *
 
 

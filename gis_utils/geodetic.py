@@ -1,10 +1,10 @@
-from __future__ import division
 
-from builtins import object
-from math import sqrt, radians, sin, cos
 
 from ..gsf.geometry import Point
+
 from .time_utils import standard_gpstime_to_seconds
+
+from ..qgis_utils.points import *
 
 
 WGS84 = {'semi-major axis': 6378137.0,
@@ -47,3 +47,19 @@ class TrackPointGPX(object):
         t = standard_gpstime_to_seconds(self.time)
 
         return Point(x, y, self.elev, t)
+
+    def project(self,
+                dest_crs: QgsCoordinateReferenceSystem):
+
+        pt = Point(
+            x=self.lon,
+            y=self.lat
+        )
+        crs = QgsCoordinateReferenceSystem("EPSG:4326")
+
+        projected_pt = project_point(
+                pt=pt,
+                srcCrs=crs,
+                destCrs=dest_crs)
+
+        return projected_pt

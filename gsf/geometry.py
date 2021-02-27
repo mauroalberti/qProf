@@ -24,7 +24,12 @@ class Point(object):
     Dimensions: 3D + time
     """
 
-    def __init__(self, x=np.nan, y=np.nan, z=np.nan, t=np.nan):
+    def __init__(self,
+                 x=np.nan,
+                 y=np.nan,
+                 z=np.nan,
+                 t=np.nan
+                 ):
         """
         Construct a Point instance given 3 or 4 float values.
         """

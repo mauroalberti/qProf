@@ -1,4 +1,7 @@
 
+from typing import Union, Tuple
+from collections import namedtuple
+
 from math import floor, ceil
 
 import numpy as np
@@ -8,6 +11,25 @@ from qgis.core import *
 from .points import *
 
 from ..gsf.geometry import Point
+
+raster_parameters_fields = [
+    'name',
+    'cellsizeEW',
+    'cellsizeNS',
+    'rows',
+    'cols',
+    'xMin',
+    'xMax',
+    'yMin',
+    'yMax',
+    'nodatavalue',
+    'crs'
+]
+
+RasterParameters = namedtuple(
+    'RasterParameters',
+    raster_parameters_fields
+)
 
 
 def get_z(
@@ -202,9 +224,51 @@ class QGisRasterParameters(object):
         return Point(x, y)
 
 
+def try_raster_qgis_params(
+        raster_layer
+) -> Tuple[bool, Union[str, Tuple]]:
+
+    try:
+
+        name = raster_layer.name()
+
+        rows = raster_layer.height()
+        cols = raster_layer.width()
+
+        extent = raster_layer.extent()
+
+        xMin = extent.xMinimum()
+        xMax = extent.xMaximum()
+        yMin = extent.yMinimum()
+        yMax = extent.yMaximum()
+
+        cellsizeEW = (xMax - xMin) / float(cols)
+        cellsizeNS = (yMax - yMin) / float(rows)
+
+        # TODO: get real no data value from QGIS
+        if raster_layer.dataProvider().sourceHasNoDataValue(1):
+            nodatavalue = raster_layer.dataProvider().sourceNoDataValue(1)
+        else:
+            nodatavalue = np.nan
+
+        try:
+            crs = raster_layer.crs()
+        except:
+            crs = None
+
+        return True, (name, cellsizeEW, cellsizeNS, rows, cols, xMin, xMax, yMin, yMax, nodatavalue, crs)
+
+    except Exception as e:
+
+        return False, str(e)
+
+
 def raster_qgis_params(
         raster_layer
 ):
+    """
+    Deprecated: use 'try_extract_raster_qgis_params'
+    """
 
     name = raster_layer.name()
 

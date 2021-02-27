@@ -27,25 +27,35 @@ def distance_projected_pts(
 
 
 def project_point(
-        pt,
-        srcCrs,
-        destCrs
-):
+        pt: Point,
+        srcCrs: QgsCoordinateReferenceSystem,
+        destCrs: QgsCoordinateReferenceSystem
+) -> Point:
 
     qgs_pt = QgsPointXY(pt.x, pt.y)
+
     proj_qgs_pt = project_qgs_point(qgs_pt, srcCrs, destCrs)
     proj_x, proj_y = proj_qgs_pt.x(), proj_qgs_pt.y()
 
-    return Point(proj_x, proj_y)
+    return Point(
+        x=proj_x,
+        y=proj_y,
+        z=pt.z,
+        t=pt.t
+    )
 
 
 def project_qgs_point(
-        qgsPt,
-        srcCrs,
-        destCrs
-):
+        qgsPt: QgsPointXY,
+        srcCrs: QgsCoordinateReferenceSystem,
+        destCrs: QgsCoordinateReferenceSystem
+) -> QgsPointXY:
 
-    return QgsCoordinateTransform(srcCrs, destCrs, QgsProject.instance()).transform(qgsPt)
+    return QgsCoordinateTransform(
+        srcCrs,
+        destCrs,
+        QgsProject.instance()
+    ).transform(qgsPt)
 
 
 def pt_geoms_attrs(

@@ -1,10 +1,13 @@
 
+from typing import Union
+
 from math import asin
 
 import copy
 
 import xml.dom.minidom
 
+from ..qgis_utils.points import *
 from ..qgis_utils.lines import *
 from ..qgis_utils.project import *
 from ..qgis_utils.rasters import *
@@ -12,6 +15,7 @@ from ..qgis_utils.tables import *
 from ..qgis_utils.vector_layers import *
 
 from .geodetic import TrackPointGPX
+from .features import Line
 
 from .errors import GPXIOException
 
@@ -411,6 +415,64 @@ def topoprofiles_from_gpxfile(
     topo_profiles.profile_dirslopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
 
     return topo_profiles
+
+
+def try_extract_track_from_gpxfile(
+        source_gpx_path: str,
+        invert_profile: bool
+) -> Tuple[bool, Union[str, Tuple[str, Line]]]:
+
+    try:
+
+        doc = xml.dom.minidom.parse(source_gpx_path)
+
+        # define track name
+        try:
+            profile_name = doc.getElementsByTagName('trk')[0].getElementsByTagName('name')[0].firstChild.data
+        except:
+            profile_name = ''
+
+        # get raw track point values (lat, lon, elev, time)
+        track_raw_data = []
+        for trk_node in doc.getElementsByTagName('trk'):
+            for trksegment in trk_node.getElementsByTagName('trkseg'):
+                for tkr_pt in trksegment.getElementsByTagName('trkpt'):
+                    track_raw_data.append((tkr_pt.getAttribute("lat"),
+                                           tkr_pt.getAttribute("lon"),
+                                           tkr_pt.getElementsByTagName("ele")[0].childNodes[0].data,
+                                           tkr_pt.getElementsByTagName("time")[0].childNodes[0].data))
+
+        # create list of TrackPointGPX elements
+        track_points = []
+        for val in track_raw_data:
+            gpx_trackpoint = TrackPointGPX(*val)
+            track_points.append(gpx_trackpoint)
+
+        # check for the presence of track points
+        if len(track_points) == 0:
+            return False, "No track point found in this file"
+
+        # project track points to QGIS project CRS
+
+        projected_pts = []
+        for track_pt in track_points:
+
+            projected_pt = track_pt.project(
+                    dest_crs=projectCrs()
+            )
+            projected_pts.append(projected_pt)
+
+        profile_line = Line(pts=projected_pts)
+
+        if invert_profile:
+
+            profile_line = profile_line.invert_direction()
+
+        return True, (profile_name, profile_line)
+
+    except Exception as e:
+
+        return False, str(e)
 
 
 def intersect_with_dem(

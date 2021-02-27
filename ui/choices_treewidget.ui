@@ -94,7 +94,7 @@
     </item>
     <item>
      <property name="text">
-      <string>Select from GPX file track</string>
+      <string>Read from GPX file track</string>
      </property>
     </item>
    </item>
@@ -110,12 +110,12 @@
     </property>
     <item>
      <property name="text">
-      <string>DEMs</string>
+      <string>DEMs elevations</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>GPX file</string>
+      <string>GPX elevations</string>
      </property>
     </item>
    </item>

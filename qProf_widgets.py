@@ -48,6 +48,8 @@ class ActionWidget(QWidget):
         self.line_from_points_list = None
         self.input_gpx_file_path = None
 
+        self.profile_name = None
+        self.profile_lines = None  # list of Lines, in the project CRS, undensified
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
 
@@ -65,9 +67,9 @@ class ActionWidget(QWidget):
             "clear trace": self.clear_rubberband_line,
             "save trace": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
-            "Select from GPX file track": self.define_track_source_from_gpx_file,
-            "DEMs": self.elevations_from_dems,
-            "GPX file": self.elevations_from_gpx,
+            "Read from GPX file track": self.define_track_source_from_gpx_file,
+            "DEMs elevations": self.elevations_from_dems,
+            "GPX elevations": self.elevations_from_gpx,
             "Single trace -> single profile": self.plot_single_profile,
         }
 
@@ -132,6 +134,8 @@ class ActionWidget(QWidget):
                 msg
             )
 
+        self.profile_name = line_qgsvectorlayer.sourceName()
+        self.profile_lines = result
         self.profile_track_source = TrackSource.LINE_LAYER
 
     def try_get_point_list(self,
@@ -194,9 +198,9 @@ class ActionWidget(QWidget):
                  "No defined line source")
             return
 
+        self.profile_name = "Text input"
+        self.profile_lines = [line2d]
         self.profile_track_source = TrackSource.POINT_LIST
-        self.line_from_points_list = line2d
-        print(f"DEBUG: line2d: {line2d}")
 
     def define_track_source_from_gpx_file(self):
 
@@ -213,11 +217,24 @@ class ActionWidget(QWidget):
             self.input_gpx_file_path = str(dialog.input_gpx_file_path.text())
             self.invert_line_profile = dialog.invert_track_direction.isChecked()
 
-            topo_profiles = topoprofiles_from_gpxfile(
-                self.input_gpx_file_path,
-                self.invert_line_profile
+            success, results = try_extract_track_from_gpxfile(
+                source_gpx_path=self.input_gpx_file_path,
+                invert_profile=self.invert_line_profile
             )
 
+            if not success:
+                msg = results
+                warn(
+                    self,
+                    self.plugin_name,
+                    msg
+                )
+                return
+
+            name, line3dt = results
+
+            self.profile_name = name
+            self.profile_lines = [line3dt]
             self.profile_track_source = TrackSource.GPX_FILE
 
         else:
@@ -225,9 +242,20 @@ class ActionWidget(QWidget):
             return
 
     def get_dem_parameters(self,
-                           dem):
+                           dem: QgsRasterLayer):
 
-        return QGisRasterParameters(*raster_qgis_params(dem))
+        success, results = try_raster_qgis_params(dem)
+
+        if not success:
+            msg = f"Error with {dem.name()} as source"
+            warn(
+                self,
+                self.plugin_name,
+                msg
+            )
+            return
+
+        return QGisRasterParameters(*results)
 
     def get_selected_dems_params(self,
                                  dialog):
@@ -348,7 +376,7 @@ class ActionWidget(QWidget):
         """
 
     def try_prepare_single_topo_profiles(self
-                                         ) -> Tuple[bool, str]:
+        ) -> Tuple[bool, str]:
 
         """
         selected_dems = None
@@ -362,34 +390,8 @@ class ActionWidget(QWidget):
 
         self.input_geoprofiles = GeoProfilesSet()  # reset any previous created profiles
 
-        if self.profile_track_source == TrackSource.LINE_LAYER:
-
-            success, result = self.try_load_line_layer(
-                invert_direction=self.invert_line_profile
-            )
-
-            if not success:
-                msg = result
-                return False, msg
-
-            self.profiles_lines = result
-
-        elif self.profile_track_source == TrackSource.DIGITATION:
-
-            self.profiles_lines = [self.line_from_digitation]
-
-        elif self.profile_track_source == TrackSource.POINT_LIST:
-
-            self.profiles_lines = [self.line_from_points_list]
-
-        elif self.profile_track_source == TrackSource.GPX_FILE:
-
-            msg = "Sorry, not yet implemented"
-            return False, msg
-
-        else:
-
-            msg = f"Error in self.profile_track_source case: {self.profile_track_source}"
+        if self.profile_track_source == TrackSource.UNDEFINED:
+            msg = "Profile not yed defined"
             return False, msg
 
         self.demline_source = "dem_source"
@@ -417,14 +419,10 @@ class ActionWidget(QWidget):
                         get_dem_resolution_in_prj_crs(
                             dem,
                             dem_params,
-                            self.project_crs)
+                            projectCrs())
                     )
 
-                print(f"DEBUG: dem_resolutions_prj_crs_list -> {dem_resolutions_prj_crs_list}")
-
                 min_dem_resolution = min(dem_resolutions_prj_crs_list)
-
-                print(f"DEBUG: min_dem_resolution -> {min_dem_resolution}")
 
                 if min_dem_resolution > 1:
                     sample_distance = round(min_dem_resolution)
@@ -454,7 +452,7 @@ class ActionWidget(QWidget):
 
             try:
 
-                source_profile_lines = self.profiles_lines
+                source_profile_lines = self.profile_lines
 
             except:
 
@@ -510,11 +508,10 @@ class ActionWidget(QWidget):
                 try:
 
                     topo_profiles = topoprofiles_from_dems(
-                        self.canvas,
-                        profile_line,
-                        sample_distance,
-                        selected_dems,
-                        selected_dem_parameters
+                        source_profile_line=profile_line,
+                        sample_distance=sample_distance,
+                        selected_dems=selected_dems,
+                        selected_dem_parameters=selected_dem_parameters
                     )
 
                 except Exception as e:
@@ -793,12 +790,13 @@ class ActionWidget(QWidget):
             )
             return
 
-        self.line_from_digitation = raw_line
-        self.profile_track_source = TrackSource.DIGITATION
-        
         self.profile_canvas_points = []
-
         self.restore_previous_map_tool()
+
+        self.line_from_digitation = raw_line
+        self.profile_name = "Digitized line"
+        self.profile_lines = [raw_line]
+        self.profile_track_source = TrackSource.DIGITATION
 
     def restore_previous_map_tool(self):
 

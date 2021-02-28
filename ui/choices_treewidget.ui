@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>293</width>
-    <height>533</height>
+    <height>624</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,7 +26,7 @@
      <x>0</x>
      <y>10</y>
      <width>291</width>
-     <height>521</height>
+     <height>591</height>
     </rect>
    </property>
    <property name="sizePolicy">
@@ -54,7 +54,7 @@
    </column>
    <item>
     <property name="text">
-     <string>Define profile traces </string>
+     <string>Trace</string>
     </property>
     <property name="font">
      <font>
@@ -100,7 +100,7 @@
    </item>
    <item>
     <property name="text">
-     <string>Define elevation sources</string>
+     <string>Elevations</string>
     </property>
     <property name="font">
      <font>
@@ -110,12 +110,12 @@
     </property>
     <item>
      <property name="text">
-      <string>DEMs elevations</string>
+      <string>DEM sources</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>GPX elevations</string>
+      <string>GPX source</string>
      </property>
     </item>
    </item>
@@ -175,6 +175,17 @@
       <string>Polygon layer intersection</string>
      </property>
     </item>
+   </item>
+   <item>
+    <property name="text">
+     <string>Statistics</string>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
    </item>
    <item>
     <property name="text">

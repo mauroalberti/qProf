@@ -1,13 +1,14 @@
 
-from typing import Union
+from typing import List
 
-from math import asin
+from enum import Enum, auto
 
 import copy
 
+from math import asin
+
 import xml.dom.minidom
 
-from ..qgis_utils.points import *
 from ..qgis_utils.lines import *
 from ..qgis_utils.project import *
 from ..qgis_utils.rasters import *
@@ -18,6 +19,28 @@ from .geodetic import TrackPointGPX
 from .features import Line
 
 from .errors import GPXIOException
+
+
+class TrackSource(Enum):
+    """
+    The profile source type.
+    """
+
+    UNDEFINED  = auto()
+    LINE_LAYER = auto()
+    DIGITATION = auto()
+    POINT_LIST = auto()
+    GPX_FILE   = auto()
+
+
+class GPXElevationUsage(Enum):
+    """
+    The profile source type.
+    """
+
+    NOT_USED = auto()
+    USE_WITH_DEMS = auto()
+    ONLY_TO_USE = auto()
 
 
 class GeoProfilesSet(object):
@@ -82,7 +105,7 @@ class GeoProfilesSet(object):
         _ = self._geoprofiles.pop(ndx)
 
 
-class GeoProfile(object):
+class GeoProfile():
     """
     Class representing the topographic and geological elements
     embodying a single geological profile.
@@ -90,42 +113,65 @@ class GeoProfile(object):
 
     def __init__(self):
 
+        """
         self.source_data_type = None
         self.original_line = None
         self.sample_distance = None  # max spacing along profile; float
         self.resampled_line = None
+        """
 
-        self.topo_profiles = None  # instance of ProfileElevations
+        self.topo_profiles = []  # list of names and Lines
         self.geoplane_attitudes = []
         self.geosurfaces = []
         self.geosurfaces_ids = []
         self.lineaments = []
         self.outcrops = []
 
-    def set_topo_profiles(self, topo_profiles):
+    def set_topo_profiles(self,
+        topo_profiles
+                          ):
 
         self.topo_profiles = topo_profiles
+
+    def add_topo_profiles(self, topo_profiles):
+
+        self.topo_profiles += topo_profiles
 
     def add_intersections_pts(self, intersection_list):
 
         self.lineaments += intersection_list
 
-    def add_intersections_lines(self, formation_list, intersection_line3d_list, intersection_polygon_s_list2):
+    def add_intersections_lines(self,
+        formation_list,
+        intersection_line3d_list,
+        intersection_polygon_s_list2
+    ):
 
-        self.outcrops = list(zip(formation_list, intersection_line3d_list, intersection_polygon_s_list2))
+        self.outcrops = list(
+            zip(
+                formation_list,
+                intersection_line3d_list,
+                intersection_polygon_s_list2
+            )
+        )
 
+    """
     def get_current_dem_names(self):
 
-        return self.topo_profiles.surface_names
+        return self.topo_profiles.name
+    """
 
     def max_s(self):
-        return self.topo_profiles.max_s()
+
+        return max([line.length_2d for line in self.topo_profiles])
 
     def min_z_topo(self):
-        return self.topo_profiles.min_z()
+
+        return min([line.z_min for line in self.topo_profiles])
 
     def max_z_topo(self):
-        return self.topo_profiles.max_z()
+
+        return max([line.z_max for line in self.topo_profiles])
 
     def min_z_plane_attitudes(self):
 
@@ -191,18 +237,16 @@ class ProfileElevations(object):
         self.dem_params = []
         self.gpx_params = None
 
-        self.planar_xs = None
-        self.planar_ys = None
-        self.lons = None
-        self.lats = None
+        self.x_array = None
+        self.y_array = None
         self.times = None
-        self.profile_s = None
+        self.incr_len_2d = None
 
         self.surface_names = []
 
-        self.profile_s3ds = []
-        self.profile_zs = []
-        self.profile_dirslopes = []
+        self.incr_len_3d = []
+        self.z_array = []
+        self.dir_slopes = []
 
         self.inverted = None
 
@@ -211,20 +255,20 @@ class ProfileElevations(object):
 
     def max_s(self):
 
-        return self.profile_s[-1]
+        return self.incr_len_2d[-1]
 
     def min_z(self):
 
-        return min(list(map(np.nanmin, self.profile_zs)))
+        return min(list(map(np.nanmin, self.z_array)))
 
     def max_z(self):
 
-        return max(list(map(np.nanmax, self.profile_zs)))
+        return max(list(map(np.nanmax, self.z_array)))
 
     @property
     def absolute_slopes(self):
 
-        return list(map(np.fabs, self.profile_dirslopes))
+        return list(map(np.fabs, self.dir_slopes))
 
 
 class DEMParams(object):
@@ -274,46 +318,46 @@ def topoline_from_dem(
     return ln3dtProfile
 
 
-def topoprofiles_from_dems(
+def topo_lines_from_dems(
         source_profile_line,
         sample_distance,
         selected_dems,
         selected_dem_parameters
-):
-    
-    # get project CRS information
-    project_crs = projectCrs()
+) -> List[Tuple[str, Line]]:
 
     resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs
 
-    dem_topolines3d = []
+    lines3d = []
+
     for dem, dem_params in zip(selected_dems, selected_dem_parameters):
 
-        dem_topoline3d = topoline_from_dem(
+        line3d = topoline_from_dem(
             resampled_line,
             dem,
             dem_params
         )
 
-        dem_topolines3d.append(dem_topoline3d)
+        lines3d.append((dem.name(), line3d))
 
+    """
     # setup topoprofiles properties
 
     topo_profiles = ProfileElevations()
 
-    topo_profiles.planar_xs = np.asarray(resampled_line.x_list)
-    topo_profiles.planar_ys = np.asarray(resampled_line.y_list)
+    topo_profiles.x_array = np.asarray(resampled_line.x_array)
+    topo_profiles.y_array = np.asarray(resampled_line.y_array)
     topo_profiles.surface_names = [dem.name() for dem in selected_dems]
-    topo_profiles.profile_s = np.asarray(resampled_line.incremental_length_2d())
-    topo_profiles.profile_s3ds = [np.asarray(cl3dt.incremental_length_3d()) for cl3dt in dem_topolines3d]
-    topo_profiles.profile_zs = [cl3dt.z_array() for cl3dt in dem_topolines3d]
-    topo_profiles.profile_dirslopes = [np.asarray(cl3dt.slopes()) for cl3dt in dem_topolines3d]
+    topo_profiles.incremental_length_2d = np.asarray(resampled_line.incr_len_2d)
+    topo_profiles.incremental_length_3d = [np.asarray(cl3dt.incr_len_3d) for cl3dt in lines3d]
+    topo_profiles.z_array = [cl3dt.z_array for cl3dt in lines3d]
+    topo_profiles.dir_slopes = [np.asarray(cl3dt.dir_slopes) for cl3dt in lines3d]
     topo_profiles.dem_params = [DEMParams(dem, params) for (dem, params) in
                                 zip(selected_dems, selected_dem_parameters)]
+    """
 
-    return topo_profiles
+    return lines3d
 
 
 def topoprofiles_from_gpxfile(
@@ -409,10 +453,10 @@ def topoprofiles_from_gpxfile(
     topo_profiles.lats = np.asarray(lat_values)
     topo_profiles.times = time_values
     topo_profiles.surface_names = [trkname]  # [] required for compatibility with DEM case
-    topo_profiles.profile_s = np.asarray(cum_distances_2D)
-    topo_profiles.profile_s3ds = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
-    topo_profiles.profile_zs = [np.asarray(elevations)]  # [] required for compatibility with DEM case
-    topo_profiles.profile_dirslopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
+    topo_profiles.incr_len_2d = np.asarray(cum_distances_2D)
+    topo_profiles.incr_len_3d = [np.asarray(cum_distances_3D)]  # [] required for compatibility with DEM case
+    topo_profiles.z_array = [np.asarray(elevations)]  # [] required for compatibility with DEM case
+    topo_profiles.dir_slopes = [np.asarray(dir_slopes)]  # [] required for compatibility with DEM case
 
     return topo_profiles
 
@@ -473,6 +517,133 @@ def try_extract_track_from_gpxfile(
     except Exception as e:
 
         return False, str(e)
+
+
+def get_min_dem_resolution(
+    selected_dems: List,
+    selected_dem_parameters: List
+) -> numbers.Real:
+
+    dem_resolutions_prj_crs_list = []
+
+    for dem, dem_params in zip(selected_dems, selected_dem_parameters):
+        dem_resolutions_prj_crs_list.append(
+            get_dem_resolution_in_prj_crs(
+                dem,
+                dem_params,
+                projectCrs())
+        )
+
+    min_dem_resolution = min(dem_resolutions_prj_crs_list)
+
+    if min_dem_resolution > 1:
+        sample_distance = round(min_dem_resolution)
+    else:
+        sample_distance = min_dem_resolution
+
+    return sample_distance
+
+
+def try_prepare_single_topo_profiles(
+    profile_line: Line,
+    track_source: TrackSource,
+    gpx_elevation_usage: GPXElevationUsage,
+    selected_dems: List,
+    selected_dem_parameters: List,
+    gpx_track_name: str
+    ) -> Tuple[bool, Union[str, GeoProfile]]:
+
+    pt_num_threshold = 1e4
+
+    try:
+
+        # get DEMs resolutions in project CRS and choose the min value
+
+        if track_source != TrackSource.GPX_FILE or \
+           gpx_elevation_usage != GPXElevationUsage.ONLY_TO_USE:
+
+            sample_distance = get_min_dem_resolution(
+                selected_dems,
+                selected_dem_parameters
+            )
+
+            # check total number of points in line(s) to create
+
+            estimated_total_num_pts = 0
+
+            profile_length = profile_line.length_2d
+            profile_num_pts = profile_length / sample_distance
+            estimated_total_num_pts += profile_num_pts
+
+            estimated_total_num_pts = int(ceil(estimated_total_num_pts))
+
+            if estimated_total_num_pts > pt_num_threshold:
+                return False, f"There are {estimated_total_num_pts} estimated points (limit is {pt_num_threshold}) in profile(s) to create.\nTry increasing sample distance value"
+
+            dem_named_3dlines = topo_lines_from_dems(
+                source_profile_line=profile_line,
+                sample_distance=sample_distance,
+                selected_dems=selected_dems,
+                selected_dem_parameters=selected_dem_parameters
+            )
+
+            if dem_named_3dlines is None:
+                return False, "Debug: profile not created"
+
+        else:
+
+            dem_named_3dlines = None
+
+        # Manage GPX data
+
+        if track_source == TrackSource.GPX_FILE and \
+           gpx_elevation_usage != GPXElevationUsage.NOT_USED:
+
+            gpx_named_3dlines = (gpx_track_name, profile_line)
+
+        else:
+
+            gpx_named_3dlines = None
+
+        print(f"DEBUG: gpx profile line: {profile_line}")
+        print(f"DEBUG: gpx profile line num points: {profile_line.num_pts}")
+
+        if dem_named_3dlines is None and gpx_named_3dlines is None:
+            named_3dlines = None
+        elif dem_named_3dlines is None:
+            named_3dlines = gpx_named_3dlines
+        elif gpx_named_3dlines is None:
+            named_3dlines = dem_named_3dlines
+        else:
+            named_3dlines = dem_named_3dlines + gpx_named_3dlines
+
+        if named_3dlines is None:
+            return False, "Unable to create profiles"
+
+        geoprofile = GeoProfile()
+        # geoprofile.source_data_type = topo_source_type
+        geoprofile.original_line = profile_line
+        #geoprofile.sample_distance = sample_distance
+        geoprofile.set_topo_profiles(named_3dlines)
+
+        return True, geoprofile
+
+    except Exception as e:
+
+        return False, str(e)
+
+
+
+
+
+
+
+
+
+    except Exception as e:
+
+        return False, f"Sample distance value not correct: {e}"
+
 
 
 def intersect_with_dem(

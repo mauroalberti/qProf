@@ -1,6 +1,5 @@
 
-
-from typing import Tuple
+from typing import Tuple, List, Optional
 
 import numbers
 
@@ -225,11 +224,15 @@ class Line(object):
     A list of Point objects.
     """
 
-    def __init__(self, pts=None):
+    def __init__(self,
+        pts: Optional[List[Point]] = None,
+        name: str = ''
+    ):
 
         if pts is None:
             pts = []
         self._pts = pts
+        self._name = name
 
     @property
     def pts(self):
@@ -241,9 +244,16 @@ class Line(object):
 
         return len(self.pts)
 
+    @property
+    def name(self):
+        return self._name
+
     def clone(self):
 
-        return Line([pt.clone() for pt in self.pts])
+        return Line(
+            pts=[pt.clone() for pt in self.pts],
+            name=self.name
+        )
 
     def add_pt(self, pt):
         """
@@ -268,72 +278,68 @@ class Line(object):
         self._pts += pt_list
 
     @property
-    def x_list(self):
+    def x_array(self):
 
-        return [pt.x for pt in self.pts]
-
-    @property
-    def y_list(self):
-
-        return [pt.y for pt in self.pts]
+        return np.asarray([pt.x for pt in self.pts])
 
     @property
-    def z_list(self):
+    def y_array(self):
 
-        return [pt.z for pt in self.pts]
+        return np.asarray([pt.y for pt in self.pts])
 
-    def xy_lists(self):
+    @property
+    def z_array(self):
 
-        return self.x_list, self.y_list
+        return np.asarray([pt.z for pt in self.pts])
+
+    def xy_arrays(self):
+
+        return self.x_array, self.y_array
 
     @property
     def x_min(self):
 
-        return np.nanmin(self.x_list)
+        return np.nanmin(self.x_array)
 
     @property
     def x_max(self):
 
-        return np.nanmax(self.x_list)
+        return np.nanmax(self.x_array)
 
     @property
     def y_min(self):
 
-        return np.nanmin(self.y_list)
+        return np.nanmin(self.y_array)
 
     @property
     def y_max(self):
 
-        return np.nanmax(self.y_list)
+        return np.nanmax(self.y_array)
 
     @property
     def z_min(self):
 
-        return np.nanmin(self.z_list)
+        return np.nanmin(self.z_array)
 
     @property
     def z_max(self):
 
-        return np.nanmax(self.z_list)
-
-    def z_array(self):
-
-        return np.array(self.z_list)
+        return np.nanmax(self.z_array)
 
     @property
     def z_mean(self):
 
-        return np.nanmean(self.z_array())
+        return np.nanmean(self.z_array)
 
     @property
     def z_var(self):
 
-        return np.nanvar(self.z_array())
+        return np.nanvar(self.z_array)
 
     @property
     def z_std(self):
 
-        return np.nanstd(self.z_array())
+        return np.nanstd(self.z_array)
 
     def remove_coincident_points(self):
         """
@@ -415,7 +421,8 @@ class Line(object):
             length += self.pts[ndx].dist_2d(self.pts[ndx + 1])
         return length
 
-    def incremental_length_3d(self):
+    @property
+    def incr_len_3d(self):
 
         incremental_length_list = []
         length = 0.0
@@ -424,9 +431,10 @@ class Line(object):
             length += self.pts[ndx].dist_3d(self.pts[ndx + 1])
             incremental_length_list.append(length)
 
-        return incremental_length_list
+        return np.asarray(incremental_length_list)
 
-    def incremental_length_2d(self):
+    @property
+    def incr_len_2d(self):
 
         lIncrementalLengths = []
         length = 0.0
@@ -435,7 +443,7 @@ class Line(object):
             length += self.pts[ndx].dist_2d(self.pts[ndx + 1])
             lIncrementalLengths.append(length)
 
-        return lIncrementalLengths
+        return np.asarray(lIncrementalLengths)
 
     def invert_direction(self):
 
@@ -444,7 +452,8 @@ class Line(object):
 
         return new_line
 
-    def slopes(self):
+    @property
+    def dir_slopes(self):
 
         lSlopes = []
         for ndx in range(self.num_pts - 1):
@@ -452,11 +461,11 @@ class Line(object):
             lSlopes.append(-vector.slope)  # minus because vector convetion is positive downward
         lSlopes.append(np.nan)  # slope value for last point is unknown
 
-        return lSlopes
+        return np.asarray(lSlopes)
 
     def absolute_slopes(self):
 
-        return list(map(abs, self.slopes()))
+        return list(map(abs, self.dir_slopes))
 
     def crs_project(self, srcCrs, destCrs):
 

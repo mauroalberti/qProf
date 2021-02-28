@@ -1,6 +1,4 @@
 
-from enum import Enum, auto
-
 from qgis.PyQt import uic
 
 from .gsf.array_utils import to_float
@@ -16,18 +14,6 @@ from .string_utils.utils_string import *
 
 from .qProf_plotting import *
 from .qProf_export import *
-
-
-class TrackSource(Enum):
-    """
-    The profile source type.
-    """
-
-    UNDEFINED  = auto()
-    LINE_LAYER = auto()
-    DIGITATION = auto()
-    POINT_LIST = auto()
-    GPX_FILE   = auto()
 
 
 class ActionWidget(QWidget):
@@ -47,11 +33,15 @@ class ActionWidget(QWidget):
         self.invert_line_profile = False
         self.line_from_points_list = None
         self.input_gpx_file_path = None
+        self.gpx_choice = GPXElevationUsage.NOT_USED
 
         self.profile_name = None
         self.profile_lines = None  # list of Lines, in the project CRS, undensified
         self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
+        self.selected_dems = None
+        self.selected_dem_parameters = None
+        self.gpx_name = ''
 
         self.current_directory = current_directory
         uic.loadUi(f"{self.current_directory}/ui/choices_treewidget.ui", self)
@@ -68,8 +58,8 @@ class ActionWidget(QWidget):
             "save trace": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
             "Read from GPX file track": self.define_track_source_from_gpx_file,
-            "DEMs elevations": self.elevations_from_dems,
-            "GPX elevations": self.elevations_from_gpx,
+            "DEM sources": self.elevations_from_dems,
+            "GPX source": self.elevations_from_gpx,
             "Single trace -> single profile": self.plot_single_profile,
         }
 
@@ -233,8 +223,9 @@ class ActionWidget(QWidget):
 
             name, line3dt = results
 
-            self.profile_name = name
+            self.profile_name = os.path.basename(self.input_gpx_file_path)
             self.profile_lines = [line3dt]
+            self.gpx_track_name = name
             self.profile_track_source = TrackSource.GPX_FILE
 
         else:
@@ -307,7 +298,12 @@ class ActionWidget(QWidget):
 
     def elevations_from_gpx(self):
 
-        pass
+        dialog = GPXElevationDialog(
+            self.plugin_name
+        )
+
+        if dialog.exec_():
+            self.gpx_choice = dialog.get_gpx_choice()
 
     def line_layer_params(
             self,
@@ -345,26 +341,23 @@ class ActionWidget(QWidget):
 
         return True
 
-    def calculate_profile_statistics(self):
+    def calculate_profile_statistics(self,
+                                     geoprofiles):
 
-        """
-        if not self.check_pre_statistics():
-            return
-        """
+        for geoprofile in geoprofiles:
 
-        for ndx in range(self.input_geoprofiles.geoprofiles_num):
+            name, line3d = geoprofile.topo_profiles
 
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_elev = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_zs]
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_dirslopes = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_dirslopes]
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_slopes = [get_statistics(p) for p in np.absolute(self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_dirslopes)]
+            statistics_elev = [get_statistics(p) for p in line3d.z_array]
+            statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes]
+            statistics_slopes = [get_statistics(p) for p in np.absolute(line3d.dir_slopes)]
 
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_length = self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_s[-1] - self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_s[0]
-            statistics_elev = self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_elev
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.natural_elev_range = (
+            profile_length = line3d.incr_len_2d[-1] - line3d.incr_len_2d[0]
+            natural_elev_range = (
                 np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
                 np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
 
-            self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_calculated = True
+            statistics_calculated = True
 
         """
         dialog = StatisticsDialog(
@@ -375,24 +368,11 @@ class ActionWidget(QWidget):
         dialog.exec_()
         """
 
+    """
     def try_prepare_single_topo_profiles(self
         ) -> Tuple[bool, str]:
 
-        """
-        selected_dems = None
-        selected_dem_parameters = None
-
-        sample_distance = None
-        source_profile_lines = None
-
-        topo_source_type = self.demline_source
-        """
-
         self.input_geoprofiles = GeoProfilesSet()  # reset any previous created profiles
-
-        if self.profile_track_source == TrackSource.UNDEFINED:
-            msg = "Profile not yed defined"
-            return False, msg
 
         self.demline_source = "dem_source"
         topo_source_type = self.demline_source
@@ -433,7 +413,6 @@ class ActionWidget(QWidget):
 
                 return False, f"Sample distance value not correct: {e}"
 
-            """
             if self.qcbxDigitizeLineSource.isChecked():
                 if self.digitized_profile_line2dt is None or \
                    self.digitized_profile_line2dt.num_pts < 2:
@@ -444,11 +423,6 @@ class ActionWidget(QWidget):
                 else:
                     source_profile_lines = [self.digitized_profile_line2dt]
             else:
-            """
-
-            """
-            stop_rubberband()
-            """
 
             try:
 
@@ -462,7 +436,6 @@ class ActionWidget(QWidget):
 
                 return False, "DEM-line profile source not correctly created [2]"
 
-        """
         elif topo_source_type == self.gpxfile_source:
             stop_rubberband()
             try:
@@ -483,7 +456,6 @@ class ActionWidget(QWidget):
                  self.plugin_name,
                  "Debug: uncorrect type source for topo sources def")
             return
-        """
 
         # calculates profiles
 
@@ -530,7 +502,6 @@ class ActionWidget(QWidget):
 
                 self.input_geoprofiles.append(geoprofile)
 
-        """
         elif topo_source_type == self.gpxfile_source:  # source is GPX file
 
             try:
@@ -562,9 +533,9 @@ class ActionWidget(QWidget):
                   self.plugin_name,
                  "Debug: profile calculation not defined")
             return
-        """
 
         return True, ""
+    """
 
     def get_profile_plot_params(
             self,
@@ -623,21 +594,32 @@ class ActionWidget(QWidget):
             )
             return
 
-        success, msg = self.try_prepare_single_topo_profiles()
+        success, result = try_prepare_single_topo_profiles(
+            profile_line=self.profile_lines[0],
+            track_source=self.profile_track_source,
+            gpx_elevation_usage=self.gpx_choice,
+            selected_dems=self.selected_dems,
+            selected_dem_parameters=self.selected_dem_parameters,
+            gpx_track_name=self.gpx_track_name
+        )
 
         if not success:
-
+            msg = result
             error(
                 self,
                 self.plugin_name,
                 msg
             )
-
             return
+
+        geoprofile = result
+
+        print(f"geoprofile: {geoprofile}")
+        print(f"geoprofile topoprofiles: {geoprofile.topo_profiles}")
 
         try:
 
-            self.calculate_profile_statistics()
+            self.calculate_profile_statistics([geoprofile])
 
         except Exception as e:
 
@@ -648,6 +630,9 @@ class ActionWidget(QWidget):
             )
 
             return
+
+        print("DEBUG: after statistics calc")
+
 
         natural_elev_min_set = []
         natural_elev_max_set = []
@@ -1013,6 +998,64 @@ class SourceDEMsDialog(QDialog):
             tree_item.setText(1, raster_layer.name())
             tree_item.setFlags(tree_item.flags() | Qt.ItemIsUserCheckable)
             tree_item.setCheckState(0, 0)
+
+
+class GPXElevationDialog(QDialog):
+
+    def __init__(self,
+                 plugin_name,
+                 parent=None
+                 ):
+
+        super(GPXElevationDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
+
+        gpx_choices_layout = QVBoxLayout()
+
+        self.doNotUseGPXElevations_qradiobutton = QRadioButton(
+            "Do not use GPX elevations")
+        self.useGPXElevationsWithDEMs_qradiobutton = QRadioButton(
+            "Use GPX elevations together with DEM elevations")
+        self.useOnlyGPXElevations_qradiobutton = QRadioButton(
+            "Use only GPX elevations")
+        self.doNotUseGPXElevations_qradiobutton.setChecked(True)
+
+        gpx_choices_layout.addWidget(self.doNotUseGPXElevations_qradiobutton)
+        gpx_choices_layout.addWidget(self.useGPXElevationsWithDEMs_qradiobutton)
+        gpx_choices_layout.addWidget(self.useOnlyGPXElevations_qradiobutton)
+
+        verticalSpacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        gpx_choices_layout.addItem(verticalSpacer)
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addStretch()
+        buttonLayout.addWidget(okButton)
+        buttonLayout.addWidget(cancelButton)
+
+        gpx_choices_layout.addLayout(
+            buttonLayout)
+
+        self.setLayout(gpx_choices_layout)
+
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
+
+        self.setWindowTitle("Set GPX elevation role")
+
+    def get_gpx_choice(self):
+
+        if self.doNotUseGPXElevations_qradiobutton.isChecked():
+            return GPXElevationUsage.NOT_USED
+        elif self.useGPXElevationsWithDEMs_qradiobutton.isChecked():
+            return GPXElevationUsage.USE_WITH_DEMS
+        elif self.useOnlyGPXElevations_qradiobutton.isChecked():
+            return GPXElevationUsage.ONLY_TO_USE
+        else:
+            raise Exception("Debug: not correctly set radio buttons for GPX elevation usage.")
 
 
 class SourceLineLayerDialog(QDialog):
@@ -2301,8 +2344,8 @@ class StatisticsDialog(QDialog):
         for ndx in range(num_profiles):
 
             topo_profiles = geoprofile_set.geoprofile(ndx).topo_profiles
-            resampled_line_xs = topo_profiles.planar_xs
-            resampled_line_ys = topo_profiles.planar_ys
+            resampled_line_xs = topo_profiles.x_array
+            resampled_line_ys = topo_profiles.y_array
 
             if resampled_line_xs is not None:
 

@@ -67,7 +67,7 @@ def plot_projected_line_set(
     colors = colors_addit * (int(len(curve_set) / len(colors_addit)) + 1)
     for multiline_2d, label, color in zip(curve_set, labels, colors):
         for line_2d in multiline_2d.lines:
-            plot_line(axes, line_2d.x_list, line_2d.y_list, color, name=label)
+            plot_line(axes, line_2d.x_array, line_2d.y_array, color, name=label)
 
 
 def plot_profile_lines_intersection_points(
@@ -143,16 +143,16 @@ def plot_geoprofiles(
             axes.invert_xaxis()
 
         if topo_type == 'elevation':
-            ys = topo_profiles.profile_zs
+            ys = topo_profiles.z_array
             plot_y_filled = plot_y_range[0]
         else:
             if plot_params['plot_slope_absolute']:
                 ys = topo_profiles.absolute_slopes
             else:
-                ys = topo_profiles.profile_dirslopes
+                ys = topo_profiles.dir_slopes
             plot_y_filled = 0.0
 
-        s = topo_profiles.profile_s
+        s = topo_profiles.incr_len_2d
 
         for y, topoline_color, topoline_visibility in zip(
                 ys,

@@ -3,7 +3,7 @@ name=qProf
 description=Calculates height and slope profiles from DEM and GPX files, and plots geological attitudes and traces on profiles.
 about=qProf is a plugin for the generation of topographic and geological profiles. Topography can be extracted from DEM or GPX files. Geological data, such as stratification attitude and geological traces, can be projected on the profile. Intersections between geological outcrops or faults can be determined.
 category=Raster
-version=0.4.3
+version=0.4.4
 qgisMinimumVersion=3.0
 icon=icons/qprof.png
 author=Mauro Alberti, Marco Zanieri
@@ -15,6 +15,7 @@ repository=https://github.com/mauroalberti/qProf
 experimental=False
 deprecated=False
 changelog=
+  0.4.4 : - macOS-related fix for gdal imports
   0.4.3 : - added choice of line field label for topographic output additional info
   0.4.2 : - fixed help visualization in Windows
   0.4.1 : - implemented sorting of profiles in multiprofile case based on field value

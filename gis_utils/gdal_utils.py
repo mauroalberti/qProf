@@ -6,7 +6,21 @@ from builtins import range
 from builtins import object
 import os
 
-from osgeo import ogr, gdal, osr
+
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
+
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
+
+try:
+    from osgeo import osr
+except ImportError:
+    import osr
 
 from .errors import RasterParametersException, OGRIOException
 

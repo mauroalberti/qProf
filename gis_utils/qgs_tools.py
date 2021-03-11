@@ -1,15 +1,21 @@
 from typing import Optional, Tuple
 import numbers
 
-#from __future__ import division
-
 from builtins import str
 from builtins import object
 from math import isnan, sin, cos, asin, radians, degrees, floor, ceil, sqrt
 
 import numpy as np
 
-from osgeo import ogr, osr
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
+
+try:
+    from osgeo import osr
+except ImportError:
+    import osr
 
 from qgis.core import *
 from qgis.gui import *

@@ -168,7 +168,7 @@ class qprof_QWidget(QWidget):
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
-                         "Sample distance value not correct: {}".format(e.message))
+                         "Sample distance value not correct: {}".format(e))
                     return
 
                 if self.qcbxDigitizeLineSource.isChecked():
@@ -207,7 +207,7 @@ class qprof_QWidget(QWidget):
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
-                         "Source GPX file not correctly set: {}".format(e.message))
+                         "Source GPX file not correctly set: {}".format(e))
                     return
 
             else:
@@ -244,16 +244,21 @@ class qprof_QWidget(QWidget):
                 for profile_line in source_profile_lines:
 
                     try:
-                        topo_profiles = topoprofiles_from_dems(self.canvas,
-                                                               profile_line,
-                                                               sample_distance,
-                                                               selected_dems,
-                                                               selected_dem_parameters,
-                                                               invert_profile)
+
+                        topo_profiles = topoprofiles_from_dems(
+                            self.canvas,
+                            profile_line,
+                            sample_distance,
+                            selected_dems,
+                            selected_dem_parameters,
+                            invert_profile
+                        )
+
                     except Exception as e:
+
                          warn(self,
                              self.plugin_name,
-                             "Error with data source read: {}".format(e.message))
+                             "Error with data source read: {}".format(e))
                          return
 
                     if topo_profiles is None:
@@ -279,7 +284,7 @@ class qprof_QWidget(QWidget):
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
-                         "Error with profile calculation from GPX file: {}".format(e.message))
+                         "Error with profile calculation from GPX file: {}".format(e))
                     return
 
                 if topo_profiles is None:
@@ -388,12 +393,12 @@ class qprof_QWidget(QWidget):
                 dem_resolutions_prj_crs_list.append(
                     get_dem_resolution_in_prj_crs(dem, dem_params, self.on_the_fly_projection, self.project_crs))
 
-            min_dem_resolution = min(dem_resolutions_prj_crs_list)
-            if min_dem_resolution > 1:
-                min_dem_proposed_resolution = round(min_dem_resolution)
+            max_dem_resolution = max(dem_resolutions_prj_crs_list)
+            if max_dem_resolution > 1:
+                max_dem_proposed_resolution = round(max_dem_resolution)
             else:
-                min_dem_proposed_resolution = min_dem_resolution
-            self.qledProfileDensifyDistance.setText(str(min_dem_proposed_resolution))
+                max_dem_proposed_resolution = max_dem_resolution
+            self.qledProfileDensifyDistance.setText(str(max_dem_proposed_resolution))
 
         def save_rubberband():
 
@@ -497,20 +502,23 @@ class qprof_QWidget(QWidget):
 
             for ndx in range(self.input_geoprofiles.geoprofiles_num):
 
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_zs]
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_dirslopes = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes]
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_slopes = [get_statistics(p) for p in np.absolute(self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_dirslopes)]
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_elev = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_zs]
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_dirslopes = [get_statistics(p) for p in self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_dirslopes]
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_slopes = [get_statistics(p) for p in np.absolute(self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_dirslopes)]
 
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_length = self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[-1] - self.input_geoprofiles.geoprofile(ndx).profile_elevations.profile_s[0]
-                statistics_elev = self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_elev
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.natural_elev_range = (
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_length = self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_s[-1] - self.input_geoprofiles.geoprofile(ndx).topo_profiles.profile_s[0]
+                statistics_elev = self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_elev
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.natural_elev_range = (
                     np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
                     np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
 
-                self.input_geoprofiles.geoprofile(ndx).profile_elevations.statistics_calculated = True
+                self.input_geoprofiles.geoprofile(ndx).topo_profiles.statistics_calculated = True
 
-            dialog = StatisticsDialog(self.plugin_name,
-                                      self.input_geoprofiles)
+            dialog = StatisticsDialog(
+                self.plugin_name,
+                self.input_geoprofiles
+            )
+
             dialog.exec_()
 
         def load_line_layer():
@@ -749,7 +757,7 @@ class qprof_QWidget(QWidget):
                 profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
                 profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
 
-                surface_names = self.input_geoprofiles.geoprofile(0).profile_elevations.surface_names
+                surface_names = self.input_geoprofiles.geoprofile(0).topo_profiles.surface_names
 
                 if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
                     profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
@@ -770,12 +778,12 @@ class qprof_QWidget(QWidget):
             natural_elev_max_set = []
             profile_length_set = []
             for geoprofile in self.input_geoprofiles.geoprofiles:
-                natural_elev_min, natural_elev_max = geoprofile.profile_elevations.natural_elev_range
+                natural_elev_min, natural_elev_max = geoprofile.topo_profiles.natural_elev_range
                 natural_elev_min_set.append(natural_elev_min)
                 natural_elev_max_set.append(natural_elev_max)
-                profile_length_set.append(geoprofile.profile_elevations.profile_length)
+                profile_length_set.append(geoprofile.topo_profiles.profile_length)
 
-            surface_names = geoprofile.profile_elevations.surface_names
+            surface_names = geoprofile.topo_profiles.surface_names
             if self.input_geoprofiles.plot_params is None:
                 surface_colors = None
             else:
@@ -1492,12 +1500,12 @@ class qprof_QWidget(QWidget):
 
                     # definition of output results
 
-                    xs = geoprofile.profile_elevations.planar_xs
-                    ys = geoprofile.profile_elevations.planar_ys
-                    elev_list = geoprofile.profile_elevations.profile_zs
-                    cumdist2Ds = geoprofile.profile_elevations.profile_s
-                    cumdist3Ds = geoprofile.profile_elevations.profile_s3ds
-                    slopes = geoprofile.profile_elevations.profile_dirslopes
+                    xs = geoprofile.topo_profiles.planar_xs
+                    ys = geoprofile.topo_profiles.planar_ys
+                    elev_list = geoprofile.topo_profiles.profile_zs
+                    cumdist2Ds = geoprofile.topo_profiles.profile_s
+                    cumdist3Ds = geoprofile.topo_profiles.profile_s3ds
+                    slopes = geoprofile.topo_profiles.profile_dirslopes
 
                     elevs_zipped = list(zip(*elev_list))
                     cumdist3Ds_zipped = list(zip(*cumdist3Ds))
@@ -1697,7 +1705,7 @@ class qprof_QWidget(QWidget):
                         # definition of output results
 
                         geoprofile = self.input_geoprofiles.geoprofile(0)
-                        topo_profile = geoprofile.profile_elevations
+                        topo_profile = geoprofile.topo_profiles
                         lats = topo_profile.lats
                         lons = topo_profile.lons
                         times = topo_profile.times
@@ -1812,7 +1820,7 @@ class qprof_QWidget(QWidget):
             try:
 
                 geoprofile = self.input_geoprofiles.geoprofile(0)
-                geoprofile.profile_elevations.profile_s
+                geoprofile.topo_profiles.profile_s
 
             except:
 
@@ -1821,7 +1829,7 @@ class qprof_QWidget(QWidget):
                      "Profiles not yet calculated")
                 return
 
-            selected_dems_params = geoprofile.profile_elevations.dem_params
+            selected_dems_params = geoprofile.topo_profiles.dem_params
             dialog = TopographicProfileExportDialog(
                 self.plugin_name,
                 selected_dems_params
@@ -2031,7 +2039,7 @@ class qprof_QWidget(QWidget):
             return
 
         for geoprofile in self.input_geoprofiles.geoprofiles:
-            if not geoprofile.profile_elevations.statistics_calculated:
+            if not geoprofile.topo_profiles.statistics_calculated:
                 warn(self,
                      self.plugin_name,
                      "Profile statistics not yet calculated")
@@ -2092,8 +2100,8 @@ class qprof_QWidget(QWidget):
 
         # get dem parameters
         geoprofile = self.input_geoprofiles.geoprofile(0)
-        demLayer = geoprofile.profile_elevations.dem_params[0].layer
-        demParams = geoprofile.profile_elevations.dem_params[0].params
+        demLayer = geoprofile.topo_profiles.dem_params[0].layer
+        demParams = geoprofile.topo_profiles.dem_params[0].params
 
         # profile line2d, in project CRS and densified
         profile_line2d_prjcrs_densif = geoprofile.original_line.densify_2d_line(geoprofile.sample_distance)
@@ -2231,8 +2239,8 @@ class qprof_QWidget(QWidget):
 
         # get dem parameters
         geoprofile = self.input_geoprofiles.geoprofile(0)
-        demLayer = geoprofile.profile_elevations.dem_params[0].layer
-        demParams = geoprofile.profile_elevations.dem_params[0].params
+        demLayer = geoprofile.topo_profiles.dem_params[0].layer
+        demParams = geoprofile.topo_profiles.dem_params[0].params
 
         # get line structural layer
         intersection_line_qgis_ndx = self.inters_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -2434,7 +2442,7 @@ class qprof_QWidget(QWidget):
 
         # check that source dem is just one
 
-        if len(geoprofile.profile_elevations.profile_s3ds) != 1:
+        if len(geoprofile.topo_profiles.profile_s3ds) != 1:
             warn(self,
                  self.plugin_name,
                  "One (and only) topographic surface has to be used in the profile section")
@@ -2494,7 +2502,7 @@ class qprof_QWidget(QWidget):
         struct_pts_3d = calculate_projected_3d_pts(self.canvas,
                                                    struct_pts_in_orig_crs,
                                                    structural_layer_crs,
-                                                   geoprofile.profile_elevations.dem_params[0])
+                                                   geoprofile.topo_profiles.dem_params[0])
 
         # - zip together the point value data sets                     
         assert len(struct_pts_3d) == len(structural_planes)
@@ -2577,8 +2585,8 @@ class qprof_QWidget(QWidget):
 
         # input dem parameters
         geoprofile = self.input_geoprofiles.geoprofile(0)
-        demLayer = geoprofile.profile_elevations.dem_params[0].layer
-        demParams = geoprofile.profile_elevations.dem_params[0].params
+        demLayer = geoprofile.topo_profiles.dem_params[0].layer
+        demParams = geoprofile.topo_profiles.dem_params[0].params
 
         # get line structural layer
         prj_struct_line_qgis_ndx = self.prj_input_line_comboBox.currentIndex() - 1  # minus 1 to account for initial text in combo box
@@ -4189,7 +4197,12 @@ class LineDataExportDialog(QDialog):
 
 class StatisticsDialog(QDialog):
 
-    def __init__(self, plugin_name, geoprofile_set, parent=None):
+    def __init__(
+            self,
+            plugin_name,
+            geoprofile_set,
+            parent=None
+    ):
 
         super(StatisticsDialog, self).__init__(parent)
 
@@ -4205,21 +4218,42 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx).profile_elevations
+            profile_elevations = geoprofile_set.geoprofile(ndx).topo_profiles
 
-            profiles_stats = list(zip(profile_elevations.surface_names,
-                                 list(zip(profile_elevations.statistics_elev,
-                                     profile_elevations.statistics_dirslopes,
-                                     profile_elevations.statistics_slopes))))
+            profiles_stats = list(
+                zip(
+                    profile_elevations.surface_names,
+                    list(
+                        zip(
+                            profile_elevations.statistics_elev,
+                            profile_elevations.statistics_dirslopes,
+                            profile_elevations.statistics_slopes
+                        )
+                    )
+                )
+            )
 
-            stat_report += "\nStatistics for Line {}\n".format(ndx+1)
-            stat_report += "\nProfile length: %f\n" % profile_elevations.profile_length
-            stat_report += "\nTopographic elevations\n"
-            stat_report += " - min: {}\n".format(profile_elevations.natural_elev_range[0])
-            stat_report += " - max: {}\n\n".format(profile_elevations.natural_elev_range[1])
+            stat_report += "\nStatistics for profile # {}".format(ndx+1)
+            stat_report += "\n\tLength: {}".format(profile_elevations.profile_length)
+            stat_report += "\n\tTopographic elevations"
+            stat_report += "\n\t - min: {}".format(profile_elevations.natural_elev_range[0])
+            stat_report += "\n\t - max: {}".format(profile_elevations.natural_elev_range[1])
             stat_report += self.report_stats(profiles_stats)
 
-        self.text_widget.setPlainText(stat_report)
+        for ndx in range(num_profiles):
+
+            topo_profiles = geoprofile_set.geoprofile(ndx).topo_profiles
+            resampled_line_xs = topo_profiles.planar_xs
+            resampled_line_ys = topo_profiles.planar_ys
+
+            if resampled_line_xs is not None:
+
+                stat_report += "\nSampling points ({}) for profile # {}".format(len(resampled_line_xs), ndx + 1)
+
+                for ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
+                   stat_report += "\n{}, {}, {}".format(ndx+1, x, y)
+
+        self.text_widget.insertPlainText(stat_report)
 
         layout.addWidget(self.text_widget)
 
@@ -4240,7 +4274,12 @@ class StatisticsDialog(QDialog):
             return type_report
 
         report = 'Dataset statistics\n'
-        types = ['elevations', 'directional slopes', 'absolute slopes']
+        types = [
+            'elevations',
+            'directional slopes',
+            'absolute slopes'
+        ]
+
         for name, stats in profiles_stats:
             report += '\ndataset name\n%s\n\n' % name
             for type, stat_val in zip(types, stats):

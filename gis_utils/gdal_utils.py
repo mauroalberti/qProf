@@ -310,7 +310,7 @@ class GDALParameters(object):
                                     abs(self.pixSizeEW) + abs(other.pixSizeEW)) > tolerance or \
                                         2 * (abs(self.pixSizeNS) - abs(other.pixSizeNS)) / (
                                     abs(self.pixSizeNS) + abs(other.pixSizeNS)) > tolerance or \
-                        self.rows != other.rows or self.cols != other.cols or self.projection != other.projection:
+                        self.rows != other.rows or self.cols != other.cols:
             return False
         else:
             return True

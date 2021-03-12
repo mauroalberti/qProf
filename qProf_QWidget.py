@@ -1,46 +1,29 @@
 
-from __future__ import absolute_import
-from typing import Optional, Tuple
-
-import numbers
-
-from builtins import zip
-from builtins import str
-from builtins import range
-import os
 import unicodedata
-
-from qgis.PyQt.QtWidgets import QTextBrowser
 
 from qgis.core import *
 
-from .gsf.geometry import Plane, GPlane, GAxis
-from .gsf.array_utils import to_float
+from .gsf.geometry import *
+from .gsf.array_utils import *
 from .gsf.sorting import *
 
-from .gis_utils.features import Segment, MultiLine, Line, \
-    merge_line, merge_lines, ParamLine3D, xytuple_list_to_Line
-from .gis_utils.intersections import map_struct_pts_on_section, calculate_distance_with_sign
-from .gis_utils.profile import GeoProfilesSet, GeoProfile, topoprofiles_from_dems, topoprofiles_from_gpxfile, \
-    intersect_with_dem, calculate_profile_lines_intersection, intersection_distances_by_profile_start_list, \
-    extract_multiline2d_list, profile_polygon_intersection, calculate_projected_3d_pts
+from .gis_utils.features import *
+from .gis_utils.intersections import *
+from .gis_utils.profile import *
 from .gis_utils.qgs_tools import *
-from .gis_utils.statistics import get_statistics
-from .gis_utils.errors import VectorInputException, VectorIOException
+from .gis_utils.statistics import *
+from .gis_utils.errors import *
 
-from .qt_utils.filesystem import update_directory_key, new_file_path, old_file_path
-from .qt_utils.tools import info, warn, error, update_ComboBox
+from .qt_utils.filesystem import *
+from .qt_utils.tools import *
 
-from .string_utils.utils_string import clean_string
+from .string_utils.utils_string import *
 
 from .config.settings import *
-from .config.output import dem_header_common, dem_single_dem_header, gpx_header
+from .config.output import *
 
-from .qProf_plotting import plot_geoprofiles
-from .qProf_export import write_intersection_polygon_lnshp, write_topography_multidems_csv, write_topography_singledem_csv, \
-          write_generic_csv, write_intersection_line_csv, write_topography_multidems_ptshp, write_topography_multidems_lnshp, \
-          write_geological_attitudes_ptshp, write_rubberband_profile_lnshp, write_topography_gpx_lnshp, write_topography_singledem_lnshp, \
-          write_topography_singledem_ptshp, write_topography_gpx_ptshp, write_intersection_line_ptshp
+from .qProf_plotting import *
+from .qProf_export import *
 
 
 class qprof_QWidget(QWidget):
@@ -96,9 +79,9 @@ class qprof_QWidget(QWidget):
         self.main_widget.addTab(self.setup_export_section_tab(), "Export")
         self.main_widget.addTab(self.setup_about_tab(), "Help")
 
-        self.prj_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
-        self.inters_input_line_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
-        self.inters_input_polygon_comboBox.currentIndexChanged[int].connect(self.update_linepoly_layers_boxes)
+        self.prj_input_line_comboBox.currentIndexChanged.connect(self.update_linepoly_layers_boxes)
+        self.inters_input_line_comboBox.currentIndexChanged.connect(self.update_linepoly_layers_boxes)
+        self.inters_input_polygon_comboBox.currentIndexChanged.connect(self.update_linepoly_layers_boxes)
 
         self.struct_line_refresh_lyr_combobox()
         self.struct_polygon_refresh_lyr_combobox()
@@ -158,7 +141,7 @@ class qprof_QWidget(QWidget):
                 except Exception as e:
                     warn(self,
                          self.plugin_name,
-                         "Input DEMs definition not correct")
+                         f"Input DEMs definition not correct: {e}")
                     return
 
                 try:
@@ -1015,9 +998,11 @@ class qprof_QWidget(QWidget):
 
         # input point geological layer
 
-        qlytXsInputPointProj.addWidget(QLabel("Layer "), 0, 0, 1, 1)
+        qlytXsInputPointProj.addWidget(QLabel("Layer "),
+                                       0, 0, 1, 1)
+
         self.prj_struct_point_comboBox = QComboBox()
-        self.prj_struct_point_comboBox.currentIndexChanged[int].connect(self.update_point_layers_boxes)
+        self.prj_struct_point_comboBox.currentIndexChanged.connect(self.update_point_layers_boxes)
 
         qlytXsInputPointProj.addWidget(self.prj_struct_point_comboBox, 0, 1, 1, 6)
         self.struct_point_refresh_lyr_combobox()
@@ -1610,7 +1595,10 @@ class qprof_QWidget(QWidget):
                                  self.plugin_name,
                                  msg)
                     else:
-                        error("Debug: error in export all DEMs")
+                        error(
+                            parent=self,
+                            header=self.plugin_name,
+                            msg="Debug: error in export all DEMs")
                         return
 
                     if success:
@@ -2272,7 +2260,7 @@ class qprof_QWidget(QWidget):
 
         # create CartesianPoint from intersection with source DEM
         lstIntersectionPoints = [pt2d for pt2d, _ in intersection_point_id_list]
-        lstIntersectionIds = [id for _, id in intersection_point_id_list]
+        lstIntersectionIds = [pt_id for _, pt_id in intersection_point_id_list]
         lstIntersectionPoints3d = intersect_with_dem(demLayer, demParams, on_the_fly_projection, project_crs,
                                                             lstIntersectionPoints)
         lstIntersectionColors = [color] * len(lstIntersectionPoints)
@@ -2639,7 +2627,7 @@ class qprof_QWidget(QWidget):
         # create projection vector        
         trend = float(self.common_axis_line_trend_SpinBox.value())
         plunge = float(self.common_axis_line_plunge_SpinBox.value())
-        axis_versor = GAxis(trend, plunge).as_vect().versor
+        axis_versor = GAxis(trend, plunge).as_gvect().versor()
         l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
 
         # calculation of Cartesian plane expressing section plane        
@@ -3094,7 +3082,10 @@ class qprof_QWidget(QWidget):
                      self.plugin_name,
                      msg)
         else:
-            error("Debug: error in export format")
+            error(
+                parent=self,
+                header=self.plugin_name,
+                msg="Debug: error in export format")
             return
 
         if success:
@@ -3109,7 +3100,7 @@ class qprof_QWidget(QWidget):
             def reset_rubber_band():
 
                 try:
-                    self.rubberband.reset(QGis.Line)
+                    self.rubberband.reset(QgsWkbTypes.LineGeometry)
                 except:
                     pass
 
@@ -3257,7 +3248,7 @@ class SourceLineLayerDialog(QDialog):
         layout.addWidget(self.Trace2D_label_field_comboBox, 1, 3, 1, 1)
 
         self.refresh_label_field_combobox()
-        self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_label_field_combobox)
+        self.LineLayers_comboBox.currentIndexChanged.connect(self.refresh_label_field_combobox)
 
         layout.addWidget(QLabel(self.tr("Line order field:")), 2, 0, 1, 1)
 
@@ -3266,7 +3257,7 @@ class SourceLineLayerDialog(QDialog):
 
         self.refresh_order_field_combobox()
 
-        self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_order_field_combobox)
+        self.LineLayers_comboBox.currentIndexChanged.connect(self.refresh_order_field_combobox)
 
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
@@ -4249,8 +4240,8 @@ class StatisticsDialog(QDialog):
 
                 stat_report += "\nSampling points ({}) for profile # {}".format(len(resampled_line_xs), ndx + 1)
 
-                for ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
-                   stat_report += "\n{}, {}, {}".format(ndx+1, x, y)
+                for ln_ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
+                   stat_report += "\n{}, {}, {}".format(ln_ndx+1, x, y)
 
         self.text_widget.insertPlainText(stat_report)
 
@@ -4281,8 +4272,8 @@ class StatisticsDialog(QDialog):
 
         for name, stats in profiles_stats:
             report += '\ndataset name\n%s\n\n' % name
-            for type, stat_val in zip(types, stats):
-                report += '%s\n\n' % type
+            for prof_type, stat_val in zip(types, stats):
+                report += '%s\n\n' % prof_type
                 report += type_report(stat_val)
 
         return report

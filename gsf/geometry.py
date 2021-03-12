@@ -437,15 +437,14 @@ class Vect(object):
 
         return Vect.from_array(self.v * scale_factor)
 
-    @property
-    def versor_full(self):
+    def versor(self):
         """
         Calculate versor.
 
         Example:
-          >>> Vect(5, 0, 0).versor_full
+          >>> Vect(5, 0, 0).versor()
           Vect(1.0000, 0.0000, 0.0000)
-          >>> Vect(0, 0, -1).versor_full
+          >>> Vect(0, 0, -1).versor()
           Vect(0.0000, 0.0000, -1.0000)
         """
 
@@ -615,7 +614,7 @@ class Vect(object):
 
         plunge = self.slope  # upward pointing -> negative value, downward -> positive
 
-        unit_vect = self.versor_full
+        unit_vect = self.versor()
         if unit_vect.y == 0. and unit_vect.x == 0:
             trend = 0.
         else:
@@ -732,7 +731,7 @@ class Vect(object):
         return Vect.from_array(array3x3.dot(self.v))
 
 
-class GVect(object):
+class GVect:
     """
     Geological vector.
     Defined by trend and plunge (both in degrees):
@@ -812,7 +811,7 @@ class GVect(object):
           GVect(010.00, +20.00)
         """
 
-        return GVect(*(self.tp))
+        return GVect(*self.tp)
 
     def opposite(self):
         """
@@ -830,17 +829,16 @@ class GVect(object):
 
         return GVect(trend, plunge)
 
-    @property
     def versor(self):
         """
         Return the Vect corresponding to the geological vector.
 
         Examples:
-          >>> GVect(0, 90).versor
+          >>> GVect(0, 90).versor()
           Vect(0.0000, 0.0000, -1.0000)
-          >>> GVect(0, -90).versor
+          >>> GVect(0, -90).versor()
           Vect(0.0000, 0.0000, 1.0000)
-          >>> GVect(90, 90).versor
+          >>> GVect(90, 90).versor()
           Vect(0.0000, 0.0000, -1.0000)
           
         """
@@ -865,7 +863,7 @@ class GVect(object):
           True
         """
 
-        if self.versor.z > 0.0:
+        if self.versor().z > 0.0:
             return True
         else:
             return False
@@ -884,7 +882,7 @@ class GVect(object):
           False
         """
 
-        if self.versor.z < 0.0:
+        if self.versor().z < 0.0:
             return True
         else:
             return False
@@ -947,7 +945,7 @@ class GVect(object):
           180.0000000
         """
 
-        return self.versor.angle(another.versor_full)
+        return self.versor().angle(another.versor())
 
     @property
     def normal_gplane(self):
@@ -984,7 +982,7 @@ class GVect(object):
           GPlane(225.00, +90.00)
         """
 
-        normal = self.versor.vp(another.versor_full)
+        normal = self.versor().vp(another.versor())
         return normal.gvect.normal_gplane
 
     def as_axis(self):
@@ -1022,7 +1020,7 @@ class GVect(object):
         if not MIN_ANGLE_DEGR_DISORIENTATION <= self.angle(another) <= 180. - MIN_ANGLE_DEGR_DISORIENTATION:
             raise SubparallelLineationException("Sources must not be sub- or anti-parallel")
 
-        return self.versor.vp(another.versor_full).gvect
+        return self.versor().vp(another.versor()).gvect
 
 
 class GAxis(GVect):
@@ -1035,16 +1033,25 @@ class GAxis(GVect):
 
         return "GAxis({:06.2f}, {:+06.2f})".format(*self.tp)
 
-    def as_vect(self):
+    def as_gvect(self):
         """
         Create GVect instance with the same attitude as the self instance.
         
         Example:
-          >>> GAxis(220, 32).as_vect()
+          >>> GAxis(220, 32).as_gvect()
           GVect(220.00, +32.00)
         """
 
         return GVect(*self.tp)
+
+    def versor(self):
+        """
+        Create a versor parallel to the geological axis.
+
+        :return:
+        """
+
+        return self.as_gvect().versor()
 
     def angle(self, another):
         """
@@ -1062,7 +1069,7 @@ class GAxis(GVect):
           0.0000000
         """
 
-        angle_vers = self.versor.angle(another.versor_full)
+        angle_vers = self.versor().angle(another.versor())
         return min(angle_vers, 180. - angle_vers)
 
     @property
@@ -1079,7 +1086,7 @@ class GAxis(GVect):
           GPlane(225.00, +45.00)
         """
 
-        return self.as_vect().normal_gplane
+        return self.as_gvect().normal_gplane
 
     @property
     def is_upward(self):
@@ -1095,7 +1102,7 @@ class GAxis(GVect):
           True
         """
 
-        return self.as_vect().is_upward
+        return self.as_gvect().is_upward
 
     @property
     def is_downward(self):
@@ -1111,7 +1118,7 @@ class GAxis(GVect):
           False
         """
 
-        return self.as_vect().is_downward
+        return self.as_gvect().is_downward
 
     @property
     def upward(self):
@@ -1129,7 +1136,7 @@ class GAxis(GVect):
           GAxis(180.00, -90.00)
         """
 
-        return self.as_vect().upward.as_axis()
+        return self.as_gvect().upward.as_axis()
 
     @property
     def downward(self):
@@ -1147,7 +1154,7 @@ class GAxis(GVect):
           GAxis(000.00, +90.00)
         """
 
-        return self.as_vect().downward.as_axis()
+        return self.as_gvect().downward.as_axis()
 
     def common_plane(self, another):
         """
@@ -1164,7 +1171,7 @@ class GAxis(GVect):
           GPlane(225.00, +90.00)
         """
 
-        return self.as_vect().common_plane(another.as_vect())
+        return self.as_gvect().common_plane(another.as_gvect())
 
     def vp(self, another):
         """
@@ -1189,10 +1196,10 @@ class GAxis(GVect):
           GAxis(180.00, -00.00)
         """
 
-        return self.as_vect().vp(another.as_vect()).as_axis()
+        return self.as_gvect().vp(another.as_gvect()).as_axis()
 
 
-class Plane(object):
+class Plane:
     """
     Cartesian plane.
     Expressed by equation:
@@ -1318,7 +1325,7 @@ class Plane(object):
           Vect(0.0000, 1.0000, 0.0000)
         """
 
-        return Vect(self.a, self.b, self.c).versor_full
+        return Vect(self.a, self.b, self.c).versor()
 
     def gplane_point(self):
         """
@@ -1348,9 +1355,11 @@ class Plane(object):
         Vect(0.0000, -1.0000, 0.0000)
         """
 
-        return self.nversor.vp(another.nversor).versor_full
+        return self.nversor.vp(another.nversor).versor()
 
-    def inters_point(self, another):
+    def inters_point(self,
+                     another
+                     ):
         """
         Return point on intersection line (obviously non-unique solution)
         for two planes.
@@ -1557,7 +1566,7 @@ class GPlane(object):
           Plane(0.0000, 1.0000, -0.0000, -0.0000)
         """
 
-        normal_versor = self.normal.versor
+        normal_versor = self.normal.versor()
         a, b, c = normal_versor.x, normal_versor.y, normal_versor.z
         d = - (a * point.x + b * point.y + c * point.z)
         return Plane(a, b, c, d)

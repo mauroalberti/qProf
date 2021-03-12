@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 
-
-from builtins import object
 from .geometry import *
 from .errors import SlickelineTypeException, SlickelineSenseException
 from .math_utils import isclose
+
 
 class Slickenline(object):
     """
@@ -81,7 +79,7 @@ class Slickenline(object):
         if self.has_known_sense():
             raise SlickelineSenseException("Slickenline must have unknown movement sense")
 
-        return Slickenline(self.lin.as_vect())
+        return Slickenline(self.lin.as_gvect())
 
     def set_unknown_sense(self):
         """
@@ -289,8 +287,8 @@ class FaultSlick(object):
           PTBAxes(P: GAxis(000.00, -90.00), T: GAxis(090.00, +00.00), True)
         """
 
-        s_versor = self.sl.lin.versor_full
-        f_versor = self.fp.normal.versor_full
+        s_versor = self.sl.lin.versor()
+        f_versor = self.fp.normal.versor()
         T_axis = (f_versor + s_versor).gaxis
         P_axis = (f_versor - s_versor).gaxis
         known = self.known_sense
@@ -395,6 +393,7 @@ class PTBAxes(object):
         """
 
         return self.Paxis.common_plane(self.Taxis)
+
 
 if __name__ == "__main__":
 

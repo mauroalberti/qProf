@@ -1,9 +1,9 @@
 
-def clean_string(str):
+def clean_string(current_string):
 
-    str = str.replace("\t", "")
-    str = str.replace("\r", "")
-    str = str.replace("\n", "")
+    current_string = current_string.replace("\t", "")
+    current_string = current_string.replace("\r", "")
+    current_string = current_string.replace("\n", "")
 
-    return str
+    return current_string
 

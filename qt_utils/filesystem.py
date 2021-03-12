@@ -1,8 +1,8 @@
 
-from __future__ import division
 
 from builtins import str
-from qgis.PyQt.QtCore import QSettings, QFileInfo
+
+from qgis.PyQt.QtCore import QFileInfo
 from qgis.PyQt.QtWidgets import QFileDialog
 
 
@@ -19,10 +19,12 @@ def update_directory_key(settings, settings_dir_key, fileName):
 
 def new_file_path(parent, show_msg, path, filter_text):
 
-    output_filename, __ = QFileDialog.getSaveFileName(parent,
-                                                  show_msg,
-                                                  path,
-                                                  filter_text)
+    output_filename, __ = QFileDialog.getSaveFileName(
+        parent,
+        show_msg,
+        path,
+        filter_text
+    )
     if not output_filename:
         return ''
     else:

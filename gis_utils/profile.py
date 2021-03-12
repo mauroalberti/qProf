@@ -79,7 +79,7 @@ class GeoProfilesSet(object):
         _ = self._geoprofiles.pop(ndx)
 
 
-class GeoProfile(object):
+class GeoProfile:
     """
     Class representing the topographic and geological elements
     embodying a single geological profile.
@@ -180,7 +180,7 @@ class GeoProfile(object):
         self.geosurfaces_ids.append(lIds)
 
 
-class ProfileElevations(object):
+class ProfileElevations:
 
     def __init__(self):
 

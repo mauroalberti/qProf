@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from builtins import object
-import os
-import webbrowser
 
 from qgis.core import *
 
@@ -12,7 +8,7 @@ from qgis.PyQt.QtWidgets import *
 from . import resources
 
 
-from .qt_utils.tools import info, warn, error, update_ComboBox
+from .qt_utils.tools import warn
 from .qgis_utils.utils import create_action
 
 from .qProf_QWidget import qprof_QWidget

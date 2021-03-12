@@ -70,9 +70,9 @@ def is_number(s):
         return True
 
 
-def to_float(iterable):
+def to_float(curr_iterable):
 
-    return [float(item) for item in iterable]
+    return [float(item) for item in curr_iterable]
 
 
 def almost_zero(val):

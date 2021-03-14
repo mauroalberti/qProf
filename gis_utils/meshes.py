@@ -33,8 +33,8 @@ class TriangBeam(object):
         """
 
         self._apex = apex_pt3d
-        self._versor_1 = vector_1.versor_full()
-        self._versor_2 = vector_2.versor_full()
+        self._versor_1 = vector_1.versor()
+        self._versor_2 = vector_2.versor()
 
     def fangle_degr(self):
         """
@@ -80,7 +80,7 @@ class CartesianTriangle(object):
 
         def versor3d(pt_1, pt_2):
 
-            return Segment(pt_1, pt_2).vector().versor_full()
+            return Segment(pt_1, pt_2).vector().versor()
 
         def is_pt_in_fascio(pt_1, pt_2, pt_3):
 

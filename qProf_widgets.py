@@ -2351,8 +2351,8 @@ class StatisticsDialog(QDialog):
 
                 stat_report += f"\nSampling points ({len(resampled_line_xs)}) for profile # {ndx + 1}"
 
-                for ndx2, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
-                   stat_report += f"\n{ndx2+1}, {x}, {y}"
+                for ln_ndx, (x, y) in enumerate(zip(resampled_line_xs, resampled_line_ys)):
+                   stat_report += f"\n{ln_ndx+1}, {x}, {y}"
 
         self.text_widget.insertPlainText(stat_report)
 

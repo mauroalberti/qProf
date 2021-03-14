@@ -60,7 +60,7 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
 
-    axis_versor = map_axis.as_vect().versor
+    axis_versor = map_axis.as_vect().versor()
     l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
     axis_param_line = ParamLine3D(structural_pt, l, m, n)
     return axis_param_line.intersect_cartes_plane(section_cartes_plane)

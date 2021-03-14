@@ -1,9 +1,7 @@
 
-from typing import List
+import copy
 
 from enum import Enum, auto
-
-import copy
 
 from math import asin
 
@@ -15,10 +13,9 @@ from ..qgis_utils.rasters import *
 from ..qgis_utils.tables import *
 from ..qgis_utils.vector_layers import *
 
-from .geodetic import TrackPointGPX
-from .features import Line
-
-from .errors import GPXIOException
+from .features import *
+from .geodetic import *
+from .errors import *
 
 
 class TrackSource(Enum):
@@ -52,7 +49,7 @@ class GeoProfilesSet(object):
     def __init__(self, name=""):
 
         self._name = name
-        self._geoprofiles = []
+        self._geoprofiles = []  # list of GeoProfile instances
         self.profiles_created = False
         self.plot_params = None
 
@@ -105,7 +102,7 @@ class GeoProfilesSet(object):
         _ = self._geoprofiles.pop(ndx)
 
 
-class GeoProfile():
+class GeoProfile:
     """
     Class representing the topographic and geological elements
     embodying a single geological profile.
@@ -120,7 +117,7 @@ class GeoProfile():
         self.resampled_line = None
         """
 
-        self.topo_profiles = []  # list of names and Lines
+        self.named_lines = []  # list of name and Line
         self.geoplane_attitudes = []
         self.geosurfaces = []
         self.geosurfaces_ids = []
@@ -131,11 +128,11 @@ class GeoProfile():
         topo_profiles
                           ):
 
-        self.topo_profiles = topo_profiles
+        self.named_lines = topo_profiles
 
     def add_topo_profiles(self, topo_profiles):
 
-        self.topo_profiles += topo_profiles
+        self.named_lines += topo_profiles
 
     def add_intersections_pts(self, intersection_list):
 
@@ -163,15 +160,15 @@ class GeoProfile():
 
     def max_s(self):
 
-        return max([line.length_2d for line in self.topo_profiles])
+        return max([line.length_2d for _, line in self.named_lines])
 
     def min_z_topo(self):
 
-        return min([line.z_min for line in self.topo_profiles])
+        return min([line.z_min for _, line in self.named_lines])
 
     def max_z_topo(self):
 
-        return max([line.z_max for line in self.topo_profiles])
+        return max([line.z_max for _, line in self.named_lines])
 
     def min_z_plane_attitudes(self):
 
@@ -605,8 +602,8 @@ def try_prepare_single_topo_profiles(
 
             gpx_named_3dlines = None
 
-        print(f"DEBUG: gpx profile line: {profile_line}")
-        print(f"DEBUG: gpx profile line num points: {profile_line.num_pts}")
+        print(f"DEBUG: profile line: {profile_line}")
+        print(f"DEBUG: profile line num points: {profile_line.num_pts}")
 
         if dem_named_3dlines is None and gpx_named_3dlines is None:
             named_3dlines = None
@@ -631,19 +628,6 @@ def try_prepare_single_topo_profiles(
     except Exception as e:
 
         return False, str(e)
-
-
-
-
-
-
-
-
-
-    except Exception as e:
-
-        return False, f"Sample distance value not correct: {e}"
-
 
 
 def intersect_with_dem(

@@ -1,10 +1,12 @@
 
+from typing import Dict
+
 from qgis.PyQt import uic
 
 from .gsf.array_utils import to_float
 
+from .gis_utils.features import *
 from .gis_utils.statistics import *
-
 from .qgis_utils.canvas import *
 from .qgis_utils.lines import *
 
@@ -34,10 +36,11 @@ class ActionWidget(QWidget):
         self.line_from_points_list = None
         self.input_gpx_file_path = None
         self.gpx_choice = GPXElevationUsage.NOT_USED
+        self.gpx_track_name = None
 
         self.profile_name = None
-        self.profile_lines = None  # list of Lines, in the project CRS, undensified
-        self.input_geoprofiles = GeoProfilesSet()  # main instance for the geoprofiles
+        self.profile_line_list = None  # list of Lines, in the project CRS, undensified
+        self.input_geoprofiles_set = GeoProfilesSet()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
         self.selected_dems = None
         self.selected_dem_parameters = None
@@ -125,7 +128,7 @@ class ActionWidget(QWidget):
             )
 
         self.profile_name = line_qgsvectorlayer.sourceName()
-        self.profile_lines = result
+        self.profile_line_list = result
         self.profile_track_source = TrackSource.LINE_LAYER
 
     def try_get_point_list(self,
@@ -189,7 +192,7 @@ class ActionWidget(QWidget):
             return
 
         self.profile_name = "Text input"
-        self.profile_lines = [line2d]
+        self.profile_line_list = [line2d]
         self.profile_track_source = TrackSource.POINT_LIST
 
     def define_track_source_from_gpx_file(self):
@@ -224,7 +227,7 @@ class ActionWidget(QWidget):
             name, line3dt = results
 
             self.profile_name = os.path.basename(self.input_gpx_file_path)
-            self.profile_lines = [line3dt]
+            self.profile_line_list = [line3dt]
             self.gpx_track_name = name
             self.profile_track_source = TrackSource.GPX_FILE
 
@@ -327,13 +330,8 @@ class ActionWidget(QWidget):
 
     def check_pre_profile(self):
 
-        '''
-        if not self.check_pre_statistics():
-            return
-        '''
-
-        for geoprofile in self.input_geoprofiles.geoprofiles:
-            if not geoprofile.topo_profiles.statistics_calculated:
+        for geoprofile in self.input_geoprofiles_set.geoprofiles:
+            if not geoprofile.named_lines.statistics_calculated:
                 warn(self,
                      self.plugin_name,
                      "Profile statistics not yet calculated")
@@ -342,22 +340,30 @@ class ActionWidget(QWidget):
         return True
 
     def calculate_profile_statistics(self,
-                                     geoprofiles):
+        geoprofiles
+    ):
+
+        print(f"DEBUG: type(geoprofiles): {type(geoprofiles)}")
 
         for geoprofile in geoprofiles:
 
-            name, line3d = geoprofile.topo_profiles
+            print(f"DEBUG: geoprofile: {geoprofile}")
+            print(f"DEBUG: geoprofile.topo_profiles: {geoprofile.named_lines}")
 
-            statistics_elev = [get_statistics(p) for p in line3d.z_array]
-            statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes]
-            statistics_slopes = [get_statistics(p) for p in np.absolute(line3d.dir_slopes)]
+            for name, line3d in geoprofile.named_lines:
 
-            profile_length = line3d.incr_len_2d[-1] - line3d.incr_len_2d[0]
-            natural_elev_range = (
-                np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
-                np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
+                print(f"DEBUG: name: {name}, line3d: {line3d}")
 
-            statistics_calculated = True
+                statistics_elev = [get_statistics(p) for p in line3d.z_array]
+                statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes]
+                statistics_slopes = [get_statistics(p) for p in np.absolute(line3d.dir_slopes)]
+
+                profile_length = line3d.incr_len_2d[-1] - line3d.incr_len_2d[0]
+                natural_elev_range = (
+                    np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
+                    np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
+
+                statistics_calculated = True
 
         """
         dialog = StatisticsDialog(
@@ -537,9 +543,10 @@ class ActionWidget(QWidget):
         return True, ""
     """
 
-    def get_profile_plot_params(
-            self,
-            dialog):
+    def get_profile_plot_params(self,
+        dialog,
+        surface_names: List[str]
+    ) -> Dict:
 
         profile_params = {}
 
@@ -570,7 +577,7 @@ class ActionWidget(QWidget):
         profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
         profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
 
-        surface_names = self.input_geoprofiles.geoprofile(0).topo_profiles.surface_names
+        #surface_names = self.input_geoprofiles_set.geoprofile(0).named_lines.surface_names
 
         if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
             profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
@@ -594,8 +601,11 @@ class ActionWidget(QWidget):
             )
             return
 
+        print(f"DEBUG: self.profile_lines: {type(self.profile_line_list)}")
+        print(f"DEBUG: self.profile_lines[0]: {type(self.profile_line_list[0])}")
+
         success, result = try_prepare_single_topo_profiles(
-            profile_line=self.profile_lines[0],
+            profile_line=self.profile_line_list[0],
             track_source=self.profile_track_source,
             gpx_elevation_usage=self.gpx_choice,
             selected_dems=self.selected_dems,
@@ -614,48 +624,27 @@ class ActionWidget(QWidget):
 
         geoprofile = result
 
-        print(f"geoprofile: {geoprofile}")
-        print(f"geoprofile topoprofiles: {geoprofile.topo_profiles}")
+        profiles_min_elevs = []
+        profiles_max_elevs = []
+        profiles_lengths = []
 
-        try:
+        for _, line3d in geoprofile.named_lines:
+            profiles_min_elevs.append(line3d.z_min)
+            profiles_max_elevs.append(line3d.z_max)
+            profiles_lengths.append(line3d.length_2d)
 
-            self.calculate_profile_statistics([geoprofile])
+        surface_names = [name for name, _ in geoprofile.named_lines]
 
-        except Exception as e:
-
-            error(
-                self,
-                self.plugin_name,
-                str(e)
-            )
-
-            return
-
-        print("DEBUG: after statistics calc")
-
-
-        natural_elev_min_set = []
-        natural_elev_max_set = []
-        profile_length_set = []
-
-        for geoprofile in self.input_geoprofiles.geoprofiles:
-
-            natural_elev_min, natural_elev_max = geoprofile.topo_profiles.natural_elev_range
-            natural_elev_min_set.append(natural_elev_min)
-            natural_elev_max_set.append(natural_elev_max)
-            profile_length_set.append(geoprofile.topo_profiles.profile_length)
-
-        surface_names = geoprofile.topo_profiles.surface_names
-        if self.input_geoprofiles.plot_params is None:
+        if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
         else:
-            surface_colors = self.input_geoprofiles.plot_params.get('elev_lyr_colors')
+            surface_colors = self.input_geoprofiles_set.plot_params.get('elev_lyr_colors')
 
         # pre-process input data to account for multi.profiles
 
-        profile_length = np.nanmax(profile_length_set)
-        natural_elev_min = np.nanmin(natural_elev_min_set)
-        natural_elev_max = np.nanmax(natural_elev_max_set)
+        profile_length = np.nanmax(profiles_lengths)
+        natural_elev_min = np.nanmin(profiles_min_elevs)
+        natural_elev_max = np.nanmax(profiles_max_elevs)
 
         if np.isnan(profile_length) or profile_length == 0.0:
             error(
@@ -680,18 +669,21 @@ class ActionWidget(QWidget):
             return
 
         dialog = PlotTopoProfileDialog(self.plugin_name,
-                                       profile_length_set,
-                                       natural_elev_min_set,
-                                       natural_elev_max_set,
+                                       profiles_lengths,
+                                       profiles_min_elevs,
+                                       profiles_max_elevs,
                                        surface_names,
                                        surface_colors)
 
         if dialog.exec_():
-            self.input_geoprofiles.plot_params = self.get_profile_plot_params(dialog)
+            plot_params = self.get_profile_plot_params(
+                dialog,
+                surface_names
+            )
         else:
             return
 
-        self.input_geoprofiles.profiles_created = True
+        profiles_created = True
 
         # plot profiles
 
@@ -706,8 +698,17 @@ class ActionWidget(QWidget):
         plot_addit_params["polygon_class_colors"] = None  # self.polygon_classification_colors
         plot_addit_params["plane_attitudes_colors"] = None  # self.plane_attitudes_colors
 
-        profile_window = plot_geoprofiles(self.input_geoprofiles,
-                                          plot_addit_params)
+        """
+        num_subplots = plot_addit_params['plot_height_choice'] + plot_addit_params['plot_slope_choice']
+        grid_spec = gridspec.GridSpec(num_subplots, 1)
+        """
+
+        profile_window = plot_geoprofile(
+            geoprofile=geoprofile,
+            plot_params=plot_params,
+            plot_addit_params=plot_addit_params
+        )
+
         self.profile_windows.append(profile_window)
 
     def digitize_rubberband_line(self):
@@ -780,7 +781,7 @@ class ActionWidget(QWidget):
 
         self.line_from_digitation = raw_line
         self.profile_name = "Digitized line"
-        self.profile_lines = [raw_line]
+        self.profile_line_list = [raw_line]
         self.profile_track_source = TrackSource.DIGITATION
 
     def restore_previous_map_tool(self):
@@ -2319,7 +2320,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx).topo_profiles
+            profile_elevations = geoprofile_set.geoprofile(ndx).named_lines
 
             profiles_stats = list(
                 zip(
@@ -2343,7 +2344,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            topo_profiles = geoprofile_set.geoprofile(ndx).topo_profiles
+            topo_profiles = geoprofile_set.geoprofile(ndx).named_lines
             resampled_line_xs = topo_profiles.x_array
             resampled_line_ys = topo_profiles.y_array
 

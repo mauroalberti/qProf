@@ -1,17 +1,8 @@
 
-from __future__ import division
-
-from builtins import zip
-from builtins import range
-from builtins import object
 from math import *
 
-import numpy as np
-
-from ..gsf.geometry import *
-
-from .features import *
 from .profile import *
+from gis_utils.features import *
 
 
 def calculate_distance_with_sign(projected_point, section_init_pt, section_vector):

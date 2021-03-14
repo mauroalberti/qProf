@@ -1,7 +1,4 @@
 
-
-from ..gsf.geometry import Point
-
 from .time_utils import standard_gpstime_to_seconds
 
 from ..qgis_utils.points import *

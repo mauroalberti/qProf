@@ -1,10 +1,6 @@
 
 import numbers
 
-from qgis.core import *
-
-from .points import *
-
 
 def field_values(
     layer,

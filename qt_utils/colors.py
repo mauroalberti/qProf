@@ -1,8 +1,4 @@
 
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-
-
 def qcolor2rgbmpl(
         qcolor
 ):

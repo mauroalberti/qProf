@@ -22,9 +22,9 @@ class qProf_main(object):
     def initGui(self):
 
         self.qactOpenMainWin = create_action(
-            f":/plugins/{self.plugin_name}/icons/qProf_main.svg",
-            self.plugin_name,
-            self.open_main_widget,
+            icon_path=f":/plugins/{self.plugin_name}/icons/qProf_main.svg",
+            text=self.plugin_name,
+            callback=self.open_main_widget,
             whats_this="Topographic and geological profiles",
             parent=self.interface.mainWindow())
         self.interface.addPluginToMenu(self.plugin_name,

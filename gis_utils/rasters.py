@@ -228,7 +228,6 @@ class Grid(object):
         Set grid data array.
 
         @param data_array: numpy.array of data values.
-        @param type: 2D numpy.array.
 
         @return: self.
         """
@@ -470,8 +469,13 @@ class Grid(object):
 
             # 2D array of plane segment parameters
             x_plane_m = srcPlaneAttitude.plane_x_coeff()
-            x_plane_q = np.array_from_function(self.row_num(), 1, lambda j: 0, grid_coord_to_geogr_coord_y_closure,
-                                               plane_z_closure)
+            x_plane_q = np.array_from_function(
+                self.row_num,
+                1,
+                lambda j: 0,
+                grid_coord_to_geogr_coord_y_closure,
+                plane_z_closure
+            )
 
             # 2D array that defines denominator for intersections between local segments
             x_inters_denomin = np.where(x_dem_m != x_plane_m, x_dem_m - x_plane_m, np.NaN)

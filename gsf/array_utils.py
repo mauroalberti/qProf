@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import division
+import numbers
+
+from typing import Tuple
 
 from numpy import *  # general import for compatibility with formula input
 from numpy.linalg import svd
@@ -70,9 +71,11 @@ def is_number(s):
         return True
 
 
-def to_float(curr_iterable):
+def to_float(
+        curr_iterable
+) -> Tuple[numbers.Real]:
 
-    return [float(item) for item in curr_iterable]
+    return (float(item) for item in curr_iterable)
 
 
 def almost_zero(val):

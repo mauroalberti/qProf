@@ -7,7 +7,7 @@ about=qProf is a plugin for the generation of topographic, grid/band and geologi
     Geological data, such as stratification attitude and geological traces, can be projected on the profile.
     Intersections between geological outcrops or faults can be determined.
 category=Raster
-version=0.5.1
+version=0.5.0
 qgisMinimumVersion=3.0
 icon=icons/qProf_main.svg
 author=Mauro Alberti, Marco Zanieri
@@ -19,7 +19,8 @@ repository=https://github.com/mauroalberti/qProf
 experimental=False
 deprecated=False
 changelog=
-  0.5.1 : - added creation of stacked profiles from grids/bands
+  0.5.0 : - changed interface
+  0.4.4 : - macOS-related fix for gdal imports
   0.4.3 : - added choice of line field label for topographic output additional info
   0.4.2 : - fixed help visualization in Windows
   0.4.1 : - implemented sorting of profiles in multiprofile case based on field value

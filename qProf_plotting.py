@@ -1,5 +1,7 @@
 
-from matplotlib import gridspec
+from typing import Dict
+
+import matplotlib as mpl
 
 from .qt_utils.colors import *
 from .gis_utils.profile import *
@@ -98,89 +100,99 @@ def plot_profile_polygon_intersection_line(
     plot_line(axes, s_list, z_list, color, linewidth=3.0, name=classification)
 
 
-def plot_geoprofiles(
-        geoprofiles,
-        plot_addit_params,
-        slope_padding=0.2
+def create_axes(
+    profile_window,
+    plot_x_range,
+    plot_y_range,
+    grid_spec,
+    ndx_subplot
+) -> 'mpl.axes._axes.Axes.AxesSubplot':
+
+    x_min, x_max = plot_x_range
+    y_min, y_max = plot_y_range
+    axes = profile_window.canvas.fig.add_subplot(grid_spec[ndx_subplot])
+    axes.set_xlim(x_min, x_max)
+    axes.set_ylim(y_min, y_max)
+
+    axes.grid(True, color='lightgrey', linestyle='-.', linewidth=0.25, alpha=50)
+    print(f"DOCUMENTATION: axes: {type(axes)}")
+    return axes
+
+
+def plot_topo_profile_lines(
+    geoprofile,
+    plot_params,
+    profile_window,
+    grid_spec,
+    ndx_subplot,
+    topo_type,
+    plot_x_range,
+    plot_y_range,
+    filled_choice
 ):
 
-    def plot_topo_profile_lines(
-            grid_spec,
-            ndx_subplot,
-            topo_type,
-            plot_x_range,
-            plot_y_range,
-            filled_choice
+    topo_profiles = [line3d for _, line3d in geoprofile.named_lines]
+    topoline_colors = plot_params['elev_lyr_colors']
+    topoline_visibilities = plot_params['visible_elev_lyrs']
+
+    axes = create_axes(
+        profile_window,
+        plot_x_range,
+        plot_y_range,
+        grid_spec,
+        ndx_subplot
+    )
+
+    if plot_params['invert_xaxis']:
+        axes.invert_xaxis()
+
+    if topo_type == 'elevation':
+        ys = [line3d.z_array for line3d in topo_profiles]
+        plot_y_filled = plot_y_range[0]
+    else:
+        if plot_params['plot_slope_absolute']:
+            ys = [line3d.absolute_slopes for line3d in topo_profiles]
+        else:
+            ys = [line3d.dir_slopes for line3d in topo_profiles]
+        plot_y_filled = 0.0
+
+    s = topo_profiles[0].incr_len_2d
+
+    for y, topoline_color, topoline_visibility in zip(
+            ys,
+            topoline_colors,
+            topoline_visibilities
     ):
 
-        def create_axes(
-                profile_window,
-                plot_x_range,
-                plot_y_range
-        ):
+        if topoline_visibility:
 
-            x_min, x_max = plot_x_range
-            y_min, y_max = plot_y_range
-            axes = profile_window.canvas.fig.add_subplot(grid_spec[ndx_subplot])
-            axes.set_xlim(x_min, x_max)
-            axes.set_ylim(y_min, y_max)
-
-            axes.grid(True, color='lightgrey', linestyle='-.', linewidth=0.25, alpha=50)
-
-
-            return axes
-
-        topo_profiles = geoprofile.topo_profiles
-        topoline_colors = plot_params['elev_lyr_colors']
-        topoline_visibilities = plot_params['visible_elev_lyrs']
-
-        axes = create_axes(
-            profile_window,
-            plot_x_range,
-            plot_y_range)
-
-        if plot_params['invert_xaxis']:
-            axes.invert_xaxis()
-
-        if topo_type == 'elevation':
-            ys = topo_profiles.z_array
-            plot_y_filled = plot_y_range[0]
-        else:
-            if plot_params['plot_slope_absolute']:
-                ys = topo_profiles.absolute_slopes
-            else:
-                ys = topo_profiles.dir_slopes
-            plot_y_filled = 0.0
-
-        s = topo_profiles.incr_len_2d
-
-        for y, topoline_color, topoline_visibility in zip(
-                ys,
-                topoline_colors,
-                topoline_visibilities
-        ):
-
-            if topoline_visibility:
-
-                if filled_choice:
-                    plot_filled_line(
-                        axes,
-                        s,
-                        y,
-                        plot_y_filled,
-                        qcolor2rgbmpl(topoline_color))
-
-                plot_line(
+            if filled_choice:
+                plot_filled_line(
                     axes,
                     s,
                     y,
+                    plot_y_filled,
                     qcolor2rgbmpl(topoline_color))
 
-        return axes
+            plot_line(
+                axes,
+                s,
+                y,
+                qcolor2rgbmpl(topoline_color))
+
+    return axes
+
+
+def plot_geoprofile(
+    geoprofile: GeoProfile,
+    plot_params,
+    plot_addit_params: Dict,
+    slope_padding=0.2
+):
 
     # extract/define plot parameters
 
-    plot_params = geoprofiles.plot_params
+    #plot_params = input_geoprofiles_set.plot_params
 
     set_vertical_exaggeration = plot_params["set_vertical_exaggeration"]
     vertical_exaggeration = plot_params['vertical_exaggeration']
@@ -197,14 +209,145 @@ def plot_geoprofiles(
 
     profile_window = MplWidget('Profile')
 
-    num_subplots = (plot_height_choice + plot_slope_choice) * geoprofiles.geoprofiles_num
-    grid_spec = gridspec.GridSpec(num_subplots, 1)
+    num_subplots = plot_height_choice + plot_slope_choice
+    grid_spec = mpl.gridspec.GridSpec(num_subplots, 1)
 
     ndx_subplot = -1
-    for ndx in range(geoprofiles.geoprofiles_num):
 
-        geoprofile = geoprofiles.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile.topo_profiles.profile_length
+    plot_s_min, plot_s_max = 0, geoprofile.max_s()
+
+    # if slopes to be calculated and plotted
+    if plot_slope_choice:
+        plot_slope_max = 90.0
+        # defines slope value lists and the min and max values
+        if plot_params['plot_slope_absolute']:
+            #slopes = geoprofile.topo_profiles.absolute_slopes
+            plot_slope_min = 0.0
+        else:
+            #slopes = geoprofile.topo_profiles.profile_dirslopes
+            plot_slope_min = -90.0
+
+        """
+        profiles_slope_min = np.nanmin(np.array(list(map(np.nanmin, slopes))))
+        profiles_slope_max = np.nanmax(np.array(list(map(np.nanmax, slopes))))
+
+        delta_slope = profiles_slope_max - profiles_slope_min
+        plot_slope_min = profiles_slope_min - delta_slope * slope_padding
+        plot_slope_max = profiles_slope_max + delta_slope * slope_padding
+        """
+
+    # plot topographic profile elevations
+
+    if plot_height_choice:
+        ndx_subplot += 1
+        axes_elevation = plot_topo_profile_lines(
+            geoprofile,
+            plot_params,
+            profile_window,
+            grid_spec,
+            ndx_subplot,
+            'elevation',
+            (plot_s_min, plot_s_max),
+            (plot_z_min, plot_z_max),
+            plot_params['filled_height'])
+        if set_vertical_exaggeration:
+            axes_elevation.set_aspect(vertical_exaggeration)
+        axes_elevation.set_anchor('W')  # align left
+
+    # plot topographic profile slopes
+
+    if plot_slope_choice:
+        ndx_subplot += 1
+        axes_slopes = plot_topo_profile_lines(
+            geoprofile,
+            plot_params,
+            profile_window,
+            grid_spec,
+            ndx_subplot,
+            'slope',
+            (plot_s_min, plot_s_max),
+            (plot_slope_min, plot_slope_max),
+            plot_params['filled_slope'])
+        axes_slopes.set_anchor('W')  # align left
+
+    # plot geological outcrop intersections
+
+    if len(geoprofile.outcrops) > 0:
+        for line_intersection_value in geoprofile.outcrops:
+            plot_profile_polygon_intersection_line(plot_addit_params,
+                                                   axes_elevation,
+                                                   line_intersection_value)
+
+    # plot geological attitudes intersections
+
+    if len(geoprofile.geoplane_attitudes) > 0:
+        for plane_attitude_set, color in zip(geoprofile.geoplane_attitudes, plot_addit_params["plane_attitudes_colors"]):
+            plot_structural_attitude(plot_addit_params,
+                                     axes_elevation,
+                                     plot_s_max,
+                                     vertical_exaggeration,
+                                     plane_attitude_set,
+                                     color)
+
+    # plot geological traces projections
+
+    if len(geoprofile.geosurfaces) > 0:
+        for curve_set, labels in zip(geoprofile.geosurfaces, geoprofile.geosurfaces_ids):
+            plot_projected_line_set(axes_elevation,
+                                    curve_set,
+                                    labels)
+
+    # plot line-profile intersections
+
+    if len(geoprofile.lineaments) > 0:
+        plot_profile_lines_intersection_points(axes_elevation,
+                                               geoprofile.lineaments)
+
+    profile_window.canvas.fig.tight_layout()
+    profile_window.canvas.draw()
+
+    return profile_window
+
+
+def plot_geoprofiles(
+        input_geoprofiles_set: GeoProfilesSet,
+        plot_addit_params,
+        slope_padding=0.2
+):
+
+    print(f"DOC: geoprofiles in plot_geoprofiles: {type(input_geoprofiles_set)}")
+
+    # extract/define plot parameters
+
+    plot_params = input_geoprofiles_set.plot_params
+
+    set_vertical_exaggeration = plot_params["set_vertical_exaggeration"]
+    vertical_exaggeration = plot_params['vertical_exaggeration']
+
+    plot_height_choice = plot_params['plot_height_choice']
+    plot_slope_choice = plot_params['plot_slope_choice']
+
+    if plot_height_choice:
+        # defines plot min and max values
+        plot_z_min = plot_params['plot_min_elevation_user']
+        plot_z_max = plot_params['plot_max_elevation_user']
+
+    # populate the plot
+
+    profile_window = MplWidget('Profile')
+
+    print(f"DEBUG: plot_height_choice: {plot_height_choice}")
+    print(f"DEBUG: plot_slope_choice: {plot_slope_choice}")
+    print(f"DEBUG: geoprofiles.geoprofiles_num: {input_geoprofiles_set.geoprofiles_num}")
+
+    num_subplots = (plot_height_choice + plot_slope_choice) * input_geoprofiles_set.geoprofiles_num
+    grid_spec = mpl.gridspec.GridSpec(num_subplots, 1)
+
+    ndx_subplot = -1
+    for ndx in range(input_geoprofiles_set.geoprofiles_num):
+
+        geoprofile = input_geoprofiles_set.geoprofile(ndx)
+        plot_s_min, plot_s_max = 0, geoprofile.named_lines.profile_length
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:
@@ -231,6 +374,9 @@ def plot_geoprofiles(
         if plot_height_choice:
             ndx_subplot += 1
             axes_elevation = plot_topo_profile_lines(
+                geoprofile,
+                plot_params,
+                profile_window,
                 grid_spec,
                 ndx_subplot,
                 'elevation',
@@ -246,6 +392,9 @@ def plot_geoprofiles(
         if plot_slope_choice:
             ndx_subplot += 1
             axes_slopes = plot_topo_profile_lines(
+                geoprofile,
+                plot_params,
+                profile_window,
                 grid_spec,
                 ndx_subplot,
                 'slope',

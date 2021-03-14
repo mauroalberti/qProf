@@ -382,7 +382,9 @@ def read_line_shapefile_via_ogr(line_shp_path):
 
 
 def shapefile_create_def_field(field_def):
+
     fieldDef = ogr.FieldDefn(field_def['name'], field_def['ogr_type'])
+
     if field_def['ogr_type'] == ogr.OFTString:
         fieldDef.SetWidth(field_def['width'])
 

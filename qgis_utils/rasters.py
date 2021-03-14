@@ -4,13 +4,10 @@ from collections import namedtuple
 
 from math import floor, ceil
 
-import numpy as np
-
-from qgis.core import *
-
 from .points import *
 
 from ..gsf.geometry import Point
+
 
 raster_parameters_fields = [
     'name',

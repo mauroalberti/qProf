@@ -1,9 +1,9 @@
 
-from typing import Optional, Union, List
+from typing import List
 
 from ..gis_utils.features import *
 from ..gis_utils.profile import *
-from ..gis_utils.errors import VectorIOException
+from ..gis_utils.errors import *
 
 from .points import *
 

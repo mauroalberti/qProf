@@ -1369,9 +1369,9 @@ class Plane:
         Return point on intersection line (obviously non-unique solution)
         for two planes.
 
-        >>> a = Plane(1, 0, 0, 0)
-        >>> b = Plane(0, 0, 1, 0)
-        >>> a.inters_point(b)
+        >>> pa = Plane(1, 0, 0, 0)
+        >>> pb = Plane(0, 0, 1, 0)
+        >>> pa.inters_point(pb)
         Point(0.0000, 0.0000, 0.0000, nan)
         """
 

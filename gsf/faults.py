@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 
-
-from builtins import object
 from .geometry import *
 from .errors import SlickelineTypeException, SlickelineSenseException
 from .math_utils import isclose
+
 
 class Slickenline(object):
     """
@@ -81,7 +79,7 @@ class Slickenline(object):
         if self.has_known_sense():
             raise SlickelineSenseException("Slickenline must have unknown movement sense")
 
-        return Slickenline(self.lin.as_vect())
+        return Slickenline(self.lin.as_gvect())
 
     def set_unknown_sense(self):
         """
@@ -395,6 +393,7 @@ class PTBAxes(object):
         """
 
         return self.Paxis.common_plane(self.Taxis)
+
 
 if __name__ == "__main__":
 

@@ -6,7 +6,21 @@ from builtins import range
 from builtins import object
 import os
 
-from osgeo import ogr, gdal, osr
+
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
+
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
+
+try:
+    from osgeo import osr
+except ImportError:
+    import osr
 
 from .errors import RasterParametersException, OGRIOException
 
@@ -296,7 +310,7 @@ class GDALParameters(object):
                                     abs(self.pixSizeEW) + abs(other.pixSizeEW)) > tolerance or \
                                         2 * (abs(self.pixSizeNS) - abs(other.pixSizeNS)) / (
                                     abs(self.pixSizeNS) + abs(other.pixSizeNS)) > tolerance or \
-                        self.rows != other.rows or self.cols != other.cols or self.projection != other.projection:
+                        self.rows != other.rows or self.cols != other.cols:
             return False
         else:
             return True

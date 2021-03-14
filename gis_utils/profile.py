@@ -229,7 +229,7 @@ class GeoProfile():
         self.geosurfaces_ids.append(lIds)
 
 
-class ProfileElevations(object):
+class ProfileElevations:
 
     def __init__(self):
 

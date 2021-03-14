@@ -736,7 +736,7 @@ class Vect(object):
         return Vect.from_array(array3x3.dot(self.v))
 
 
-class GVect(object):
+class GVect:
     """
     Geological vector.
     Defined by trend and plunge (both in degrees):
@@ -816,7 +816,7 @@ class GVect(object):
           GVect(010.00, +20.00)
         """
 
-        return GVect(*(self.tp))
+        return GVect(*self.tp)
 
     def opposite(self):
         """
@@ -1038,16 +1038,25 @@ class GAxis(GVect):
 
         return "GAxis({:06.2f}, {:+06.2f})".format(*self.tp)
 
-    def as_vect(self):
+    def as_gvect(self):
         """
         Create GVect instance with the same attitude as the self instance.
         
         Example:
-          >>> GAxis(220, 32).as_vect()
+          >>> GAxis(220, 32).as_gvect()
           GVect(220.00, +32.00)
         """
 
         return GVect(*self.tp)
+
+    def versor(self):
+        """
+        Create a versor parallel to the geological axis.
+
+        :return:
+        """
+
+        return self.as_gvect().versor()
 
     def angle(self, another):
         """
@@ -1082,7 +1091,7 @@ class GAxis(GVect):
           GPlane(225.00, +45.00)
         """
 
-        return self.as_vect().normal_gplane
+        return self.as_gvect().normal_gplane
 
     @property
     def is_upward(self):
@@ -1098,7 +1107,7 @@ class GAxis(GVect):
           True
         """
 
-        return self.as_vect().is_upward
+        return self.as_gvect().is_upward
 
     @property
     def is_downward(self):
@@ -1114,7 +1123,7 @@ class GAxis(GVect):
           False
         """
 
-        return self.as_vect().is_downward
+        return self.as_gvect().is_downward
 
     @property
     def upward(self):
@@ -1132,7 +1141,7 @@ class GAxis(GVect):
           GAxis(180.00, -90.00)
         """
 
-        return self.as_vect().upward.as_axis()
+        return self.as_gvect().upward.as_axis()
 
     @property
     def downward(self):
@@ -1150,7 +1159,7 @@ class GAxis(GVect):
           GAxis(000.00, +90.00)
         """
 
-        return self.as_vect().downward.as_axis()
+        return self.as_gvect().downward.as_axis()
 
     def common_plane(self, another):
         """
@@ -1167,7 +1176,7 @@ class GAxis(GVect):
           GPlane(225.00, +90.00)
         """
 
-        return self.as_vect().common_plane(another.as_vect())
+        return self.as_gvect().common_plane(another.as_gvect())
 
     def vp(self, another):
         """
@@ -1192,10 +1201,10 @@ class GAxis(GVect):
           GAxis(180.00, -00.00)
         """
 
-        return self.as_vect().vp(another.as_vect()).as_axis()
+        return self.as_gvect().vp(another.as_gvect()).as_axis()
 
 
-class Plane(object):
+class Plane:
     """
     Cartesian plane.
     Expressed by equation:
@@ -1353,7 +1362,9 @@ class Plane(object):
 
         return self.nversor.vp(another.nversor).versor()
 
-    def inters_point(self, another):
+    def inters_point(self,
+                     another
+                     ):
         """
         Return point on intersection line (obviously non-unique solution)
         for two planes.

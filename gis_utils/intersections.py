@@ -8,11 +8,10 @@ from math import *
 
 import numpy as np
 
-from ..gsf.geometry import Point, GAxis, GVect, Vect
+from ..gsf.geometry import *
 
-from .features import Segment, ParamLine3D
-from .profile import PlaneAttitude
-from .errors import ConnectionException
+from .features import *
+from .profile import *
 
 
 def calculate_distance_with_sign(projected_point, section_init_pt, section_vector):
@@ -60,7 +59,7 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
 
-    axis_versor = map_axis.as_vect().versor()
+    axis_versor = map_axis.as_gvect().versor()
     l, m, n = axis_versor.x, axis_versor.y, axis_versor.z
     axis_param_line = ParamLine3D(structural_pt, l, m, n)
     return axis_param_line.intersect_cartes_plane(section_cartes_plane)
@@ -178,12 +177,12 @@ class Intersections(object):
                             len(list(self.ycoords_y[np.logical_not(np.isnan(self.ycoords_y))]))
 
         # creation and initialization of structured array of valid intersections in the x-direction
-        links = np.zeros((num_intersections), dtype=dt)
+        links = np.zeros(num_intersections, dtype=dt)
 
         # filling array with values
 
         curr_ndx = 0
-        for i in range((self.xcoords_x.shape)[0]):
+        for i in range(self.xcoords_x.shape[0]):
             for j in range(self.xcoords_x.shape[1]):
                 if not isnan(self.xcoords_x[i, j]):
                     links[curr_ndx] = (curr_ndx + 1, i, j, 'x', 0, 0, False)
@@ -345,21 +344,21 @@ class Intersections(object):
             conns = self.neighbours[from_id]
             num_conn = len(conns)
             if num_conn == 0:
-                raise ConnectionException('no connected intersection')
+                raise Exception('no connected intersection')
             elif num_conn == 1:
                 if self.links[conns[0] - 1]['conn_from'] == 0 and self.links[conns[0] - 1]['conn_to'] != from_id:
                     to_id = conns[0]
                 else:
-                    raise ConnectionException('no free connection')
+                    raise Exception('no free connection')
             elif num_conn == 2:
                 if self.links[conns[0] - 1]['conn_from'] == 0 and self.links[conns[0] - 1]['conn_to'] != from_id:
                     to_id = conns[0]
                 elif self.links[conns[1] - 1]['conn_from'] == 0 and self.links[conns[1] - 1]['conn_to'] != from_id:
                     to_id = conns[1]
                 else:
-                    raise ConnectionException('no free connection')
+                    raise Exception('no free connection')
             else:
-                raise ConnectionException('multiple connection')
+                raise Exception('multiple connection')
 
             # set connection
             self.links[to_id - 1]['conn_from'] = from_id

@@ -29,10 +29,6 @@ class OutputException(Exception):
     pass
 
 
-class ConnectionException(object):
-    pass
-
-
 class AnaliticSurfaceIOException(Exception):
     pass
 

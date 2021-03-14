@@ -1,13 +1,19 @@
 
-from builtins import zip
-from builtins import str
-from builtins import range
-from builtins import object
 from math import radians, sin, cos
-import json
-import numpy as np
-from osgeo import ogr, gdal
 
+import json
+
+import numpy as np
+
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
+
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
 
 from ..gsf.array_utils import formula_to_grid
 from ..gsf.transformations import deformation_matrices

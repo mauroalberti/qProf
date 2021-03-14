@@ -40,7 +40,7 @@ def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
 
     phi = radians(rot_angle)
 
-    rotation_versor = GAxis(rot_axis_trend, rot_axis_plunge).versor_3d()
+    rotation_versor = GAxis(rot_axis_trend, rot_axis_plunge).versor()
 
     l = rotation_versor.x
     m = rotation_versor.y

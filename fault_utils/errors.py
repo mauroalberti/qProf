@@ -1,5 +1,0 @@
-
-class RakeInputException(Exception):
-
-    pass
-

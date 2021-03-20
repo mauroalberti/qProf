@@ -1,5 +1,5 @@
 
-from builtins import map
+import datetime
 import calendar
 
 
@@ -31,6 +31,28 @@ def standard_gpstime_to_seconds(time_str):
     secs = calendar.timegm(t)
 
     return secs
+
+
+def standard_gpstime_to_datetime(
+        time_str: str
+) -> datetime.datetime:
+
+    date, hhmmss = time_str.split("T")
+    if hhmmss.endswith("Z"):
+        hhmmss = hhmmss[:-1]
+
+    year, month, day = list(map(int, date.split("-")))
+    hour, minutes, seconds = hhmmss.split(":")
+    hour, minutes, seconds = int(hour), int(minutes), int(seconds)
+
+    return datetime.datetime(
+        year,
+        month,
+        day,
+        hour,
+        minutes,
+        seconds
+    )
 
 
 if __name__ == "__main__":

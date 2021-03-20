@@ -453,7 +453,7 @@ class Line(object):
         return new_line
 
     @property
-    def dir_slopes(self):
+    def dir_slopes(self) -> np.ndarray:
 
         lSlopes = []
         for ndx in range(self.num_pts - 1):
@@ -463,9 +463,10 @@ class Line(object):
 
         return np.asarray(lSlopes)
 
-    def absolute_slopes(self):
+    @property
+    def absolute_slopes(self) -> np.ndarray:
 
-        return list(map(abs, self.dir_slopes))
+        return np.asarray(list(map(abs, self.dir_slopes)))
 
     def crs_project(self, srcCrs, destCrs):
 

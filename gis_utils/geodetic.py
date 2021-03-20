@@ -1,4 +1,7 @@
 
+import numbers
+import datetime
+
 from .time_utils import standard_gpstime_to_seconds
 
 from ..qgis_utils.points import *
@@ -31,7 +34,11 @@ def geodetic2ecef(lat, lon, height):
 
 class TrackPointGPX(object):
 
-    def __init__(self, lat, lon, elev, time):
+    def __init__(self,
+                 lat: numbers.Real,
+                 lon: numbers.Real,
+                 elev: numbers.Real,
+                 time: datetime.datetime):
 
         self.lat = float(lat)
         self.lon = float(lon)
@@ -50,7 +57,9 @@ class TrackPointGPX(object):
 
         pt = Point(
             x=self.lon,
-            y=self.lat
+            y=self.lat,
+            z=self.elev,
+            t=self.time
         )
         crs = QgsCoordinateReferenceSystem("EPSG:4326")
 

@@ -226,6 +226,12 @@ class ActionWidget(QWidget):
 
             name, line3dt = results
 
+            print(
+                f"DEBUG: gpx-derived line3dt z min/max: {line3dt.z_min}, {line3dt.z_max}")
+
+            print(
+                f"DEBUG: gpx-derived line3dt num. points: {line3dt.num_pts}")
+
             self.profile_name = os.path.basename(self.input_gpx_file_path)
             self.profile_line_list = [line3dt]
             self.gpx_track_name = name
@@ -603,6 +609,7 @@ class ActionWidget(QWidget):
 
         print(f"DEBUG: self.profile_lines: {type(self.profile_line_list)}")
         print(f"DEBUG: self.profile_lines[0]: {type(self.profile_line_list[0])}")
+        print(f"DEBUG: self.profile_lines[0] z min/max: {self.profile_line_list[0].z_min}, {self.profile_line_list[0].z_max}")
 
         success, result = try_prepare_single_topo_profiles(
             profile_line=self.profile_line_list[0],
@@ -627,6 +634,10 @@ class ActionWidget(QWidget):
         profiles_min_elevs = []
         profiles_max_elevs = []
         profiles_lengths = []
+
+        print(f"DEBUG: geoprofile: {geoprofile}")
+        print(f"DEBUG: geoprofile.named_lines: {geoprofile.named_lines}")
+        print(f"DEBUG: geoprofile.named_lines[0]: {geoprofile.named_lines[0]}")
 
         for _, line3d in geoprofile.named_lines:
             profiles_min_elevs.append(line3d.z_min)

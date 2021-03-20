@@ -126,8 +126,8 @@ def plot_topo_profile_lines(
     grid_spec,
     ndx_subplot,
     topo_type,
-    plot_x_range,
-    plot_y_range,
+    plot_s_range,
+    plot_z_range,
     filled_choice
 ):
 
@@ -137,8 +137,8 @@ def plot_topo_profile_lines(
 
     axes = create_axes(
         profile_window,
-        plot_x_range,
-        plot_y_range,
+        plot_s_range,
+        plot_z_range,
         grid_spec,
         ndx_subplot
     )
@@ -146,20 +146,21 @@ def plot_topo_profile_lines(
     if plot_params['invert_xaxis']:
         axes.invert_xaxis()
 
+    s_values_list = [line3d.incr_len_2d for line3d in topo_profiles]
+
     if topo_type == 'elevation':
-        ys = [line3d.z_array for line3d in topo_profiles]
-        plot_y_filled = plot_y_range[0]
+        z_values_list = [line3d.z_array for line3d in topo_profiles]
+        plot_z_filled = plot_z_range[0]
     else:
         if plot_params['plot_slope_absolute']:
-            ys = [line3d.absolute_slopes for line3d in topo_profiles]
+            z_values_list = [line3d.absolute_slopes for line3d in topo_profiles]
         else:
-            ys = [line3d.dir_slopes for line3d in topo_profiles]
-        plot_y_filled = 0.0
+            z_values_list = [line3d.dir_slopes for line3d in topo_profiles]
+        plot_z_filled = 0.0
 
-    s = topo_profiles[0].incr_len_2d
-
-    for y, topoline_color, topoline_visibility in zip(
-            ys,
+    for s, z, topoline_color, topoline_visibility in zip(
+            s_values_list,
+            z_values_list,
             topoline_colors,
             topoline_visibilities
     ):
@@ -170,14 +171,14 @@ def plot_topo_profile_lines(
                 plot_filled_line(
                     axes,
                     s,
-                    y,
-                    plot_y_filled,
+                    z,
+                    plot_z_filled,
                     qcolor2rgbmpl(topoline_color))
 
             plot_line(
                 axes,
                 s,
-                y,
+                z,
                 qcolor2rgbmpl(topoline_color))
 
     return axes

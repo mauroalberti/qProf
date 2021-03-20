@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import division
+from typing import Optional
 
-from builtins import object
 from math import sqrt, sin, cos, radians, acos, atan, atan2, degrees
+import datetime
 import numpy as np
 
 from .array_utils import point_solution
@@ -25,20 +24,21 @@ class Point(object):
     """
 
     def __init__(self,
-                 x=np.nan,
-                 y=np.nan,
-                 z=np.nan,
-                 t=np.nan
+                 x: Optional[np.ndarray] = np.nan,
+                 y: Optional[np.ndarray] = np.nan,
+                 z: Optional[np.ndarray] = np.nan,
+                 t: Optional[datetime.datetime] = None
                  ):
         """
-        Construct a Point instance given 3 or 4 float values.
+        Construct a Point instance given 3 float values and an optional time value (seconds from ....).
         """
 
-        self._p = np.array([x, y, z, t], dtype=np.float64)
+        self._p = np.array([x, y, z], dtype=np.float64)
+        self._t = t
 
     def __repr__(self):
 
-        return "Point({:.4f}, {:.4f}, {:.4f}, {:.4f})".format(self.x, self.y, self.z, self.t)
+        return f"Point({self.x:.4f}, {self.y:.4f}, {self.z:.4f}, {self.t:s})"
 
     @classmethod
     def from_array(cls, a):
@@ -47,20 +47,22 @@ class Point(object):
 
         Example:
           >>> Point.from_array(np.array([1, 0, 1]))
-          Point(1.0000, 0.0000, 1.0000, nan)
+          Point(1.0000, 0.0000, 1.0000, None)
         """
 
         obj = cls()
 
-        assert 3 <= a.size <= 4
+        assert 2 <= a.size <= 3
         b = a.astype(np.float64)
-        if b.size == 3:
+        if b.size == 2:
             c = np.append(b, [np.nan])
         else:
             c = b
         obj._p = c
+        obj._t = None
         return obj
 
+    '''
     @property
     def v(self):
         """
@@ -72,6 +74,7 @@ class Point(object):
         """
 
         return self._p
+    '''
 
     @property
     def x(self):
@@ -83,7 +86,7 @@ class Point(object):
           1.5
         """
 
-        return self.v[0]
+        return self._p[0]
 
     @property
     def y(self):
@@ -94,7 +97,7 @@ class Point(object):
           >>> Point(1.5, 3.0, 1).y
           3.0
         """
-        return self.v[1]
+        return self._p[1]
 
     @property
     def z(self):
@@ -105,7 +108,7 @@ class Point(object):
           >>> Point(1.5, 3.2, 41.).z
           41.0
         """
-        return self.v[2]
+        return self._p[2]
 
     @property
     def t(self):
@@ -116,7 +119,7 @@ class Point(object):
           >>> Point(1.5, 3.2, 41., 22.).t
           22.0
         """
-        return self.v[3]
+        return self._t
 
     def clone(self):
         """
@@ -127,7 +130,12 @@ class Point(object):
           Point(1.0000, 1.0000, 1.0000, nan)
         """
 
-        return Point.from_array(self.v)
+        return Point(
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            t=self.t
+        )
 
     def __sub__(self, another):
         """Return point difference
@@ -137,7 +145,12 @@ class Point(object):
           Point(0.0000, 0.0000, 0.0000, nan)
         """
 
-        return Point.from_array(self.v - another.v)
+        return Point(
+            x=self.x - another.x,
+            y=self.y - another.y,
+            z=self.z - another.z if np.isfinite(self.z) and np.isfinite(another.z) else np.nan,
+            t=self.t - another.t if self.t is not None and another.t is not None else None
+        )
 
     def __abs__(self):
         """

@@ -7,6 +7,8 @@ from math import asin
 
 import xml.dom.minidom
 
+from ..gis_utils.time_utils import *
+
 from ..qgis_utils.lines import *
 from ..qgis_utils.project import *
 from ..qgis_utils.rasters import *
@@ -486,7 +488,14 @@ def try_extract_track_from_gpxfile(
         # create list of TrackPointGPX elements
         track_points = []
         for val in track_raw_data:
-            gpx_trackpoint = TrackPointGPX(*val)
+            lat, lon, ele, time = val
+            time = standard_gpstime_to_datetime(time)
+            gpx_trackpoint = TrackPointGPX(
+                lat,
+                lon,
+                ele,
+                time
+            )
             track_points.append(gpx_trackpoint)
 
         # check for the presence of track points
@@ -596,7 +605,7 @@ def try_prepare_single_topo_profiles(
         if track_source == TrackSource.GPX_FILE and \
            gpx_elevation_usage != GPXElevationUsage.NOT_USED:
 
-            gpx_named_3dlines = (gpx_track_name, profile_line)
+            gpx_named_3dlines = [(gpx_track_name, profile_line)]
 
         else:
 
@@ -618,9 +627,7 @@ def try_prepare_single_topo_profiles(
             return False, "Unable to create profiles"
 
         geoprofile = GeoProfile()
-        # geoprofile.source_data_type = topo_source_type
         geoprofile.original_line = profile_line
-        #geoprofile.sample_distance = sample_distance
         geoprofile.set_topo_profiles(named_3dlines)
 
         return True, geoprofile

@@ -1,12 +1,10 @@
 
-from builtins import range
-from builtins import object
-from math import ceil, floor
+from math import *
 import copy
 
 import numpy as np
 
-from ..gsf.geometry import MIN_SEPARATION_THRESHOLD, Point
+from .geometry import *
 
 
 class ArrCoord(object):

@@ -1,10 +1,15 @@
-# -*- coding: utf-8 -*-
-
 
 import numpy as np
 
 
-def isclose(a, b, rtol=1e-012, atol=1e-12, equal_nan=False, equal_inf=False):
+def isclose(
+        a,
+        b,
+        rtol=1e-012,
+        atol=1e-12,
+        equal_nan=False,
+        equal_inf=False
+):
     """
     Mimics math.isclose from Python 3.5 (see: https://docs.python.org/3.5/library/math.html)
 

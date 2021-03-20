@@ -1,10 +1,8 @@
 
 import numbers
-import datetime
 
-from .time_utils import standard_gpstime_to_seconds
-
-from ..qgis_utils.points import *
+from .utils.time_utils import *
+from .utils.qgis_utils.points import *
 
 
 WGS84 = {'semi-major axis': 6378137.0,

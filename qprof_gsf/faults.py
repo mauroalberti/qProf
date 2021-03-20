@@ -1,7 +1,7 @@
 
 from .geometry import *
-from .errors import SlickelineTypeException, SlickelineSenseException
-from .math_utils import isclose
+from .errors import *
+from .math_utils import *
 
 
 class Slickenline(object):

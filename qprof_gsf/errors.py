@@ -1,9 +1,34 @@
-# -*- coding: utf-8 -*-
+
+class RasterParametersException(Exception):
+    """
+    Exception for raster parameters.
+    """
+    pass
+
+
+class AnaliticSurfaceIOException(Exception):
+    pass
 
 
 class AnaliticSurfaceCalcException(Exception):
+    pass
+
+
+class GPXIOException(Exception):
+    pass
+
+
+class VectorIOException(Exception):
 
     pass
+
+
+class OGRIOException(Exception):
+    """
+    Exception for raster parameters.
+    """
+    pass
+
 
 class SubparallelLineationException(Exception):
     """

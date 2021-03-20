@@ -1,9 +1,6 @@
-
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
-from ..qt_utils.filesystem import new_file_path, old_file_path
+from ..qt_utils.filesystem import *
 
 
 class FigureExportDetailedDlg(QDialog):

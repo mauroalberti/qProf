@@ -1,23 +1,15 @@
 
 import copy
-
-from enum import Enum, auto
-
 from math import asin
+from enum import Enum, auto
 
 import xml.dom.minidom
 
-from ..gis_utils.time_utils import *
-
-from ..qgis_utils.lines import *
-from ..qgis_utils.project import *
-from ..qgis_utils.rasters import *
-from ..qgis_utils.tables import *
-from ..qgis_utils.vector_layers import *
-
+from .utils.qgis_utils.lines import *
 from .features import *
 from .geodetic import *
-from .errors import *
+from .utils.qgis_utils.project import *
+from .utils.qgis_utils.rasters import *
 
 
 class TrackSource(Enum):

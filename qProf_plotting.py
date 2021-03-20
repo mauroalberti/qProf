@@ -3,9 +3,10 @@ from typing import Dict
 
 import matplotlib as mpl
 
-from .qt_utils.colors import *
-from .gis_utils.profile import *
-from .mpl_utils.mpl_widget import *
+from .qprof_gsf.profile import *
+from .qprof_gsf.utils.mpl_utils.mpl_widget import *
+from .qprof_gsf.utils.qt_utils.colors import *
+
 from .config.settings import *
 
 

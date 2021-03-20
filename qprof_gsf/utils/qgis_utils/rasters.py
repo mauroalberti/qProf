@@ -6,7 +6,7 @@ from math import floor, ceil
 
 from .points import *
 
-from ..gsf.geometry import Point
+from ...geometry import Point
 
 
 raster_parameters_fields = [
@@ -65,8 +65,8 @@ def interpolate_bilinear(
 ):
     """
     :param dem: qgis._core.QgsRasterLayer
-    :param qrpDemParams: qProf.gis_utils.qgs_tools.QGisRasterParameters
-    :param point: qProf.gis_utils.features.Point
+    :param qrpDemParams: qProf.utils.qgs_tools.QGisRasterParameters
+    :param point: qProf.utils.features.Point
     :return: float
     """
 
@@ -110,8 +110,8 @@ def interpolate_z(
     point
 ):
     """
-        dem_params: type qProf.gis_utils.qgs_tools.QGisRasterParameters
-        point: type qProf.gis_utils.features.Point
+        dem_params: type qProf.utils.qgs_tools.QGisRasterParameters
+        point: type qProf.utils.features.Point
     """
 
     if dem_params.point_in_interpolation_area(point):
@@ -157,7 +157,7 @@ class QGisRasterParameters(object):
         Check that a point is within or on the boundary of the grid area.
         Assume grid has no rotation.
 
-        :param point: qProf.gsf.geometry.Point
+        :param point: qProf.qprof_gsf.geometry.Point
         :return: bool
         """
 
@@ -175,7 +175,7 @@ class QGisRasterParameters(object):
         the extreme cell center values.
         Assume grid has no rotation.
 
-        :param point: qProf.gsf.geometry.Point
+        :param point: qProf.qprof_gsf.geometry.Point
         :return: bool
         """
 
@@ -192,7 +192,7 @@ class QGisRasterParameters(object):
         Convert from geographic to raster-based coordinates.
         Assume grid has no rotation.
 
-        :param point: qProf.gsf.geometry.Point
+        :param point: qProf.qprof_gsf.geometry.Point
         :return: dict
         """
 
@@ -209,7 +209,7 @@ class QGisRasterParameters(object):
         Assume grid has no rotation.
 
         :param array_dict: dict
-        :return: qProf.gsf.geometry.Point instance
+        :return: qProf.qprof_gsf.geometry.Point instance
         """
 
         assert 'x' in array_dict

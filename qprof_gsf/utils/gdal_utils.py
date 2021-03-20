@@ -22,10 +22,9 @@ try:
 except ImportError:
     import osr
 
-from .errors import RasterParametersException, OGRIOException
 
-
-from ..gsf.geometry import Point
+from ..errors import RasterParametersException, OGRIOException
+from ..geometry import Point
 
 
 class GDALParameters(object):

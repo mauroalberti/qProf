@@ -1,11 +1,11 @@
 
-from typing import List
+from typing import Union, List
+import numbers
 
-from ..gis_utils.features import *
-from ..gis_utils.profile import *
-from ..gis_utils.errors import *
+from ...profile import *
 
 from .points import *
+from ...features import *
 
 
 def polyline_to_xytuple_list(

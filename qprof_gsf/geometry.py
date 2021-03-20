@@ -1,12 +1,12 @@
 
 from typing import Optional
 
-from math import sqrt, sin, cos, radians, acos, atan, atan2, degrees
+from math import *
 import datetime
 import numpy as np
 
-from .array_utils import point_solution
-from .errors import SubparallelLineationException
+from .utils.array_utils import *
+from .errors import *
 
 
 MIN_SEPARATION_THRESHOLD = 1e-10
@@ -1641,5 +1641,5 @@ class GPlane(object):
 if __name__ == "__main__":
 
     import doctest
-    import numtest  # external module, used in doctest float checks
+
     doctest.testmod()

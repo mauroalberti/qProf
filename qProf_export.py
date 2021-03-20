@@ -1,11 +1,10 @@
 
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
 import os
 
-import ogr
+try:
+    from osgeo import ogr
+except ImportError:
+    import ogr
 
 
 def preprocess_labels(

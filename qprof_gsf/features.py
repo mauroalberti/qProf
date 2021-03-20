@@ -3,11 +3,9 @@ from typing import Tuple, List, Optional
 
 import numbers
 
-import numpy as np
+from .utils.qgis_utils.points import *
 
-from ..qgis_utils.points import project_point
-
-from ..gsf.geometry import Vect, Point
+from .geometry import *
 
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10

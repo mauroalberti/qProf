@@ -1,9 +1,7 @@
 
 from qgis.core import *
 
-from ..gsf.geometry import *
-
-from ..qt_utils.filesystem import *
+from ...geometry import *
 
 
 def distance_projected_pts(

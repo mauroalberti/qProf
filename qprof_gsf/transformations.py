@@ -1,12 +1,7 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import division
-from builtins import object
-from math import radians, sin, cos, tan
+from math import *
 
-import numpy as np
-
-from .array_utils import almost_zero
+from .utils.array_utils import *
 from .geometry import GAxis
 
 

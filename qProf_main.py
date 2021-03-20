@@ -1,7 +1,5 @@
 
-from . import resources
-
-from .qt_utils.actions import *
+from .qprof_gsf.utils.qt_utils.actions import *
 
 from .config.params import *
 

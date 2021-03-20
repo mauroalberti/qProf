@@ -1,11 +1,14 @@
 
-from math import *
-
 from .profile import *
-from gis_utils.features import *
+from .features import *
+from .geometry import *
 
 
-def calculate_distance_with_sign(projected_point, section_init_pt, section_vector):
+def calculate_distance_with_sign(
+        projected_point,
+        section_init_pt,
+        section_vector
+):
 
     assert projected_point.z != np.nan
     assert projected_point.z is not None

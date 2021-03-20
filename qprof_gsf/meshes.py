@@ -1,5 +1,5 @@
 
-from math import radians, sin, cos
+from math import *
 
 import json
 
@@ -15,13 +15,13 @@ try:
 except ImportError:
     import gdal
 
-from ..gsf.array_utils import formula_to_grid
-from ..gsf.transformations import deformation_matrices
-from ..gsf.array_utils import almost_zero
+from .utils.array_utils import *
+from .transformations import *
+from .utils.array_utils import *
 
-from .features import Segment
-from .gdal_utils import shapefile_create, ogr_write_point_result
-from .errors import AnaliticSurfaceIOException, AnaliticSurfaceCalcException
+from .features import *
+from .utils.gdal_utils import *
+from .errors import *
 
 
 class TriangBeam(object):

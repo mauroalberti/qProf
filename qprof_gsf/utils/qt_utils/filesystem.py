@@ -1,5 +1,4 @@
 
-
 from builtins import str
 
 from qgis.PyQt.QtCore import QFileInfo

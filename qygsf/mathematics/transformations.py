@@ -1,8 +1,8 @@
 
 from math import *
 
-from .utils.array_utils import *
-from .geometry import GAxis
+from qygsf.utils.arrays import *
+from qygsf.geometries.shapes.geometry import GAxis
 
 
 class RefFrame(object):

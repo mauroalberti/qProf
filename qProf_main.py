@@ -1,5 +1,5 @@
 
-from .qprof_gsf.utils.qt_utils.actions import *
+from .qygsf.utils.qt_utils.actions import *
 
 from .config.params import *
 

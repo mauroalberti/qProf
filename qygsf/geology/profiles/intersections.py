@@ -1,7 +1,7 @@
 
-from .profile import *
-from .features import *
-from .geometry import *
+from qygsf.geology.profiles.geoprofiles import *
+from qygsf.geometries.shapes.features import *
+from qygsf.geometries.shapes.geometry import *
 
 
 def calculate_distance_with_sign(

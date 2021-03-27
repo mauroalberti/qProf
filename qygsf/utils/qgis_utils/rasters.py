@@ -1,12 +1,12 @@
 
-from typing import Union, Tuple
+from typing import Union
 from collections import namedtuple
 
 from math import floor, ceil
 
 from .points import *
 
-from ...geometry import Point
+from qygsf.geometries.shapes.geometry import Point
 
 
 raster_parameters_fields = [
@@ -157,7 +157,7 @@ class QGisRasterParameters(object):
         Check that a point is within or on the boundary of the grid area.
         Assume grid has no rotation.
 
-        :param point: qProf.qprof_gsf.geometry.Point
+        :param point: qProf.qygsf.geometry.Point
         :return: bool
         """
 
@@ -175,7 +175,7 @@ class QGisRasterParameters(object):
         the extreme cell center values.
         Assume grid has no rotation.
 
-        :param point: qProf.qprof_gsf.geometry.Point
+        :param point: qProf.qygsf.geometry.Point
         :return: bool
         """
 
@@ -192,7 +192,7 @@ class QGisRasterParameters(object):
         Convert from geographic to raster-based coordinates.
         Assume grid has no rotation.
 
-        :param point: qProf.qprof_gsf.geometry.Point
+        :param point: qProf.qygsf.geometry.Point
         :return: dict
         """
 
@@ -209,7 +209,7 @@ class QGisRasterParameters(object):
         Assume grid has no rotation.
 
         :param array_dict: dict
-        :return: qProf.qprof_gsf.geometry.Point instance
+        :return: qProf.qygsf.geometry.Point instance
         """
 
         assert 'x' in array_dict

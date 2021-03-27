@@ -1,15 +1,10 @@
-
-import copy
-from math import asin
-from enum import Enum, auto
-
 import xml.dom.minidom
 
-from .utils.qgis_utils.lines import *
-from .features import *
-from .geodetic import *
-from .utils.qgis_utils.project import *
-from .utils.qgis_utils.rasters import *
+from qygsf.utils.qgis_utils.lines import *
+from qygsf.geometries.shapes.features import *
+from qygsf.georeferenced.geodetic import *
+from qygsf.utils.qgis_utils.project import *
+from qygsf.utils.qgis_utils.rasters import *
 
 
 class TrackSource(Enum):
@@ -152,7 +147,7 @@ class GeoProfile:
         return self.topo_profiles.name
     """
 
-    def max_s(self):
+    def s_max(self):
 
         return max([line.length_2d for _, line in self.named_lines])
 
@@ -168,25 +163,25 @@ class GeoProfile:
 
         # TODO:  manage case for possible nan p_z values
         return min([plane_attitude.pt_3d.p_z for plane_attitude_set in self.geoplane_attitudes for plane_attitude in
-                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.max_s()])
+                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.s_max()])
 
     def max_z_plane_attitudes(self):
 
         # TODO:  manage case for possible nan p_z values
         return max([plane_attitude.pt_3d.p_z for plane_attitude_set in self.geoplane_attitudes for plane_attitude in
-                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.max_s()])
+                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.s_max()])
 
     def min_z_curves(self):
 
         return min([pt_2d.p_y for multiline_2d_list in self.geosurfaces for multiline_2d in multiline_2d_list for line_2d in
-                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.max_s()])
+                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.s_max()])
 
     def max_z_curves(self):
 
         return max([pt_2d.p_y for multiline_2d_list in self.geosurfaces for multiline_2d in multiline_2d_list for line_2d in
-                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.max_s()])
+                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.s_max()])
 
-    def min_z(self):
+    def z_min(self):
 
         min_z = self.min_z_topo()
 
@@ -198,7 +193,7 @@ class GeoProfile:
 
         return min_z
 
-    def max_z(self):
+    def z_max(self):
 
         max_z = self.max_z_topo()
 
@@ -261,14 +256,14 @@ class ProfileElevations:
 
         return list(map(np.fabs, self.dir_slopes))
 
-
+"""
 class DEMParams(object):
 
     def __init__(self, layer, params):
 
         self.layer = layer
         self.params = params
-
+"""
 
 class PlaneAttitude(object):
 
@@ -388,7 +383,7 @@ def topoprofiles_from_gpxfile(
 
     # check for the presence of track points
     if len(track_points) == 0:
-        raise GPXIOException("No track point found in this file")
+        raise Exception("No track point found in this file")
 
     # calculate delta elevations between consecutive points
     delta_elev_values = [np.nan]

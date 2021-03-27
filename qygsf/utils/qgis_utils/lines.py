@@ -1,11 +1,6 @@
+from qygsf.geology.profiles.geoprofiles import *
 
-from typing import Union, List
-import numbers
-
-from ...profile import *
-
-from .points import *
-from ...features import *
+from qygsf.geometries.shapes.features import *
 
 
 def polyline_to_xytuple_list(
@@ -75,7 +70,7 @@ def try_load_line_layer(
         )
 
         if not success:
-            raise VectorIOException(result)
+            raise Exception(result)
 
         profile_orig_lines, order_values = result
 

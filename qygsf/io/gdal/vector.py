@@ -23,8 +23,8 @@ except ImportError:
     import osr
 
 
-from ..errors import RasterParametersException, OGRIOException
-from ..geometry import Point
+from qygsf.errors import Exception, Exception
+from qygsf.geometries.shapes.geometry import Point
 
 
 class GDALParameters(object):
@@ -267,11 +267,11 @@ class GDALParameters(object):
         """
         # check if pixel size can be considered the same in the two axis directions
         if abs(abs(self._pixsizeEW) - abs(self._pixsizeNS)) / abs(self._pixsizeNS) > tolerance:
-            raise RasterParametersException('Pixel sizes in x and y directions are different in raster')
+            raise Exception('Pixel sizes in x and y directions are different in raster')
 
             # check for the absence of axis rotations
         if abs(self._rotation_GT_2) > tolerance or abs(self._rotation_GT_4) > tolerance:
-            raise RasterParametersException('There should be no axis rotation in raster')
+            raise Exception('There should be no axis rotation in raster')
 
         return
 
@@ -408,7 +408,7 @@ def shapefile_create(path, geom_type, fields_dict_list, crs=None):
 
     outShapefile = driver.CreateDataSource(str(path))
     if outShapefile is None:
-        raise OGRIOException('Unable to save shapefile in provided path')
+        raise Exception('Unable to save shapefile in provided path')
 
     if crs is not None:
         spatialReference = osr.SpatialReference()
@@ -429,7 +429,7 @@ def ogr_get_solution_shapefile(path, fields_dict_list):
     dataSource = driver.Open(str(path), 0)
 
     if dataSource is None:
-        raise OGRIOException('Unable to open shapefile in provided path')
+        raise Exception('Unable to open shapefile in provided path')
 
     point_shapelayer = dataSource.GetLayer()
 

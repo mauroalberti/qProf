@@ -1,8 +1,8 @@
 
 import numbers
 
-from .utils.time_utils import *
-from .utils.qgis_utils.points import *
+from qygsf.utils.time import *
+from qygsf.utils.qgis_utils.points import *
 
 
 WGS84 = {'semi-major axis': 6378137.0,

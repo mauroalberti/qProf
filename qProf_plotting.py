@@ -3,9 +3,9 @@ from typing import Dict
 
 import matplotlib as mpl
 
-from .qprof_gsf.profile import *
-from .qprof_gsf.utils.mpl_utils.mpl_widget import *
-from .qprof_gsf.utils.qt_utils.colors import *
+from qygsf.geology.profiles.geoprofiles import *
+from .qygsf.utils.mpl_utils.mpl_widget import *
+from .qygsf.utils.qt_utils.colors import *
 
 from .config.settings import *
 
@@ -216,7 +216,7 @@ def plot_geoprofile(
 
     ndx_subplot = -1
 
-    plot_s_min, plot_s_max = 0, geoprofile.max_s()
+    plot_s_min, plot_s_max = 0, geoprofile.s_max()
 
     # if slopes to be calculated and plotted
     if plot_slope_choice:

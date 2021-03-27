@@ -1,11 +1,9 @@
 
-from typing import Tuple, List, Optional
+from typing import List
 
-import numbers
+from qygsf.utils.qgis_utils.points import *
 
-from .utils.qgis_utils.points import *
-
-from .geometry import *
+from qygsf.geometries.shapes.geometry import *
 
 
 MIN_2D_SEPARATION_THRESHOLD = 1e-10

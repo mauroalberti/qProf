@@ -1,10 +1,6 @@
-
-from math import *
 import copy
 
-import numpy as np
-
-from .geometry import *
+from qygsf.geometries.shapes.geometry import *
 
 
 class ArrCoord(object):

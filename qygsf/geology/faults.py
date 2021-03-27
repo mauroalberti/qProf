@@ -1,10 +1,10 @@
+from qygsf import PTBAxes
+from qygsf.geometries.shapes.geometry import *
+from qygsf.errors import *
+from qygsf.mathematics.math_utils import *
 
-from .geometry import *
-from .errors import *
-from .math_utils import *
 
-
-class Slickenline(object):
+class Slick(object):
     """
     Slickeline.
     It can be defined through a GVect instance, in which case
@@ -24,21 +24,21 @@ class Slickenline(object):
         when a GVect provided, and unknown/uncertain when a GAxis provided.
 
         Example:
-          >>> Slickenline(GVect(90, 10))
+          >>> Slick(GVect(90, 10))
           Slickenline(090.00, +10.00, True)
         """
 
         assert isinstance(mov_lin, (GVect, GAxis)), "Movement is not of the correct type"
         self._mov_lin = mov_lin
 
-    def has_known_sense(self):
+    def hasKnownSense(self):
         """
         Check whether the slickenline has known movement sense.
 
         Example:
-          >>> Slickenline(GVect(90, 45)).has_known_sense()
+          >>> Slick(GVect(90, 45)).hasKnownSense()
           True
-          >>> Slickenline(GAxis(90, 45)).has_known_sense()
+          >>> Slick(GAxis(90, 45)).hasKnownSense()
           False
         """
 
@@ -47,58 +47,58 @@ class Slickenline(object):
         elif isinstance(self._mov_lin, GVect):
             return True
         else:
-            raise SlickelineTypeException("Error with provided slickeline type")
+            raise Exception("Error with provided slickeline type")
 
-    def has_unknown_sense(self):
+    def hasUnknownSense(self):
         """
         Check whether the slickenline has unknown/uncertain movement sense.
 
         Example:
-          >>> Slickenline(GAxis(90, 45)).has_unknown_sense()
+          >>> Slick(GAxis(90, 45)).hasUnknownSense()
           True
-          >>> Slickenline(GVect(90, 45)).has_unknown_sense()
+          >>> Slick(GVect(90, 45)).hasUnknownSense()
           False
         """
 
-        return not self.has_known_sense()
+        return not self.hasKnownSense()
 
-    def set_known_sense(self):
+    def setKnownSense(self):
         """
         Set (formal) movement sense to Slickline instance without known/certain
         movemment sense. Raise SlickelineSenseException when already known.
 
         Example:
-          >>> Slickenline(GVect(180, -30)).set_known_sense()
+          >>> Slick(GVect(180, -30)).setKnownSense()
           Traceback (most recent call last):
           ...
           SlickelineSenseException: Slickenline must have unknown movement sense
-          >>> Slickenline(GAxis(180, -30)).set_known_sense() 
+          >>> Slick(GAxis(180, -30)).setKnownSense() 
           Slickenline(180.00, -30.00, True)
         """
 
-        if self.has_known_sense():
-            raise SlickelineSenseException("Slickenline must have unknown movement sense")
+        if self.hasKnownSense():
+            raise Exception("Slickenline must have unknown movement sense")
 
-        return Slickenline(self.lin.as_gvect())
+        return Slick(self.lin.as_gvect())
 
-    def set_unknown_sense(self):
+    def setUnknownSense(self):
         """
         Set to unknown/uncertain the movement sense for the current Slickline instance. 
         Raise SlickelineSenseException when already unknown.
 
         Example:
-          >>> Slickenline(GAxis(180, -30)).set_unknown_sense()
+          >>> Slick(GAxis(180, -30)).setUnknownSense()
           Traceback (most recent call last):
           ...
           SlickelineSenseException: Slickenline must have known movement sense
-          >>> Slickenline(GVect(180, -30)).set_unknown_sense() 
+          >>> Slick(GVect(180, -30)).setUnknownSense() 
           Slickenline(180.00, -30.00, False)
         """
 
-        if self.has_unknown_sense():
-            raise SlickelineSenseException("Slickenline must have known movement sense")
+        if self.hasUnknownSense():
+            raise Exception("Slickenline must have known movement sense")
 
-        return Slickenline(self.lin.as_axis())
+        return Slick(self.lin.as_axis())
 
     @property
     def lin(self):
@@ -107,9 +107,9 @@ class Slickenline(object):
         as a GVect (known movement sense) or a GAxis instance (unknown movement sense).
 
         Example:
-          >>> Slickenline(GVect(90, 45)).lin
+          >>> Slick(GVect(90, 45)).lin
           GVect(090.00, +45.00)
-          >>> Slickenline(GAxis(90, 45)).lin
+          >>> Slick(GAxis(90, 45)).lin
           GAxis(090.00, +45.00)
         """
 
@@ -121,7 +121,7 @@ class Slickenline(object):
         The slickenline parameters.
         """
 
-        known_mov = self.has_known_sense()
+        known_mov = self.hasKnownSense()
 
         return self._mov_lin.tr, self._mov_lin.pl, known_mov
 
@@ -134,18 +134,18 @@ class Slickenline(object):
         Invert the slickenline sense, when known, otherwise raise SlickelineSenseException.
 
         Example:
-         >>> Slickenline(GAxis(30, 45)).invert()
+         >>> Slick(GAxis(30, 45)).invert()
          Traceback (most recent call last):
          ...
          SlickelineSenseException: Slickenline must have know movement sense
-         >>> Slickenline(GVect(30, 45)).invert()
+         >>> Slick(GVect(30, 45)).invert()
          Slickenline(210.00, -45.00, True)
         """
 
-        if not self.has_known_sense():
-            raise SlickelineSenseException("Slickenline must have know movement sense")
+        if not self.hasKnownSense():
+            raise Exception("Slickenline must have know movement sense")
 
-        return Slickenline(self.lin.opposite())
+        return Slick(self.lin.opposite())
 
 
 class FaultSlick(object):
@@ -160,12 +160,12 @@ class FaultSlick(object):
         Create an instance of a FaultSlick.
 
         Example:
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45)))
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45)))
           FaultSlick(GPlane(090.00, +45.00), Slickenline(090.00, +45.00, False))
         """
 
         assert isinstance(fault_plane, GPlane), "Provided fault plane must be a GPlane instance"
-        assert isinstance(slickenline, Slickenline), "Provided slickenline must be a Slickenline instance"
+        assert isinstance(slickenline, Slick), "Provided slickenline must be a Slickenline instance"
 
         assert isclose(fault_plane.normal.angle(slickenline.lin), 90.), "Slickenline is not within fault plane"
         self._fltpln = fault_plane
@@ -177,7 +177,7 @@ class FaultSlick(object):
         Return fault plane, as a GPlane instance.
 
         Example:
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45))).fp
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45))).fp
           GPlane(090.00, +45.00)
         """
 
@@ -189,7 +189,7 @@ class FaultSlick(object):
         Return the slickenline associated with the fault. 
 
         Example:
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45))).sl
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45))).sl
           Slickenline(090.00, +45.00, False)
         """
 
@@ -202,13 +202,13 @@ class FaultSlick(object):
         movement sense.
 
         Example: 
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45))).known_sense
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45))).known_sense
           False
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GVect(90, 45))).known_sense
+          >>> FaultSlick(GPlane(90, 45), Slick(GVect(90, 45))).known_sense
           True
         """
 
-        if self.sl.has_known_sense():
+        if self.sl.hasKnownSense():
             return True
         else:
             return False
@@ -219,18 +219,18 @@ class FaultSlick(object):
          from another instance, raising SlickelineSenseException if already known.
 
         Example: 
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GVect(90, 45))).set_known_sense()
+          >>> FaultSlick(GPlane(90, 45), Slick(GVect(90, 45))).set_known_sense()
           Traceback (most recent call last):
           ...
           SlickelineSenseException: Fault slickenline sense must be unknown
-          >>> FaultSlick(GPlane(0, 45), Slickenline(GAxis(0, 45))).set_known_sense()
+          >>> FaultSlick(GPlane(0, 45), Slick(GAxis(0, 45))).set_known_sense()
           FaultSlick(GPlane(000.00, +45.00), Slickenline(000.00, +45.00, True))
         """
 
         if self.known_sense:
-            raise SlickelineSenseException("Fault slickenline sense must be unknown")
+            raise Exception("Fault slickenline sense must be unknown")
 
-        return FaultSlick(self.fp, self.sl.set_known_sense())
+        return FaultSlick(self.fp, self.sl.setKnownSense())
 
     def set_unknown_sense(self):
         """
@@ -238,18 +238,18 @@ class FaultSlick(object):
         Raise SlickelineSenseException if source instance has already unknown movement sense.
 
         Example: 
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45))).set_unknown_sense()
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45))).set_unknown_sense()
           Traceback (most recent call last):
           ...
           SlickelineSenseException: Fault slickenline sense must be known
-          >>> FaultSlick(GPlane(0, 45), Slickenline(GVect(0, 45))).set_unknown_sense()
+          >>> FaultSlick(GPlane(0, 45), Slick(GVect(0, 45))).set_unknown_sense()
           FaultSlick(GPlane(000.00, +45.00), Slickenline(000.00, +45.00, False))
         """
 
         if not self.known_sense:
-            raise SlickelineSenseException("Fault slickenline sense must be known")
+            raise Exception("Fault slickenline sense must be known")
 
-        return FaultSlick(self.fp, self.sl.set_unknown_sense())
+        return FaultSlick(self.fp, self.sl.setUnknownSense())
 
     def __repr__(self):
 
@@ -261,16 +261,16 @@ class FaultSlick(object):
         has defined movement sense, otherwise raise SlickelineSenseException.
 
         Example:
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GAxis(90, 45))).opposite_mov()
+          >>> FaultSlick(GPlane(90, 45), Slick(GAxis(90, 45))).opposite_mov()
           Traceback (most recent call last):
           ...
           SlickelineSenseException: Fault slickenline must have known movement sense
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GVect(90, 45))).opposite_mov()
+          >>> FaultSlick(GPlane(90, 45), Slick(GVect(90, 45))).opposite_mov()
           FaultSlick(GPlane(090.00, +45.00), Slickenline(270.00, -45.00, True))
         """
 
         if not self.known_sense:
-            raise SlickelineSenseException("Fault slickenline must have known movement sense")
+            raise Exception("Fault slickenline must have known movement sense")
 
         return FaultSlick(self.fp, self.sl.invert())
 
@@ -283,7 +283,7 @@ class FaultSlick(object):
         unknown/uncertain movement sense (False).
         
         Example:
-          >>> FaultSlick(GPlane(90, 45), Slickenline(GVect(90, 45))).PTaxes()
+          >>> FaultSlick(GPlane(90, 45), Slick(GVect(90, 45))).PTaxes()
           PTBAxes(P: GAxis(000.00, -90.00), T: GAxis(090.00, +00.00), True)
         """
 
@@ -296,107 +296,8 @@ class FaultSlick(object):
         return PTBAxes(P_axis, T_axis, known)
 
 
-class PTBAxes(object):
-    """
-    Represent the triad of P, T and B kinematic axes.
-    It can also calculate the M plane.
-    """
-
-    def __init__(self, p_axis, t_axis, known=True):
-        """
-        Create a new PTBAxes instances, given the two
-        P and T axes.
-        
-        Example:
-          >>> PTBAxes(GVect(0, 0), GVect(90, 0))
-          Traceback (most recent call last):
-          ...
-          AssertionError: P axis must be an instance of GAxis
-          >>> PTBAxes(GAxis(0, 0), GAxis(80, 0))
-          Traceback (most recent call last):
-          ...
-          AssertionError: P and T axes must be perpendicular
-          >>> PTBAxes(GAxis(0, 0), GAxis(90, 0))
-          PTBAxes(P: GAxis(000.00, +00.00), T: GAxis(090.00, +00.00), True)
-        """
-
-        assert isinstance(p_axis, GAxis), "P axis must be an instance of GAxis"
-        assert isinstance(t_axis, GAxis), "T axis must be an instance of GAxis"
-        assert isclose(p_axis.angle(t_axis), 90.), "P and T axes must be perpendicular"
-
-        self._pax = p_axis
-        self._tax = t_axis
-        self._known = known
-
-    @property
-    def Paxis(self):
-        """
-        Return the P axis.
-        
-        Example:
-          >>> PTBAxes(GAxis(0, 0), GAxis(90, 0)).Paxis
-          GAxis(000.00, +00.00)
-        """
-
-        return self._pax
-
-    @property
-    def Taxis(self):
-        """
-        Return the T axis.
-
-        Example:
-          >>> PTBAxes(GAxis(0, 0), GAxis(90, 0)).Taxis
-          GAxis(090.00, +00.00)
-        """
-
-        return self._tax
-
-    @property
-    def known(self):
-        """
-        Indicate if the movement sense is known.
-
-        Example:
-          >>> PTBAxes(GAxis(0, 0), GAxis(90, 0)).known
-          True
-        """
-
-        return self._known
-
-    def __repr__(self):
-
-        return "PTBAxes(P: {}, T: {}, {})".format(self.Paxis, self.Taxis, self.known)
-
-    @property
-    def Baxis(self):
-        """
-        Calculate the B axis.
-        
-        Example:
-          >>> PTBAxes(GAxis(0, 0), GAxis(90, 0)).Baxis
-          GAxis(000.00, +90.00)
-        """
-
-        return self.Paxis.vp(self.Taxis).as_axis()
-
-    @property
-    def Mplane(self):
-        """
-        Calculate M plane.
-        
-        Example:
-          >>> PTBAxes(GAxis(0, 90), GAxis(90, 0)).Mplane
-          GPlane(000.00, +90.00)
-          >>> PTBAxes(GAxis(45, 45), GAxis(225, 45)).Mplane
-          GPlane(315.00, +90.00)
-        """
-
-        return self.Paxis.common_plane(self.Taxis)
-
-
 if __name__ == "__main__":
 
     import doctest
-    import numtest  # external module, used in doctest float checks
+
     doctest.testmod()

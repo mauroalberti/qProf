@@ -5,8 +5,8 @@ from math import *
 import datetime
 import numpy as np
 
-from .utils.array_utils import *
-from .errors import *
+from qygsf.utils.arrays import *
+from qygsf.errors import *
 
 
 MIN_SEPARATION_THRESHOLD = 1e-10
@@ -1036,7 +1036,7 @@ class GVect:
         """
 
         if not MIN_ANGLE_DEGR_DISORIENTATION <= self.angle(another) <= 180. - MIN_ANGLE_DEGR_DISORIENTATION:
-            raise SubparallelLineationException("Sources must not be sub- or anti-parallel")
+            raise Exception("Sources must not be sub- or anti-parallel")
 
         return self.versor().vp(another.versor()).gvect
 

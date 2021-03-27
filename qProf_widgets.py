@@ -1,14 +1,10 @@
-
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
 from qgis.PyQt import uic
 
-from .qprof_gsf.utils.array_utils import *
-from .qprof_gsf.statistics import *
-from .qprof_gsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
-from .qprof_gsf.utils.string_utils.utils_string import *
-from .qprof_gsf.utils.qgis_utils.canvas import *
-from .qprof_gsf.utils.qt_utils.filesystem import *
+from qygsf.geometries.rasters.statistics import *
+from .qygsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
+from .qygsf.utils.string_utils.utils_string import *
+from .qygsf.utils.qgis_utils.canvas import *
+from .qygsf.utils.qt_utils.filesystem import *
 
 from .qProf_plotting import *
 from .qProf_export import *

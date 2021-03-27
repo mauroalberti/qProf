@@ -1,9 +1,4 @@
-
-from math import *
-
 import json
-
-import numpy as np
 
 try:
     from osgeo import ogr
@@ -15,13 +10,11 @@ try:
 except ImportError:
     import gdal
 
-from .utils.array_utils import *
-from .transformations import *
-from .utils.array_utils import *
+from qygsf.mathematics.transformations import *
 
-from .features import *
-from .utils.gdal_utils import *
-from .errors import *
+from qygsf.geometries.shapes.features import *
+from qygsf.io.gdal.vector import *
+from qygsf.errors import *
 
 
 class TriangBeam(object):
@@ -124,8 +117,8 @@ class AnalyticGeosurface(object):
         # calculate array from formula
         try:
             self.X, self.Y, self.Z = formula_to_grid(array_range, array_size, formula)
-        except AnaliticSurfaceCalcException as msg:
-            raise AnaliticSurfaceCalcException(msg)
+        except Exception as msg:
+            raise Exception(msg)
 
         # calculate geographic transformations to surface
         self.geographical_values = self.get_geographical_param_values()
@@ -180,16 +173,16 @@ class AnalyticGeosurface(object):
 
             formula = str(self.analytical_params['formula'])
         except:
-            raise AnaliticSurfaceIOException("Analytical value error")
+            raise Exception("Analytical value error")
 
         if a_min >= a_max or b_min >= b_max:
-            raise AnaliticSurfaceIOException("Input a and b value error")
+            raise Exception("Input a and b value error")
 
         if grid_cols <= 0 or grid_rows <= 0:
-            raise AnaliticSurfaceIOException("Grid column/row value error")
+            raise Exception("Grid column/row value error")
 
         if formula == '':
-            raise AnaliticSurfaceIOException("Input analytical formula error")
+            raise Exception("Input analytical formula error")
 
         return (a_min, a_max, b_min, b_max), (grid_rows, grid_cols), formula
 
@@ -202,7 +195,7 @@ class AnalyticGeosurface(object):
             grid_width = float(self.geographical_params['grid width'])
             grid_rot_angle_degr = float(self.geographical_params['grid rot angle degr'])
         except:
-            raise AnaliticSurfaceIOException("Input geographic value error")
+            raise Exception("Input geographic value error")
 
         return (geog_x_min, geog_y_min), (grid_height, grid_width), grid_rot_angle_degr
 
@@ -381,7 +374,7 @@ def geosurface_read_gas_input(infile_path):
         with open(infile_path, 'r') as infile:
             input_geosurface = json.load(infile)
     except:
-        raise AnaliticSurfaceIOException("Check input file name")
+        raise Exception("Check input file name")
 
     src_analytical_params = input_geosurface['analytical surface']
     src_geographical_params = input_geosurface['geographical params']

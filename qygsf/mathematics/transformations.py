@@ -2,7 +2,7 @@
 from math import *
 
 from qygsf.utils.arrays import *
-from qygsf.geometries.shapes.geometry import GAxis
+from qygsf import Axis
 
 
 class RefFrame(object):
@@ -35,7 +35,7 @@ def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
 
     phi = radians(rot_angle)
 
-    rotation_versor = GAxis(rot_axis_trend, rot_axis_plunge).versor()
+    rotation_versor = Axis(rot_axis_trend, rot_axis_plunge).versor()
 
     l = rotation_versor.x
     m = rotation_versor.y

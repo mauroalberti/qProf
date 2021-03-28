@@ -1,6 +1,6 @@
 from qygsf.geology.profiles.geoprofiles import *
 
-from qygsf.geometries.shapes.features import *
+from qygsf.geometries.shapes.space4d import Line4D, merge_line, merge_lines
 
 
 def polyline_to_xytuple_list(
@@ -56,7 +56,7 @@ def try_load_line_layer(
     project_crs,
     line_order_fld_ndx: Optional[numbers.Integral],
     invert_direction: bool
-) -> Tuple[bool, Union[str, List[Line]]]:
+) -> Tuple[bool, Union[str, List[Line4D]]]:
 
     try:
 

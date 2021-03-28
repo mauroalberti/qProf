@@ -1,7 +1,6 @@
-
 from qygsf.geology.profiles.geoprofiles import *
-from qygsf.geometries.shapes.features import *
-from qygsf.geometries.shapes.geometry import *
+from qygsf.geometries.shapes.space3d import *
+from qygsf.geometries.shapes.space4d import Segment4D
 
 
 def calculate_distance_with_sign(
@@ -13,7 +12,7 @@ def calculate_distance_with_sign(
     assert projected_point.z != np.nan
     assert projected_point.z is not None
 
-    projected_vector = Segment(section_init_pt, projected_point).vector()
+    projected_vector = Segment4D(section_init_pt, projected_point).vector()
     cos_alpha = section_vector.cos_angle(projected_vector)
 
     return projected_vector.len_3d * cos_alpha
@@ -42,13 +41,13 @@ def calculate_nearest_intersection(intersection_versor_3d, section_cartes_plane,
                                    structural_pt):
 
     dummy_inters_point = section_cartes_plane.inters_point(structural_cartes_plane)
-    dummy_structural_vector = Segment(dummy_inters_point, structural_pt).vector()
+    dummy_structural_vector = Segment4D(dummy_inters_point, structural_pt).vector()
     dummy_distance = dummy_structural_vector.sp(intersection_versor_3d)
     offset_vector = intersection_versor_3d.scale(dummy_distance)
 
-    return Point(dummy_inters_point.x + offset_vector.x,
-                 dummy_inters_point.y + offset_vector.y,
-                 dummy_inters_point.z + offset_vector.z)
+    return Point4D(dummy_inters_point.x + offset_vector.x,
+                   dummy_inters_point.y + offset_vector.y,
+                   dummy_inters_point.z + offset_vector.z)
 
 
 def calculate_axis_intersection(map_axis, section_cartes_plane, structural_pt):
@@ -107,7 +106,7 @@ def map_struct_pts_on_section(structural_data, section_data, mapping_method):
         return [map_measure_to_section(structural_rec, section_data) for structural_rec in structural_data]
 
     if mapping_method['method'] == 'common axis':
-        map_axis = GAxis(mapping_method['trend'], mapping_method['plunge'])
+        map_axis = Axis(mapping_method['trend'], mapping_method['plunge'])
         return [map_measure_to_section(structural_rec, section_data, map_axis) for structural_rec in structural_data]
 
     if mapping_method['method'] == 'individual axes':
@@ -115,7 +114,7 @@ def map_struct_pts_on_section(structural_data, section_data, mapping_method):
         result = []
         for structural_rec, (trend, plunge) in zip(structural_data, mapping_method['individual_axes_values']):
             try:
-                map_axis = GAxis(trend, plunge)
+                map_axis = Axis(trend, plunge)
                 result.append(map_measure_to_section(structural_rec, section_data, map_axis))
             except:
                 continue

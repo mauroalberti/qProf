@@ -24,7 +24,7 @@ except ImportError:
 
 
 from qygsf.errors import Exception, Exception
-from qygsf.geometries.shapes.geometry import Point
+from qygsf import Point4D
 
 
 class GDALParameters(object):
@@ -281,7 +281,7 @@ class GDALParameters(object):
 
         @return:  new Point instance.
         """
-        return Point(self.topLeftX, self.topLeftY - abs(self.pixSizeNS) * self.rows)
+        return Point4D(self.topLeftX, self.topLeftY - abs(self.pixSizeNS) * self.rows)
 
     def trcorner(self):
         """
@@ -289,7 +289,7 @@ class GDALParameters(object):
 
         @return:  new Point instance.
         """
-        return Point(self.topLeftX + abs(self.pixSizeEW) * self.cols, self.topLeftY)
+        return Point4D(self.topLeftX + abs(self.pixSizeEW) * self.cols, self.topLeftY)
 
     def geo_equiv(self, other, tolerance=1.0e-6):
         """
@@ -369,7 +369,7 @@ def read_line_shapefile_via_ogr(line_shp_path):
         for i in range(line_geom.GetPointCount()):
             x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
 
-            line_points.append(Point(x, y, z))
+            line_points.append(Point4D(x, y, z))
 
         lines_points.append(line_points)
 

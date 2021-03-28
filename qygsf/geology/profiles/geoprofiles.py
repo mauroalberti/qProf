@@ -1,7 +1,6 @@
 import xml.dom.minidom
 
 from qygsf.utils.qgis_utils.lines import *
-from qygsf.geometries.shapes.features import *
 from qygsf.georeferenced.geodetic import *
 from qygsf.utils.qgis_utils.project import *
 from qygsf.utils.qgis_utils.rasters import *
@@ -293,12 +292,12 @@ def topoline_from_dem(
     else:
         trace2d_in_dem_crs = resampled_trace2d
 
-    ln3dtProfile = Line()
+    ln3dtProfile = Line4D()
     for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
         fInterpolatedZVal = interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-        pt3dtPoint = Point(trace_pt2d_project_crs.x,
-                           trace_pt2d_project_crs.y,
-                           fInterpolatedZVal)
+        pt3dtPoint = Point4D(trace_pt2d_project_crs.x,
+                             trace_pt2d_project_crs.y,
+                             fInterpolatedZVal)
         ln3dtProfile.add_pt(pt3dtPoint)
 
     return ln3dtProfile
@@ -309,7 +308,7 @@ def topo_lines_from_dems(
         sample_distance,
         selected_dems,
         selected_dem_parameters
-) -> List[Tuple[str, Line]]:
+) -> List[Tuple[str, Line4D]]:
 
     resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
@@ -450,7 +449,7 @@ def topoprofiles_from_gpxfile(
 def try_extract_track_from_gpxfile(
         source_gpx_path: str,
         invert_profile: bool
-) -> Tuple[bool, Union[str, Tuple[str, Line]]]:
+) -> Tuple[bool, Union[str, Tuple[str, Line4D]]]:
 
     try:
 
@@ -499,7 +498,7 @@ def try_extract_track_from_gpxfile(
             )
             projected_pts.append(projected_pt)
 
-        profile_line = Line(pts=projected_pts)
+        profile_line = Line4D(pts=projected_pts)
 
         if invert_profile:
 
@@ -538,7 +537,7 @@ def get_min_dem_resolution(
 
 
 def try_prepare_single_topo_profiles(
-    profile_line: Line,
+    profile_line: Line4D,
     track_source: TrackSource,
     gpx_elevation_usage: GPXElevationUsage,
     selected_dems: List,
@@ -644,7 +643,7 @@ def intersect_with_dem(
         lQgsPoints = [QgsPointXY(pt.x, pt.y) for pt in lIntersPts]
         lDemCrsIntersQgsPoints = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                lQgsPoints]
-        lDemCrsIntersPts = [Point(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
+        lDemCrsIntersPts = [Point4D(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
     else:
         lDemCrsIntersPts = lIntersPts
 
@@ -653,7 +652,7 @@ def intersect_with_dem(
 
     lXYZVals = [(pt2d.x, pt2d.y, z) for pt2d, z in zip(lIntersPts, lZVals)]
 
-    return [Point(x, y, z) for x, y, z in lXYZVals]
+    return [Point4D(x, y, z) for x, y, z in lXYZVals]
 
 
 def calculate_profile_lines_intersection(
@@ -711,7 +710,7 @@ def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
     for pt in pts_in_orig_crs:
         qgs_pt = QgsPointXY(pt.x, pt.y)
         qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
-        pts_in_prj_crs.append(Point(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
+        pts_in_prj_crs.append(Point4D(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
     return pts_in_prj_crs
 
 
@@ -846,4 +845,4 @@ def calculate_projected_3d_pts(
 
     assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
 
-    return [Point(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
+    return [Point4D(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]

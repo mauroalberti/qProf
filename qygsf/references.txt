@@ -1,0 +1,5 @@
+
+References
+
+[1] Kagan, Y.Y., 1991. 3-D rotation of double-couple earthquake sources.
+    Geophys. J. Int, 106, 709-716.

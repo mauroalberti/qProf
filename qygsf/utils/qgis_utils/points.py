@@ -1,8 +1,6 @@
 
 from qgis.core import *
 
-from qygsf.geometries.shapes.geometry import *
-
 
 def distance_projected_pts(
         x,
@@ -18,24 +16,24 @@ def distance_projected_pts(
     qgspt_start_dest_crs = project_qgs_point(qgspt_start_src_crs, src_crs, dest_crs)
     qgspt_end_dest_crs = project_qgs_point(qgspt_end_src_crs, src_crs, dest_crs)
 
-    pt2_start_dest_crs = Point(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
-    pt2d_end_dest_crs = Point(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
+    pt2_start_dest_crs = Point4D(qgspt_start_dest_crs.x(), qgspt_start_dest_crs.y())
+    pt2d_end_dest_crs = Point4D(qgspt_end_dest_crs.x(), qgspt_end_dest_crs.y())
 
     return pt2_start_dest_crs.dist_2d(pt2d_end_dest_crs)
 
 
 def project_point(
-        pt: Point,
+        pt: Point4D,
         srcCrs: QgsCoordinateReferenceSystem,
         destCrs: QgsCoordinateReferenceSystem
-) -> Point:
+) -> Point4D:
 
     qgs_pt = QgsPointXY(pt.x, pt.y)
 
     proj_qgs_pt = project_qgs_point(qgs_pt, srcCrs, destCrs)
     proj_x, proj_y = proj_qgs_pt.x(), proj_qgs_pt.y()
 
-    return Point(
+    return Point4D(
         x=proj_x,
         y=proj_y,
         z=pt.z,

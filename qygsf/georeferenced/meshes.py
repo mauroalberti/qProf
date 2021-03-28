@@ -1,5 +1,7 @@
 import json
 
+from qygsf.geometries.shapes.space4d import Segment4D
+
 try:
     from osgeo import ogr
 except ImportError:
@@ -12,7 +14,7 @@ except ImportError:
 
 from qygsf.mathematics.transformations import *
 
-from qygsf.geometries.shapes.features import *
+from qygsf.geometries.shapes.space3d import *
 from qygsf.io.gdal.vector import *
 from qygsf.errors import *
 
@@ -48,7 +50,7 @@ class TriangBeam(object):
         angles
         """
 
-        vector_pt = Segment(self._apex, pt_3d).vector()
+        vector_pt = Segment4D(self._apex, pt_3d).vector()
 
         angle_side_1 = self._versor_1.angle_degr(vector_pt)
         angle_side_2 = self._versor_2.angle_degr(vector_pt)
@@ -79,7 +81,7 @@ class CartesianTriangle(object):
 
         def versor3d(pt_1, pt_2):
 
-            return Segment(pt_1, pt_2).vector().versor()
+            return Segment4D(pt_1, pt_2).vector().versor()
 
         def is_pt_in_fascio(pt_1, pt_2, pt_3):
 

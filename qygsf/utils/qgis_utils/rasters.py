@@ -6,8 +6,7 @@ from math import floor, ceil
 
 from .points import *
 
-from qygsf.geometries.shapes.geometry import Point
-
+from ... import Point4D
 
 raster_parameters_fields = [
     'name',
@@ -218,7 +217,7 @@ class QGisRasterParameters(object):
         x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
         y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
 
-        return Point(x, y)
+        return Point4D(x, y)
 
 
 def try_raster_qgis_params(

@@ -1,6 +1,3 @@
-
-import numbers
-
 from qygsf.utils.time import *
 from qygsf.utils.qgis_utils.points import *
 
@@ -48,12 +45,12 @@ class TrackPointGPX(object):
         x, y, _ = geodetic2ecef(self.lat, self.lon, self.elev)
         t = standard_gpstime_to_seconds(self.time)
 
-        return Point(x, y, self.elev, t)
+        return Point4D(x, y, self.elev, t)
 
     def project(self,
                 dest_crs: QgsCoordinateReferenceSystem):
 
-        pt = Point(
+        pt = Point4D(
             x=self.lon,
             y=self.lat,
             z=self.elev,

@@ -125,7 +125,7 @@ class ActionWidget(QWidget):
 
     def try_get_point_list(self,
                            dialog
-                           ) -> Tuple[bool, Union[str, Line]]:
+                           ) -> Tuple[bool, Union[str, Line4D]]:
 
         try:
 
@@ -768,8 +768,8 @@ class ActionWidget(QWidget):
             )
             return
 
-        raw_line = Line(
-            [Point(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+        raw_line = Line4D(
+            [Point4D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
 
         if raw_line.num_pts <= 1:
             wrn(
@@ -2488,8 +2488,8 @@ class DigitizeLineDialog(QDialog):
 
         self.digitized_profile_line2dt = None
         if len(self.profile_canvas_points) > 1:
-            raw_line = Line(
-                [Point(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+            raw_line = Line4D(
+                [Point4D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
             if raw_line.num_pts > 1:
                 self.digitized_profile_line2dt = raw_line
 

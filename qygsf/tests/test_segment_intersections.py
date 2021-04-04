@@ -1,8 +1,8 @@
 
 import unittest
 
-from pygsf.geometries.shapes.space3d import *
-from pygsf.orientations.orientations import *
+from qygsf.geometries.shapes.space3d import *
+from qygsf.orientations.orientations import *
 
 
 class TestSegmentIntersections(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestSegmentIntersections(unittest.TestCase):
 
         for _ in range(n):
 
-            random_segment = Segment2D.random()
+            random_segment = Segment3D.random()
 
             random_interval_value = random.uniform(0, 1)
 

@@ -4,18 +4,17 @@ import numbers
 import affine
 import numpy as np
 
-from pygsf.mathematics.arrays import array_bilin_interp
+from qygsf.mathematics.arrays import array_bilin_interp
 
-from pygsf.orientations.orientations import *
+from qygsf.orientations.orientations import *
 
-from pygsf.geometries.rasters.fields import *
-from pygsf.geometries.rasters.geotransform import *
+from qygsf.geometries.rasters.fields import *
+from qygsf.geometries.rasters.geotransform import *
 
-from pygsf.geometries.shapes.space2d import *
-from pygsf.geometries.shapes.space3d import *
+from qygsf.geometries.shapes.space2d import *
+from qygsf.geometries.shapes.space3d import *
 
-from pygsf.georeferenced.crs import *
-
+from qygsf.georeferenced.crs import *
 
 
 class GeoArray():
@@ -638,7 +637,10 @@ class GeoArray():
             inLevels=[flowln_grad])
 
 
-def point_velocity(geoarray: GeoArray, pt: Point2D) -> Tuple[Optional[numbers.Real], Optional[numbers.Real]]:
+def point_velocity(
+        geoarray: GeoArray,
+        pt: Point2D
+) -> Tuple[Optional[numbers.Real], Optional[numbers.Real]]:
     """
     Return the velocity components of a 2D-flow field at a point location, based on bilinear interpolation.
 
@@ -652,7 +654,7 @@ def point_velocity(geoarray: GeoArray, pt: Point2D) -> Tuple[Optional[numbers.Re
     Examples:
     """
 
-    x, y, _ = pt.toXYZ()
+    x, y = pt.toXY()
     vx = geoarray.interpolate_bilinear(
         x=x,
         y=y,
@@ -799,8 +801,7 @@ def line_on_grid(
             lnProfile.add_pt(
                 Point2D(
                     x=point.x,
-                    y=point.y,
-                    z=z
+                    y=point.y
                 )
             )
 
@@ -919,7 +920,12 @@ def plane_dem_intersection(
 
         return inters_intracells_residuals
 
-    def arrayTo3DPts(direction: str, arr: np.ndarray, ij2xy_func: Callable, xy2z_func: Callable) -> List[Point2D]:
+    def arrayTo3DPts(
+            direction: str,
+            arr: np.ndarray,
+            ij2xy_func: Callable,
+            xy2z_func: Callable
+    ) -> List[Point3D]:
         """
         Converts an array of along-direction (i- or j-) intra-cell segments [0 -> 1[ into
         a list of 3D points.
@@ -950,7 +956,7 @@ def plane_dem_intersection(
                         raise Exception('Unexpected array direction value: {}'.format(direction))
                     x, y = ij2xy_func(i_int, j_int)
                     z = xy2z_func(x, y)
-                    pts.append(Point2D(x, y, z))
+                    pts.append(Point3D(x, y, z))
 
         return pts
 

@@ -4,8 +4,8 @@ from typing import Optional, Sequence, List
 
 import numpy as np
 
-from pygsf.mathematics.interpolations import scalars_bilin_interp as s_interp_bilinear, interp_linear
-from pygsf.mathematics.scalars import *
+from qygsf.mathematics.interpolations import scalars_bilin_interp as s_interp_bilinear, interp_linear
+from qygsf.mathematics.scalars import *
 
 
 def arrToTuple(arr1D: np.ndarray) -> Tuple[numbers.Real, ...]:

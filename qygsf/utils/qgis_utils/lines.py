@@ -1,6 +1,9 @@
-from qygsf.geology.profiles.geoprofiles import *
 
-from qygsf.geometries.shapes.space4d import Line4D, merge_line, merge_lines
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+
+from pygsf.geology.profiles.geoprofiles import *
+from pygsf.geometries.shapes.space4d import *
 
 
 def polyline_to_xytuple_list(

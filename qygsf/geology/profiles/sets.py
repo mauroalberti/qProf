@@ -1,7 +1,7 @@
 
 
 from .chains import *
-from pygsf.georeferenced.geoshapes import GeoPointSegmentCollections
+from ...georeferenced.geoshapes3d import GeoPointSegmentCollections3D
 
 
 class TopographicProfileSet(list):
@@ -168,7 +168,7 @@ class PointSegmentCollectionsSet(list):
     Class storing a set of point-segment collections.
     """
 
-    def __init__(self, ptsegm_collects_set: List[GeoPointSegmentCollections]):
+    def __init__(self, ptsegm_collects_set: List[GeoPointSegmentCollections3D]):
         """
         Instantiates an lines intersections set.
 
@@ -178,7 +178,7 @@ class PointSegmentCollectionsSet(list):
 
         check_type(ptsegm_collects_set, "Point-segment collections set", List)
         for el in ptsegm_collects_set:
-            check_type(el, "Point-segment collections", GeoPointSegmentCollections)
+            check_type(el, "Point-segment collections", GeoPointSegmentCollections3D)
 
         super(PointSegmentCollectionsSet, self).__init__(ptsegm_collects_set)
 

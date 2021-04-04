@@ -1,9 +1,27 @@
 
-from math import *
+from math import radians, tan, sin, cos
 
-from qygsf.utils.arrays import *
-from qygsf import Axis
+from typing import Tuple
 
+import numbers
+
+import numpy as np
+
+from affine import Affine
+
+from qygsf.orientations.orientations import Axis
+
+
+def gdal_to_affine(
+    geotransform: Tuple[numbers.Real, numbers.Real, numbers.Real, numbers.Real, numbers.Real, numbers.Real]
+) -> Affine:
+    """
+    Create an affine transformation
+    from a GDAL geotransform tuple.
+
+    """
+
+    return Affine.from_gdal(*geotransform)
 
 class RefFrame(object):
 
@@ -29,6 +47,19 @@ class RefFrame(object):
                 rot_matrix[i, j] = init_frame_versor.scalar_product(rot_frame_versor)
 
         return rot_matrix
+
+def forward_transformation(
+    trans: Affine,
+    row: numbers.Real,
+    col: numbers.Real
+) -> Tuple[numbers.Real, numbers.Real]:
+    """
+    Calculate the x, y coordinates given an affine transformation
+    and the row, col values.
+
+    """
+
+    return trans * (col, row)
 
 
 def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
@@ -148,3 +179,67 @@ def deformation_matrices(deform_params):
 
     return deformation_matrices
 
+
+def rotation_matrix(rot_axis_trend, rot_axis_plunge, rot_angle):
+
+    phi = radians(rot_angle)
+
+    rotation_versor = Axis(rot_axis_trend, rot_axis_plunge).as_direction().as_versor()
+
+    l = rotation_versor.x
+    m = rotation_versor.y
+    n = rotation_versor.z
+
+    cos_phi = cos(phi)
+    sin_phi = sin(phi)
+
+    a11 = cos_phi + ((l * l) * (1 - cos_phi))
+    a12 = ((l * m) * (1 - cos_phi)) - (n * sin_phi)
+    a13 = ((l * n) * (1 - cos_phi)) + (m * sin_phi)
+
+    a21 = ((l * m) * (1 - cos_phi)) + (n * sin_phi)
+    a22 = cos_phi + ((m * m) * (1 - cos_phi))
+    a23 = ((m * n) * (1 - cos_phi)) - (l * sin_phi)
+
+    a31 = ((l * n) * (1 - cos_phi)) - (m * sin_phi)
+    a32 = ((m * n) * (1 - cos_phi)) + (l * sin_phi)
+    a33 = cos_phi + ((n * n) * (1 - cos_phi))
+
+    return np.array([(a11, a12, a13),
+                     (a21, a22, a23),
+                     (a31, a32, a33)])
+
+
+def scaling_matrix(scale_factor_x, scale_factor_y, scale_factor_z):
+
+    return np.array([(scale_factor_x, 0.0, 0.0),
+                     (0.0, scale_factor_y, 0.0),
+                     (0.0, 0.0, scale_factor_z)])
+
+
+def simple_shear_horiz_matrix(phi_angle_degr, alpha_angle_degr):
+
+    phi_angle_rad = radians(phi_angle_degr)
+    alpha_angle_rad = radians(alpha_angle_degr)
+
+    gamma = tan(phi_angle_rad)
+    sin_a = sin(alpha_angle_rad)
+    cos_a = cos(alpha_angle_rad)
+
+    return np.array([(1.0 - gamma * sin_a * cos_a, gamma * cos_a * cos_a, 0.0),
+                     (-gamma * sin_a * sin_a, 1.0 + gamma * sin_a * cos_a, 0.0),
+                     (0.0, 0.0, 1.0)])
+
+
+def simple_shear_vert_matrix(phi_angle_degr, alpha_angle_degr):
+
+    phi_angle_rad = radians(phi_angle_degr)
+    alpha_angle_rad = radians(alpha_angle_degr)
+
+    gamma = tan(phi_angle_rad)
+    sin_a = sin(alpha_angle_rad)
+    cos_a = cos(alpha_angle_rad)
+
+    return np.array([(1.0, 0.0, gamma * cos_a),
+                     (0.0, 1.0, gamma * sin_a),
+                     (0.0, 0.0, 1.0)])

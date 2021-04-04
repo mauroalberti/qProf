@@ -54,7 +54,7 @@ class Slick(object):
         if known:
             self.s = Direct(trend, plunge)
         else:
-            self.s = Axis.fromAzPl(trend, plunge)
+            self.s = Axis(trend, plunge)
         self.t = float(time)
 
     def __repr__(self):

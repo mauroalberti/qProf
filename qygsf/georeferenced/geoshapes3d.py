@@ -1,6 +1,15 @@
-from pygsf.geometries.shapes.space3d import Point3D, Segment3D, Line3D, analizeJoins
-from pygsf.georeferenced.crs import Crs, check_crs
-from pygsf.utils.types import check_type
+
+import copy
+from typing import Optional, List, Tuple, Union
+
+import numbers
+from array import array
+
+import numpy as np
+
+from qygsf.geometries.shapes.space3d import Point3D, Segment3D, Line3D, analizeJoins
+from qygsf.georeferenced.crs import Crs, check_crs
+from qygsf.utils.types import check_type
 
 
 class GeoPoints3D:
@@ -86,7 +95,6 @@ class GeoPoints3D:
         """
 
         for ndx, point in enumerate(points):
-
             check_type(point, "Input point {}".format(ndx), Point3D)
 
         return GeoPoints3D(
@@ -246,7 +254,7 @@ class GeoPoints3D:
         self._z_array.append(pt.z)
 
     def add_pts(self,
-                pts: List[Point3D]):
+                pts: 'GeoPoints3D'):
         """
         In-place transformation of the original Points instance
         by adding a new set of points at the end.
@@ -269,10 +277,10 @@ class GeoPoints3D:
         :rtype: Optional[numbers.Real]
 
         Examples:
-          >>> l = GeoPoints3D([[0, 0, 0], [1, 0, 0], [0, 1, 0]])
+          >>> l = GeoPoints3D.fromPoints([Point3D(0, 0, 0), Point3D(1, 0, 0), Point3D(0, 1, 0)], epsg_code=32633)
           >>> l.x_min()
           0.0
-          >>> m = GeoPoints3D([])
+          >>> m = GeoPoints3D.fromPoints([], epsg_code=32633)
           >>> m.x_min()
           None
         """
@@ -343,7 +351,7 @@ class GeoPoints3D:
         :rtype: Optional[numbers.Real]
 
         Examples:
-          >>> l = GeoPoints3D.fromPoints([[0, 0, 2], [1, 0, 2], [0, 1, 2]], epsg_code=32633)
+          >>> l = GeoPoints3D.fromPoints([Point3D(0, 0, 2), Point3D(1, 0, 2), Point3D(0, 1, 2)], epsg_code=32633)
           >>> l.z_var()
           0.0
         """
@@ -358,7 +366,7 @@ class GeoPoints3D:
         :rtype: Optional[numbers.Real]
 
         Examples:
-          >>> l = GeoPoints3D.fromPoints([[0, 0, 2], [1, 0, 2], [0, 1, 2]], epsg_code=32633)
+          >>> l = GeoPoints3D.fromPoints([Point3D(0, 0, 2), Point3D(1, 0, 2), Point3D(0, 1, 2)], epsg_code=32633)
           >>> l.z_std()
           0.0
         """
@@ -479,7 +487,10 @@ class GeoMultiLine3D(object):
     MultiLine is a list of Line objects, each one with the same CRS.
     """
 
-    def __init__(self, lines: Optional[List[Line3D]] = None, epsg_cd: numbers.Integral = -1):
+    def __init__(self,
+        lines: Optional[List[Line3D]] = None,
+        epsg_cd: numbers.Integral = -1
+        ):
 
         if lines is None:
             lines = []

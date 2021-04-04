@@ -1,8 +1,21 @@
-from pygsf.geometries.shapes.space2d import Point2D, Segment2D
-from pygsf.geometries.shapes.space3d import Line3D
-from pygsf.georeferenced.crs import Crs, check_crs
-from pygsf.georeferenced.geoshapes3d import GeoLines3D
-from pygsf.utils.types import check_type
+
+import copy
+
+from typing import List, Tuple, Optional, Union
+
+import numbers
+from array import array
+
+import numpy as np
+
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.linestring import LineString
+
+
+from qygsf.geometries.shapes.space2d import Point2D, Segment2D, Line2D
+from qygsf.georeferenced.crs import Crs, check_crs
+from qygsf.utils.types import check_type
 
 
 class GeoPoints2D:
@@ -212,7 +225,7 @@ class GeoPoints2D:
         self._y_array.append(pt.y)
 
     def add_pts(self,
-                pts: List[Point2D]):
+                pts: 'GeoPoints2D'):
         """
         In-place transformation of the original Points instance
         by adding a new set of points at the end.
@@ -234,10 +247,10 @@ class GeoPoints2D:
         :rtype: Optional[numbers.Real]
 
         Examples:
-          >>> l = GeoPoints2D([[0, 0], [1, 0], [0, 1]])
+          >>> l = GeoPoints2D.fromPoints([Point2D(0, 0), Point2D(1, 0), Point2D(0, 1)], epsg_code=32633)
           >>> l.x_min()
           0.0
-          >>> m = GeoPoints2D([])
+          >>> m = GeoPoints2D.fromPoints([], epsg_code=32633)
           >>> m.x_min()
           None
         """
@@ -327,6 +340,63 @@ class GeoPoints2D:
             y_array=ys
         )
 
+class GeoLines2D(list):
+    """
+    Collection of lines.
+
+    """
+
+    def __init__(self,
+                 lines: Optional[List[Line2D]] = None
+                 ):
+
+        if lines:
+
+            check_type(lines, "Lines", List)
+            for line in lines:
+                check_type(line, "Line2D", Line2D)
+
+            first_line = lines[0]
+            for line in lines[1:]:
+                check_crs(first_line, line)
+
+            super(GeoLines2D, self).__init__(lines)
+
+        else:
+
+            super(GeoLines2D, self).__init__()
+
+    def append(self,
+               item: Line2D
+               ) -> None:
+
+        check_type(item, "Line2D", Line2D)
+        if len(self) > 0:
+            check_crs(self[0], item)
+
+        super(GeoLines2D, self).append(item)
+
+    def intersectSegment(self,
+        segment: Segment2D
+    ) -> List[Optional[Union[Point2D, 'Segment2D']]]:
+        """
+        Calculates the possible intersection between the multiline and a provided segment.
+
+        :param segment: the input segment
+        :type segment: Segment3D
+        :return: the possible intersections, points or segments
+        :rtype: List[List[Optional[Union[Point, 'Segment']]]]
+        """
+
+        check_type(segment, "Input segment", Segment2D)
+        #check_crs(self, segment)
+
+        intersections = []
+        for line in self:
+            intersections.extend(line.intersectSegment(segment))
+
+        return intersections
+
 
 class GeoMPolygon2D:
     """
@@ -340,9 +410,7 @@ class GeoMPolygon2D:
                  ):
         """
         :param shapely_geom: the (multi)polygon
-        :type shapely_geom: Union[Polygon, MultiPolygon]
         :param epsg_code: the EPSG code of the two geometries
-        :type epsg_code: numbers.Integral
         """
 
         check_type(
@@ -364,17 +432,15 @@ class GeoMPolygon2D:
 
     def intersect_line(self,
                        line: LineString,
-                       ) -> GeoLines3D:
+                       ) -> GeoLines2D:
         """
         Determine the intersections between a mpolygon and a line.
 
         :param line: the line
-        :type line: shapely.geometry.LineString
         :return: the intersecting lines
-        :rtype: GeoLines3D
         """
 
-        lines = GeoLines3D()
+        lines = GeoLines2D()
 
         intersections = line.intersection(self.geom)
 
@@ -425,14 +491,14 @@ def line2d_from_shapely(
 
     x_array, y_array = shapely_geom.xy
 
-    return Line3D.fromArrays(
+    return Line2D.fromArrays(
         x_array,
         y_array
     )
 
 
 def line2d_to_shapely(
-        src_line: GeoPoints2D
+        src_line: Line2D
 ) -> LineString:
     """
     Create a shapely.LineString instance from a Line one.
@@ -443,4 +509,4 @@ def line2d_to_shapely(
     :rtype: Tuple[LineString, numbers.Integral]
     """
 
-    return LineString(src_line.xy_zipped()), src_line.epsg_code
+    return LineString(src_line.xy_zipped())

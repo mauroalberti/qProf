@@ -1,33 +1,67 @@
-
-from typing import Tuple
 import numbers
+from array import array
+from typing import Union, List, Tuple
 
-from numpy import *  # general import for compatibility with formula input
-from numpy.linalg import svd
+from numpy import linspace, fromfunction
 
-from ..errors import Exception
+from qygsf.utils.types import check_type
 
 
-def point_solution(a_array, b_array):
+class ArrayList:
     """
-    finds a non-unique solution
-    for a set of linear equations
+    An identified list of arrays.
     """
 
-    try:
-        return linalg.lstsq(a_array, b_array)[0]
-    except:
-        return None, None, None
+    def __init__(self,
+                 rec_id: Union[str, numbers.Integral],
+                 arrays: List[array]
+                 ):
+
+        check_type(rec_id, "Input id", (str, numbers.Integral))
+        check_type(arrays, "List of arrays", list)
+        for part in arrays:
+            check_type(part, "Array", array)
+
+        self._id = rec_id
+        self._arrays = arrays
+
+    @property
+    def id(self) -> numbers.Integral:
+        """
+        Return id.
+
+        :return: the id
+        :rtype: numbers.Integral
+        """
+
+        return self._id
+
+    @property
+    def arrays(self) -> List[array]:
+        """
+        Returns the object arrays.
+
+        :return: the instance arrays
+        :rtype: List[array]
+        """
+
+        return self._arrays
 
 
-def xyz_svd(xyz_array):
-    # modified after: 
-    # http://stackoverflow.com/questions/15959411/best-fit-plane-algorithms-why-different-results-solved
+def to_float(
+        curr_iterable
+) -> Tuple[numbers.Real]:
 
-    try:
-        return dict(result=svd(xyz_array))
-    except:
-        return dict(result=None)
+    return (float(item) for item in curr_iterable)
+
+
+def almost_zero(val):
+
+    tolerance = 1e-10
+    if abs(val) > tolerance:
+        return False
+    else:
+        return True
 
 
 def formula_to_grid(array_range, array_size, formula):

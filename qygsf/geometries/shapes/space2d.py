@@ -1,13 +1,9 @@
 
 import functools
-import abc
-import itertools
-import numbers
-import random
-from array import array
 
-from pygsf.mathematics.vectors import *
-from pygsf.geometries.shapes.space3d import *
+import numbers
+
+from qygsf.geometries.shapes.space3d import *
 
 
 class Shape2D(object, metaclass=abc.ABCMeta):
@@ -186,9 +182,9 @@ class Point2D(Shape2D):
 
         Example:
           >>> Point2D(1, 0) + Point2D(0, 1)
-          Point(1.0000, 1.0000)
+          Point2D(1.0000, 1.0000)
           >>> Point2D(1, 1) + Point2D(-1, -1)
-          Point(0.0000, 0.0000)
+          Point2D(0.0000, 0.0000)
         """
 
         check_type(another, "Second point", Point2D)
@@ -214,9 +210,9 @@ class Point2D(Shape2D):
 
         Example:
           >>> Point2D(1., 1.) - Point2D(1., 1.)
-          Point(0.0000, 0.0000)
+          Point2D(0.0000, 0.0000)
           >>> Point2D(1., 1.) - Point2D(1., 1.)
-          Point(0.0000, 0.0000)
+          Point2D(0.0000, 0.0000)
         """
 
         check_type(another, "Second point", Point2D)
@@ -299,7 +295,7 @@ class Point2D(Shape2D):
 
         return another.y - self.y
 
-    def dist2DWith(self,
+    def distance(self,
                  another: 'Point2D'
                  ) -> numbers.Real:
         """
@@ -313,7 +309,7 @@ class Point2D(Shape2D):
         :raise: Exception.
 
         Examples:
-          >>> Point2D(1., 1.).dist2DWith(Point2D(4., 5.))
+          >>> Point2D(1., 1.).distance(Point2D(4., 5.))
           5.0
         """
 
@@ -331,9 +327,9 @@ class Point2D(Shape2D):
 
         Example;
           >>> Point2D(1, 0).scale(2.5)
-          Point(2.5000, 0.0000)
+          Point2D(2.5000, 0.0000)
           >>> Point2D(1, 0).scale(2.5)
-          Point(2.5000, 0.0000)
+          Point2D(2.5000, 0.0000)
         """
 
         x, y = self.x * scale_factor, self.y * scale_factor
@@ -346,9 +342,9 @@ class Point2D(Shape2D):
 
         Examples:
           >>> Point2D(1, 1).invert()
-          Point(-1.0000, -1.0000)
+          Point2D(-1.0000, -1.0000)
           >>> Point2D(2, -1).invert()
-          Point(-2.0000, 1.0000)
+          Point2D(-2.0000, 1.0000)
         """
 
         return self.scale(-1)
@@ -374,7 +370,7 @@ class Point2D(Shape2D):
 
         check_type(another, "Second point", Point2D)
 
-        return self.dist2DWith(another) <= tolerance
+        return self.distance(another) <= tolerance
 
     def already_present(self,
                         pt_list: List['Point2D'],
@@ -405,9 +401,9 @@ class Point2D(Shape2D):
 
         Example:
           >>> Point2D(1, 1).shift(0.5, 1.)
-          Point(1.5000, 2.0000)
+          Point2D(1.5000, 2.0000)
           >>> Point2D(1, 2).shift(0.5, 1.)
-          Point(1.5000, 3.0000)
+          Point2D(1.5000, 3.0000)
        """
 
         return Point2D(self.x + sx, self.y + sy)
@@ -447,7 +443,7 @@ class Segment2D(Shape2D):
         check_type(start_pt, "Start point", Point2D)
         check_type(end_pt, "End point", Point2D)
 
-        if start_pt.dist2DWith(end_pt) == 0.0:
+        if start_pt.distance(end_pt) == 0.0:
             raise Exception("Source points cannot be coincident")
 
         self._start_pt = start_pt.clone()
@@ -491,7 +487,7 @@ class Segment2D(Shape2D):
         :rtype: numbers.Real.
         """
 
-        return self.start_pt.dist2DWith(self.end_pt)
+        return self.start_pt.distance(self.end_pt)
 
     def area(self):
         return 0.0
@@ -651,8 +647,8 @@ class Segment2D(Shape2D):
         check_type(pt, "Point", Point2D)
 
         segment_length = self.length()
-        length_startpt_pt = self.start_pt.dist2DWith(pt)
-        length_endpt_pt = self.end_pt.dist2DWith(pt)
+        length_startpt_pt = self.start_pt.distance(pt)
+        length_endpt_pt = self.end_pt.distance(pt)
 
         return areClose(
             a=segment_length,
@@ -693,23 +689,23 @@ class Segment2D(Shape2D):
         Examples:
           >>> s = Segment2D(Point2D(0,0), Point2D(1,0))
           >>> s.pointAt(0)
-          Point(0.0000, 0.0000)
+          Point2D(0.0000, 0.0000)
           >>> s.pointAt(0.5)
-          Point(0.5000, 0.0000)
+          Point2D(0.5000, 0.0000)
           >>> s.pointAt(1)
-          Point(1.0000, 0.0000)
+          Point2D(1.0000, 0.0000)
           >>> s.pointAt(-1)
-          Point(-1.0000, 0.0000)
+          Point2D(-1.0000, 0.0000)
           >>> s.pointAt(-2)
-          Point(-2.0000, 0.0000)
+          Point2D(-2.0000, 0.0000)
           >>> s.pointAt(2)
-          Point(2.0000, 0.0000)
+          Point2D(2.0000, 0.0000)
           >>> s = Segment2D(Point2D(0,0), Point2D(1,1))
           >>> s.pointAt(0.5)
-          Point(0.5000, 0.5000)
+          Point2D(0.5000, 0.5000)
           >>> s = Segment2D(Point2D(0,0), Point2D(4,0))
           >>> s.pointAt(7.5)
-          Point(30.0000, 0.0000)
+          Point2D(30.0000, 0.0000)
         """
 
         dx = self.delta_x() * scale_factor
@@ -728,14 +724,14 @@ class Segment2D(Shape2D):
         Return the point projection on the segment.
 
         Examples:
-          >>> s = Segment2D(start_pt=Point(0,0), end_pt=Point(1,0))
-          >>> p = Point(0.5, 1)
+          >>> s = Segment2D(start_pt=Point2D(0,0), end_pt=Point2D(1,0))
+          >>> p = Point2D(0.5, 1)
           >>> s.pointProjection(p)
-          Point(0.5000, 0.0000)
-          >>> s = Segment2D(start_pt=Point(0,0), end_pt=Point(4,0))
-          >>> p = Point(7.5, 19.2)
+          Point2D(0.5000, 0.0000)
+          >>> s = Segment2D(start_pt=Point2D(0,0), end_pt=Point2D(4,0))
+          >>> p = Point2D(7.5, 19.2)
           >>> s.pointProjection(p)
-          Point(7.5000, 0.0000)
+          Point2D(7.5000, 0.0000)
         """
 
         check_type(point, "Input point", Point)
@@ -764,10 +760,10 @@ class Segment2D(Shape2D):
         :rtype: numbers.Real
 
         Examples:
-          >>> s = Segment2D(Point(0, 0), Point(0, 0))
-          >>> s.pointDistance(Point(-17.2, 0.0))
+          >>> s = Segment2D(Point2D(0, 0), Point2D(0, 0))
+          >>> s.pointDistance(Point2D(-17.2, 0.0))
           17.2
-          >>> s.pointDistance(Point(-17.2, 1.22))
+          >>> s.pointDistance(Point2D(-17.2, 1.22))
           17.24321315764553
         """
 
@@ -800,7 +796,7 @@ class Segment2D(Shape2D):
         if not self.contains_pt(point):
             return None
 
-        return self.start_pt.dist2DWith(point)
+        return self.start_pt.distance(point)
 
     def scale(self,
               scale_factor
@@ -854,7 +850,7 @@ class Segment2D(Shape2D):
             n += 1
             shift_vector = generator_vector.scale(n)
             new_pt = self.start_pt.shift(shift_vector.x, shift_vector.y)
-            distance = self.start_pt.dist2DWith(new_pt)
+            distance = self.start_pt.distance(new_pt)
             if distance >= length2d:
                 break
             interpolated_line.add_pt(new_pt)
@@ -1571,10 +1567,11 @@ class Line2D(Shape2D):
 
         densified_line_list = [segment.densify2d_asLine(sample_distance) for segment in segments]
 
-        densifyied_multiline = MultiLine(densified_line_list)
+        densifyied_points = []
+        for line in densified_line_list:
+            densifyied_points += line.pts()
 
-        densifyied_line = densifyied_multiline.to_line()
-
+        densifyied_line = Line2D(densifyied_points)
         densifyied_line_wo_coinc_pts = densifyied_line.remove_coincident_points()
 
         return densifyied_line_wo_coinc_pts
@@ -1592,7 +1589,7 @@ class Line2D(Shape2D):
 
         length = 0.0
         for ndx in range(self.num_pts() - 1):
-            length += self.pt(ndx).dist2DWith(self.pt(ndx + 1))
+            length += self.pt(ndx).distance(self.pt(ndx + 1))
         return length
 
     def step_lengths_2d(self) -> List[numbers.Real]:
@@ -1609,7 +1606,7 @@ class Line2D(Shape2D):
 
         step_length_list = [0.0]
         for ndx in range(1, self.num_pts()):
-            length = self.pt(ndx).dist2DWith(self.pt(ndx - 1))
+            length = self.pt(ndx).distance(self.pt(ndx - 1))
             step_length_list.append(length)
 
         return step_length_list
@@ -1646,7 +1643,7 @@ class Line2D(Shape2D):
         :return: the 2D distance between start and end points
         """
 
-        return self.end_pt().dist2DWith(self.start_pt())
+        return self.end_pt().distance(self.start_pt())
 
     def isClosed_2d(self,
         tolerance: numbers.Real = MIN_SEPARATION_THRESHOLD

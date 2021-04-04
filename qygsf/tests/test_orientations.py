@@ -1,11 +1,8 @@
 
 import unittest
 
-from pygsf.orientations.orientations import *
-from pygsf.geometries.shapes.space3d import *
-from pygsf.orientations.direct_utils import *
-from pygsf.geometries.shapes.space3d import *
-from pygsf.geometries.shapes.space3d import CPlane3D
+from qygsf.geometries.shapes.space3d import *
+from qygsf.geometries.shapes.space3d import CPlane3D
 
 
 class TestOrientations(unittest.TestCase):
@@ -41,8 +38,8 @@ class TestOrientations(unittest.TestCase):
 
     def test_axis_angle(self):
 
-        assert areClose(Axis.fromAzPl(90, 0).angle_as_degrees(
-            Axis.fromAzPl(270, 0)), 0.)
+        assert areClose(Axis(90, 0).angle_as_degrees(
+            Axis(270, 0)), 0.)
 
     def test_plane_normal(self):
 
@@ -52,7 +49,7 @@ class TestOrientations(unittest.TestCase):
 
     def test_plane2cplane(self):
 
-        pl = CPlane3D.from_geological_plane(Plane(90, 45), Point2D(0, 0, 0))
+        pl = CPlane3D.from_geological_plane(Plane(90, 45), Point3D(0, 0, 0))
         assert areClose(pl.angle_as_degrees(CPlane3D(1, 0, 1, 0)), 0.0)
 
     def test_plane_angle(self):

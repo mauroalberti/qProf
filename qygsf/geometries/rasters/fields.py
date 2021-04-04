@@ -6,7 +6,7 @@ from math import sin, cos
 
 import numbers
 
-from pygsf.geometries.rasters.geotransform import *
+from qygsf.geometries.rasters.geotransform import *
 
 
 def ij_transfer_func(

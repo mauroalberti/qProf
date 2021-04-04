@@ -4,13 +4,13 @@ from typing import Tuple, Union, List
 from functools import singledispatch
 import numpy as np
 
-from pygsf.mathematics.arrays import *
-from pygsf.mathematics.vectors import *
+from qygsf.mathematics.arrays import *
+from qygsf.mathematics.vectors import *
 
-from pygsf.orientations.orientations import *
+from qygsf.orientations.orientations import *
 
-#from pygsf.geometries.shapes.space2d import *
-from pygsf.geometries.shapes.space3d import *
+#from qygsf.geometries.shapes.space2d import *
+from qygsf.geometries.shapes.space3d import *
 
 """
 @singledispatch

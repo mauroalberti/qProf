@@ -3,7 +3,7 @@ from typing import Union
 
 from math import sqrt, degrees, acos
 
-from pygsf.mathematics.vectors import *
+from qygsf.mathematics.vectors import *
 
 
 QUAT_NORMALIZ_TOL = 1.0e-6

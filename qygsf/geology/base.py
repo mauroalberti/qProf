@@ -1,8 +1,8 @@
 
 from collections import namedtuple
 
-from pygsf.geology.faults import *
-from pygsf.geometries.shapes.space3d import *
+from qygsf.geology.faults import *
+from qygsf.geometries.shapes.space3d import *
 
 georef_att_flds = [
     'id',

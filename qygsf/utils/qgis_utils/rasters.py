@@ -1,12 +1,10 @@
 
-from typing import Union
 from collections import namedtuple
 
-from math import floor, ceil
+from math import ceil
 
 from .points import *
 
-from ... import Point4D
 
 raster_parameters_fields = [
     'name',
@@ -156,7 +154,7 @@ class QGisRasterParameters(object):
         Check that a point is within or on the boundary of the grid area.
         Assume grid has no rotation.
 
-        :param point: qProf.qygsf.geometry.Point
+        :param point: qProf.pygsf.geometry.Point
         :return: bool
         """
 
@@ -174,7 +172,7 @@ class QGisRasterParameters(object):
         the extreme cell center values.
         Assume grid has no rotation.
 
-        :param point: qProf.qygsf.geometry.Point
+        :param point: qProf.pygsf.geometry.Point
         :return: bool
         """
 
@@ -191,7 +189,7 @@ class QGisRasterParameters(object):
         Convert from geographic to raster-based coordinates.
         Assume grid has no rotation.
 
-        :param point: qProf.qygsf.geometry.Point
+        :param point: qProf.pygsf.geometry.Point
         :return: dict
         """
 
@@ -201,14 +199,14 @@ class QGisRasterParameters(object):
         return dict(x=x, y=y)
 
     def raster2geogr(self,
-                     array_dict
-                     ):
+         array_dict
+         ) -> Point2D:
         """
         Convert from raster-based to geographic coordinates.
         Assume grid has no rotation.
 
         :param array_dict: dict
-        :return: qProf.qygsf.geometry.Point instance
+        :return: the point in geographic planar coordinates
         """
 
         assert 'x' in array_dict
@@ -217,7 +215,7 @@ class QGisRasterParameters(object):
         x = self.xMin + (array_dict['x'] + 0.5) * self.cellsizeEW
         y = self.yMin + (array_dict['y'] + 0.5) * self.cellsizeNS
 
-        return Point4D(x, y)
+        return Point2D(x, y)
 
 
 def try_raster_qgis_params(

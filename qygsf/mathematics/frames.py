@@ -1,6 +1,6 @@
 
-from pygsf.mathematics.scalars import *
-from pygsf.mathematics.vectors import *
+from qygsf.mathematics.scalars import *
+from qygsf.mathematics.vectors import *
 
 
 class RefFrame(object):
@@ -38,7 +38,7 @@ class RefFrame(object):
 
         Examples:
           >>> RefFrame(Vect(1,0,0), Vect(0,1,0)).x
-          Vect(1.0000, 0.0000, 0.0000, EPSG: -1)
+          Vect(1.0000, 0.0000, 0.0000)
         """
 
         return self._x
@@ -53,7 +53,7 @@ class RefFrame(object):
 
         Examples:
           >>> RefFrame(Vect(1,0,0), Vect(0,1,0)).y
-          Vect(0.0000, 1.0000, 0.0000, EPSG: -1)
+          Vect(0.0000, 1.0000, 0.0000)
         """
 
         return self._y
@@ -68,7 +68,7 @@ class RefFrame(object):
 
         Examples:
           >>> RefFrame(Vect(1,0,0), Vect(0,1,0)).z
-          Vect(0.0000, 0.0000, 1.0000, EPSG: -1)
+          Vect(0.0000, 0.0000, 1.0000)
         """
 
         return self.x.cross_product(self.y)

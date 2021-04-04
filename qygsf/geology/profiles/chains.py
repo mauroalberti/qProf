@@ -3,8 +3,8 @@ from typing import Optional
 
 from array import array
 
-from pygsf.geology.profiles.elements import *
-from pygsf.utils.arrays import *
+from qygsf.geology.profiles.elements import *
+from qygsf.utils.arrays import *
 
 
 '''

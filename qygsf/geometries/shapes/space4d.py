@@ -1,13 +1,11 @@
+
 import datetime
 from math import sqrt
 from typing import Optional, List
 
-import numpy
-from numpy.core._multiarray_umath import absolute
-
-from qygsf import Vect
-from qygsf.mathematics.defaults import MIN_SEPARATION_THRESHOLD
-from qygsf.utils.qgis_utils.points import project_point
+from qygsf.mathematics.vectors import *
+from qygsf.mathematics.defaults import *
+from qygsf.utils.qgis_utils.points import *
 
 
 class Point4D(object):
@@ -31,7 +29,7 @@ class Point4D(object):
 
     def __repr__(self):
 
-        return f"Point({self.x:.4f}, {self.y:.4f}, {self.z:.4f}, {self.t:s})"
+        return f"Point4D({self.x:.4f}, {self.y:.4f}, {self.z:.4f}, {self.t})"
 
     @classmethod
     def from_array(cls, a):
@@ -40,7 +38,7 @@ class Point4D(object):
 
         Example:
           >>> Point4D.from_array(np.array([1, 0, 1]))
-          Point(1.0000, 0.0000, 1.0000, None)
+          Point4D(1.0000, 0.0000, 1.0000, None)
         """
 
         obj = cls()
@@ -54,20 +52,6 @@ class Point4D(object):
         obj._p = c
         obj._t = None
         return obj
-
-    '''
-    @property
-    def v(self):
-        """
-        Return values as array
-
-        Example:
-          >>> Point(1, 0, 0).v
-          array([  1.,   0.,   0.,  nan])
-        """
-
-        return self._p
-    '''
 
     @property
     def x(self):
@@ -120,7 +104,7 @@ class Point4D(object):
 
         Example:
           >>> Point4D(1, 1, 1).clone()
-          Point(1.0000, 1.0000, 1.0000, nan)
+          Point4D(1.0000, 1.0000, 1.0000, None)
         """
 
         return Point4D(
@@ -135,7 +119,7 @@ class Point4D(object):
 
         Example:
           >>> Point4D(1., 1., 1.) - Point4D(1., 1., 1.)
-          Point(0.0000, 0.0000, 0.0000, nan)
+          Point4D(0.0000, 0.0000, 0.0000, None)
         """
 
         return Point4D(
@@ -204,24 +188,25 @@ class Point4D(object):
         else:
             return True
 
-    def translate(self, sx=0.0, sy=0.0, sz=0.0, st=0.0):
+    def translate(self, sx=0.0, sy=0.0, sz=0.0):
         """
         Create a new point shifted by given amount from the self instance.
 
         Example:
           >>> Point4D(1, 1, 1).translate(0.5, 1., 1.5)
-          Point(1.5000, 2.0000, 2.5000, nan)
+          Point4D(1.5000, 2.0000, 2.5000, None)
        """
 
-        return Point4D(self.x + sx, self.y + sy, self.z + sz, self.t + st)
+        return Point4D(
+            self.x + sx,
+            self.y + sy,
+            self.z + sz,
+            self.t
+        )
 
     def vect_offset(self, displ_vect):
         """
         Create a new point from the self, with offsets defined by a vector.
-
-        Example:
-          >>> Point4D(1, 2, 0).vect_offset(Vect(10, 5, 0))
-          Point(11.0000, 7.0000, 0.0000, nan)
         """
 
         return Point4D(self.x + displ_vect.x,
@@ -244,10 +229,6 @@ class Point4D(object):
     def delta_time(self, another):
         """
         Calculate the time difference between two points
-
-        Example:
-          >>> Point4D(1,1,1,4).delta_time(Point4D(1,1,2,5))
-          1.0
         """
 
         return another.t - self.t
@@ -255,16 +236,15 @@ class Point4D(object):
     def speed(self, another):
         """
         Calculate the speed required to displace self to another.
-
-        Example:
-          >>> Point4D(1, 1, 1, 4).speed(Point4D(4, 5, 1, 14))
-          0.5
         """
 
         try:
+
             return self.dist_3d(another) / self.delta_time(another)
+
         except:
-            return np.Infinity
+
+            return np.nan
 
 
 class Line4D(object):

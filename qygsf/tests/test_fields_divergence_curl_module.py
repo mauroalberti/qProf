@@ -10,7 +10,7 @@
 
 import unittest
 
-from pygsf.geometries.rasters.fields import *
+from qygsf.geometries.rasters.fields import *
 
 
 # Z transfer functions
@@ -69,7 +69,7 @@ class TestDivergence(unittest.TestCase):
 
         div_theor = array_from_function(row_num=rows, col_num=cols, geotransform=gt1, z_transfer_func=z_func_div)
 
-        # Divergence as resulting from pygsf calculation:
+        # Divergence as resulting from qygsf calculation:
 
         div_pygsf = divergence(fx, fy, 10, 10)
 

@@ -1,6 +1,6 @@
 
-from pygsf.orientations.orientations import *
-from pygsf.geology.ptbaxes import *
+from qygsf.orientations.orientations import *
+from qygsf.geology.ptbaxes import *
 
 
 """
@@ -49,8 +49,8 @@ def sols2rotaxis(rot_sol: dict) -> RotationAxis:
 
 # gsf-scope derived parameters
 
-k91_fs_T_gaxis, k91_fs_P_gaxis = Axis.fromAzPl(*k91_fs_T_axis_vals), Axis.fromAzPl(*k91_fs_P_axis_vals)
-k91_ss_T_gaxis, k91_ss_P_gaxis = Axis.fromAzPl(*k91_ss_T_axis_vals), Axis.fromAzPl(*k91_ss_P_axis_vals)
+k91_fs_T_gaxis, k91_fs_P_gaxis = Axis(*k91_fs_T_axis_vals), Axis(*k91_fs_P_axis_vals)
+k91_ss_T_gaxis, k91_ss_P_gaxis = Axis(*k91_ss_T_axis_vals), Axis(*k91_ss_P_axis_vals)
 
 k91_fs_PTBaxes = PTBAxes(
     p_axis=k91_fs_P_gaxis,

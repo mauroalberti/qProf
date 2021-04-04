@@ -1,17 +1,13 @@
 
-from typing import Any, Tuple, Dict, Optional, Union
-
 import os
-import gdal
-import numpy as np
 
-from pygsf.defaults import *
-from pygsf.utils.types import *
-from pygsf.defaults import *
-from pygsf.mathematics.scalars import *
-from pygsf.georeferenced.rasters import *
-#from pygsf.georeferenced.crs import *
-from pygsf.geometries.rasters.geotransform import *
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
+
+from qygsf.georeferenced.rasters import *
+from qygsf.geometries.rasters.geotransform import *
 
 
 GRID_NULL_VALUE = -99999  # should already be imported but it isn't
@@ -27,7 +23,7 @@ def read_raster(
     :type file_ref: Any
     :return: the dataset, its geotransform, the number of bands, the projection.
     :rtype: tuple made up by a gdal.Dataset instance, an optional Geotransform object, and int and a string.
-    :raises: RasterIOException
+    :raises: Exception
 
     Examples:
     """
@@ -36,7 +32,7 @@ def read_raster(
 
     dataset = gdal.Open(file_ref, gdal.GA_ReadOnly)
     if not dataset:
-        raise RasterIOException("No input data open")
+        raise Exception("No input data open")
 
     # get raster descriptive infos
 
@@ -66,7 +62,7 @@ def read_band(
     :type bnd_ndx: int
     :return: the band parameters and the data values
     :rtype: dict of data parameters and values as a numpy.array
-    :raises: RasterIOException
+    :raises: Exception
 
     Examples:
 
@@ -106,7 +102,7 @@ def read_band(
 
     grid_values = band.ReadAsArray()
     if grid_values is None:
-        raise RasterIOException("Unable to read data from rasters")
+        raise Exception("Unable to read data from rasters")
 
     # transform data into numpy array
 
@@ -135,7 +131,7 @@ def try_read_raster_band(
     # get raster parameters and data
     try:
         dataset, geotransform, num_bands, projection = read_raster(raster_source)
-    except (IOError, TypeError, RasterIOException) as err:
+    except (IOError, TypeError, Exception) as err:
         return False, "Exception with reading {}: {}".format(raster_source, err)
 
     band_params, data = read_band(dataset, bnd_ndx)

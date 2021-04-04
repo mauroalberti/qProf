@@ -2,8 +2,7 @@ import math
 import numbers
 from typing import Tuple
 
-import numpy as np
-from pygsf.mathematics.defaults import MIN_VECTOR_MAGNITUDE
+from qygsf.mathematics.defaults import MIN_VECTOR_MAGNITUDE
 
 
 def normXYZ(

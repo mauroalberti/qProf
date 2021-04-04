@@ -1,7 +1,7 @@
 
 import numbers
 
-from pygsf.geometries.shapes.space3d import *
+from qygsf.geometries.shapes.space3d import *
 
 
 class ProfileAttitude:

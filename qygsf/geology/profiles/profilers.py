@@ -1,12 +1,14 @@
+
 from typing import List, Iterable
 from operator import attrgetter
 
-from pygsf.georeferenced.rasters import *
-from pygsf.georeferenced.geoshapes import *
-from pygsf.geology.base import *
+from qygsf.georeferenced.geoshapes2d import *
+from qygsf.georeferenced.geoshapes3d import *
+from qygsf.georeferenced.rasters import *
+from qygsf.geology.base import *
 
-from pygsf.geology.profiles.sets import *
-from pygsf.orientations.orientations import Axis, Azim, Plunge
+from qygsf.geology.profiles.sets import *
+from qygsf.orientations.orientations import Axis, Azim, Plunge
 
 
 def georef_attitudes_3d_from_grid(
@@ -26,6 +28,7 @@ def georef_attitudes_3d_from_grid(
     """
 
     if not isinstance(height_source, GeoArray):
+
         raise Exception(
             "Height source should be GeoArray instead of {}".format(
                 type(height_source)
@@ -318,7 +321,7 @@ class LinearProfiler:
         return Vect(0, 0, -1).cross_product(self.versor()).versor()
 
     def left_offset(self,
-                    offset: numbers.Real) -> 'LinearProfiler':
+        offset: numbers.Real) -> 'LinearProfiler':
         """
         Returns a copy of the current linear profiler, offset to the left by the provided offset distance.
 
@@ -336,7 +339,7 @@ class LinearProfiler:
         )
 
     def right_offset(self,
-                     offset: numbers.Real) -> 'LinearProfiler':
+        offset: numbers.Real) -> 'LinearProfiler':
         """
         Returns a copy of the current linear profiler, offset to the right by the provided offset distance.
 
@@ -421,8 +424,8 @@ class LinearProfiler:
             z_array=self.sample_grid(geoarray))
 
     def profile_grids(self,
-                      *grids: Iterable[GeoArray]
-                      ) -> List[TopographicProfile]:
+        *grids: Iterable[GeoArray]
+    ) -> List[TopographicProfile]:
         """
         Create profiles of one or more grids.
 
@@ -433,14 +436,17 @@ class LinearProfiler:
         """
 
         for ndx, grid in enumerate(grids):
-            check_type(grid, "{} grid".format(ndx + 1), GeoArray)
+
+            check_type(grid, "{} grid".format(ndx+1), GeoArray)
 
         for ndx, grid in enumerate(grids):
+
             check_crs(self, grid)
 
         topo_profiles = []
 
         for grid in grids:
+
             topo_profiles.append(
                 TopographicProfile(
                     s_array=self.densified_3d_steps(),
@@ -451,8 +457,8 @@ class LinearProfiler:
         return topo_profiles
 
     def intersect_line(self,
-                       mline: Union[Line2D, GeoMultiLine],
-                       ) -> GeoPointSegmentCollection:
+                       mline: Union[Line2D, GeoMultiLine2D],
+                       ) -> GeoPointSegmentCollection2D:
         """
         Calculates the intersection with a line/multiline.
         Note: the intersections are intended flat (in a 2D plane, not 3D).
@@ -460,14 +466,14 @@ class LinearProfiler:
         :param mline: the line/multiline to intersect profile with
         :type mline: Union[Line, GeoMultiLine]
         :return: the possible intersections
-        :rtype: GeoPointSegmentCollection
+        :rtype: GeoPointSegmentCollection2D
         """
 
         return mline.intersectSegment(self.segment())
 
     def intersect_lines(self,
-                        mlines: Iterable[Union[Line2D, GeoMultiLine]],
-                        ) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
+        mlines: Iterable[Union[Line2D, GeoMultiLine2D]],
+) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
         """
         Calculates the intersection with a set of lines/multilines.
         Note: the intersections are intended flat (in a 2D plane, not 3D).
@@ -479,20 +485,19 @@ class LinearProfiler:
         """
 
         results = [self.intersect_line(mline) for mline in mlines]
-        valid_results = [[ndx, GeoPointSegmentCollection(geoms=res, epsg_code=self.epsg_code)] for ndx, res in
-                         enumerate(results) if res]
+        valid_results = [[ndx, GeoPointSegmentCollection2D(geoms=res, epsg_code=self.epsg_code)] for ndx, res in enumerate(results) if res]
 
-        return GeoPointSegmentCollections(valid_results)
+        return GeoPointSegmentCollections2D(valid_results)
 
     def intersect_polygon(self,
-                          mpolygon: GeoMPolygon,
-                          ) -> GeoLines3D:
+        mpolygon: GeoMPolygon2D,
+        ) -> GeoLines2D:
         """
         Calculates the intersection with a shapely polygon/multipolygon.
         Note: the intersections are considered flat, i.e., in a 2D plane, not 3D.
 
         :param mpolygon: the shapely polygon/multipolygon to intersect profile with
-        :type mpolygon: pygsf.spatial.vectorial.polygons.MGeoPolygon
+        :type mpolygon: qygsf.spatial.vectorial.polygons.MGeoPolygon
         :return: the possible intersections
         :rtype: GeoLines3D
         """
@@ -500,15 +505,15 @@ class LinearProfiler:
         check_type(
             mpolygon,
             "Polygon",
-            GeoMPolygon
+            GeoMPolygon2D
         )
 
-        line_shapely, epsg_code = line_to_shapely(self.to_line())
+        line_shapely, epsg_code = line2d_to_shapely(self.to_line())
         return mpolygon.intersect_line(line=line_shapely)
 
     def intersect_polygons(self,
-                           mpolygons: List[GeoMPolygon]
-                           ) -> List[GeoLines3D]:
+       mpolygons: List[GeoMPolygon2D]
+    ) -> List[GeoLines2D]:
         """
         Calculates the intersection with a set of shapely polygon/multipolygon.
         Note: the intersections are intended flat (in a 2D plane, not 3D).
@@ -554,8 +559,7 @@ class LinearProfiler:
             raise Exception(f"Projected point should be Point3D but is {type(pt)}")
 
         if not self.point_in_profile(pt):
-            raise Exception(
-                f"Projected point should lie in the profile plane but there is a distance of {self.point_distance(pt)} units")
+            raise Exception(f"Projected point should lie in the profile plane but there is a distance of {self.point_distance(pt)} units")
 
         if pt.is_coincident(self.start_pt()):
             return 0.0
@@ -571,8 +575,8 @@ class LinearProfiler:
         return signed_distance
 
     def segment_along_profile_signed_s_tuple(self,
-                                             segment: Segment3D
-                                             ) -> Tuple[numbers.Real, numbers.Real]:
+        segment: Segment2D
+        ) -> Tuple[numbers.Real, numbers.Real]:
         """
         Calculates the segment signed distances from the profiles start.
         The segment must already lay in the profile vertical plane, otherwise an exception is raised.
@@ -587,8 +591,8 @@ class LinearProfiler:
         return segment_start_distance, segment_end_distance
 
     def pt_segm_along_profile_signed_s(self,
-                                       geom: Union[Point3D, Segment3D]
-                                       ) -> array:
+       geom: Union[Point2D, Segment2D]
+       ) -> array:
         """
         Calculates the point or segment signed distances from the profiles start.
 
@@ -598,15 +602,16 @@ class LinearProfiler:
         :rtype: array of double
         """
 
-        if isinstance(geom, Point3D):
+        if isinstance(geom, Point2D):
             return array('d', [self.point_along_profile_signed_s(geom)])
-        elif isinstance(geom, Segment3D):
+        elif isinstance(geom, Segment2D):
             return array('d', [*self.segment_along_profile_signed_s_tuple(geom)])
         else:
             return NotImplemented
 
     def get_intersection_slope(self,
-                               intersection_vector: Vect) -> Tuple[numbers.Real, str]:
+        intersection_vector: Vect
+    ) -> Tuple[numbers.Real, str]:
         """
         Calculates the slope (in radians) and the downward sense ('left', 'right' or 'vertical')
         for a profile-laying vector.
@@ -709,7 +714,7 @@ class LinearProfiler:
         :param georef_attitude: geological attitude.
         :type georef_attitude: GeorefAttitude
         :return: the nearest projected point on the vertical section.
-        :rtype: pygsf.spatial.vectorial.geometries.Point.
+        :rtype: qygsf.spatial.vectorial.geometries.Point.
         :raise: Exception.
         """
 
@@ -822,10 +827,10 @@ class LinearProfiler:
         return profile_attitude
 
     def map_georef_attitudes_to_section(
-            self,
-            attitudes_3d: List[GeorefAttitude],
-            mapping_method: dict,
-            max_profile_distance: Optional[numbers.Real] = None
+        self,
+        attitudes_3d: List[GeorefAttitude],
+        mapping_method: dict,
+        max_profile_distance: Optional[numbers.Real] = None
     ) -> Optional[List[ProfileAttitude]]:
         """
         Projects a set of georeferenced space3d attitudes onto the section profile.
@@ -842,12 +847,10 @@ class LinearProfiler:
         """
 
         if mapping_method['method'] == 'nearest':
-            results = [self.map_attitude_to_section(georef_att, max_profile_distance=max_profile_distance) for
-                       georef_att in attitudes_3d]
+            results = [self.map_attitude_to_section(georef_att, max_profile_distance=max_profile_distance) for georef_att in attitudes_3d]
         elif mapping_method['method'] == 'common axis':
             map_axis = Axis(Azim(mapping_method['trend']), Plunge(mapping_method['plunge']))
-            results = [self.map_attitude_to_section(georef_att, map_axis, max_profile_distance=max_profile_distance) for
-                       georef_att in attitudes_3d]
+            results = [self.map_attitude_to_section(georef_att, map_axis, max_profile_distance=max_profile_distance) for georef_att in attitudes_3d]
         elif mapping_method['method'] == 'individual axes':
             if len(mapping_method['individual_axes_values']) != len(attitudes_3d):
                 raise Exception(
@@ -860,9 +863,8 @@ class LinearProfiler:
             results = []
             for georef_att, (trend, plunge) in zip(attitudes_3d, mapping_method['individual_axes_values']):
                 try:
-                    map_axis = Axis(Azim(trend), Plunge(plunge))
-                    results.append(
-                        self.map_attitude_to_section(georef_att, map_axis, max_profile_distance=max_profile_distance))
+                    map_axis = Axis(trend, plunge)
+                    results.append(self.map_attitude_to_section(georef_att, map_axis, max_profile_distance=max_profile_distance))
                 except Exception as e:
                     print("Exception while processing individual axes values: {}".format(e))
                     continue
@@ -881,20 +883,21 @@ class LinearProfiler:
 
     def parse_intersections_for_profile(
             self,
-            intersections: GeoPointSegmentCollections
+            intersections: GeoPointSegmentCollections3D
     ) -> ProfilesIntersections:
         """
         Parse the profile intersections for incorporation
         as elements in a geoprofile.
 
         :param intersections: the intersections
-        :type intersections: pygsf.spatial.vectorial.geometries.PointSegmentCollections
+        :type intersections: qygsf.spatial.vectorial.geometries.PointSegmentCollections
         :return:
         """
 
         parsed_intersections = []
 
         for line_id, inters_geoms in intersections:
+
             intersections_arrays = [self.pt_segm_along_profile_signed_s(geom) for geom in inters_geoms]
 
             parsed_intersections.append(ArrayList(line_id, intersections_arrays))
@@ -972,17 +975,18 @@ class ParallelProfiler(list):
 
         elif profs_arr == "left":
 
-            num_left_profs = profs_num - 1
+            num_left_profs = profs_num -1
             num_right_profs = 0
 
         else:
 
-            num_right_profs = profs_num - 1
+            num_right_profs = profs_num -1
             num_left_profs = 0
 
         profilers = []
 
         for i in range(num_left_profs, 0, -1):
+
             current_offset = profs_offset * i
 
             profilers.append(base_profiler.left_offset(offset=current_offset))
@@ -990,6 +994,7 @@ class ParallelProfiler(list):
         profilers.append(base_profiler.clone())
 
         for i in range(1, num_right_profs + 1):
+
             current_offset = profs_offset * i
 
             profilers.append(base_profiler.right_offset(offset=current_offset))
@@ -1045,6 +1050,7 @@ class ParallelProfiler(list):
         topo_profiles = []
 
         for profiler in self:
+
             topo_profiles.append(profiler.profile_grid(geoarray))
 
         return TopographicProfileSet(topo_profiles)
@@ -1074,6 +1080,7 @@ class ParallelProfiler(list):
         attitudes_set = AttitudesSet()
 
         for profiler in self:
+
             profile_attitudes = profiler.map_georef_attitudes_to_section(
                 attitudes_3d=attitudes_3d,
                 mapping_method=mapping_method,

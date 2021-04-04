@@ -1,7 +1,7 @@
 
 import unittest
 
-from pygsf.tests.src_datasets import *
+from qygsf.tests.src_datasets import *
 
 
 class TestFocalMechamismRotations(unittest.TestCase):

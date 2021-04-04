@@ -1,9 +1,9 @@
 
 from geopandas import GeoDataFrame
 
-from pygsf.orientations.orientations import *
-from pygsf.geometries.shapes.space3d import *
-from pygsf.io.geodataframes.geodataframes import *
+from qygsf.orientations.orientations import *
+from qygsf.geometries.shapes.space3d import *
+from qygsf.io.geodataframes.geodataframes import *
 
 from .base import GeorefAttitude
 

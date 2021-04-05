@@ -3,7 +3,7 @@ from typing import Dict
 
 import matplotlib as mpl
 
-from qygsf.geology.profiles.geoprofiles import *
+from qygsf.profiles.geoprofiles import *
 from .qygsf.utils.mpl_utils.mpl_widget import *
 from .qygsf.utils.qt_utils.colors import *
 
@@ -132,7 +132,7 @@ def plot_topo_profile_lines(
     filled_choice
 ):
 
-    topo_profiles = [line3d for _, line3d in geoprofile.named_lines]
+    topo_profiles = [line3d for _, line3d in geoprofile.named_topoprofiles]
     topoline_colors = plot_params['elev_lyr_colors']
     topoline_visibilities = plot_params['visible_elev_lyrs']
 
@@ -274,16 +274,16 @@ def plot_geoprofile(
 
     # plot geological outcrop intersections
 
-    if len(geoprofile.outcrops) > 0:
-        for line_intersection_value in geoprofile.outcrops:
+    if len(geoprofile.polygons_intersections) > 0:
+        for line_intersection_value in geoprofile.polygons_intersections:
             plot_profile_polygon_intersection_line(plot_addit_params,
                                                    axes_elevation,
                                                    line_intersection_value)
 
     # plot geological attitudes intersections
 
-    if len(geoprofile.geoplane_attitudes) > 0:
-        for plane_attitude_set, color in zip(geoprofile.geoplane_attitudes, plot_addit_params["plane_attitudes_colors"]):
+    if len(geoprofile.profile_attitudes) > 0:
+        for plane_attitude_set, color in zip(geoprofile.profile_attitudes, plot_addit_params["plane_attitudes_colors"]):
             plot_structural_attitude(plot_addit_params,
                                      axes_elevation,
                                      plot_s_max,
@@ -293,17 +293,17 @@ def plot_geoprofile(
 
     # plot geological traces projections
 
-    if len(geoprofile.geosurfaces) > 0:
-        for curve_set, labels in zip(geoprofile.geosurfaces, geoprofile.geosurfaces_ids):
+    if len(geoprofile.projected_lines) > 0:
+        for curve_set, labels in zip(geoprofile.projected_lines, geoprofile.projected_lines_ids):
             plot_projected_line_set(axes_elevation,
                                     curve_set,
                                     labels)
 
     # plot line-profile intersections
 
-    if len(geoprofile.lineaments) > 0:
+    if len(geoprofile.line_intersections) > 0:
         plot_profile_lines_intersection_points(axes_elevation,
-                                               geoprofile.lineaments)
+                                               geoprofile.line_intersections)
 
     profile_window.canvas.fig.tight_layout()
     profile_window.canvas.draw()
@@ -349,7 +349,7 @@ def plot_geoprofiles(
     for ndx in range(input_geoprofiles_set.geoprofiles_num):
 
         geoprofile = input_geoprofiles_set.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile.named_lines.profile_length
+        plot_s_min, plot_s_max = 0, geoprofile.named_topoprofiles.profile_length
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:
@@ -407,16 +407,16 @@ def plot_geoprofiles(
 
         # plot geological outcrop intersections
 
-        if len(geoprofile.outcrops) > 0:
-            for line_intersection_value in geoprofile.outcrops:
+        if len(geoprofile.polygons_intersections) > 0:
+            for line_intersection_value in geoprofile.polygons_intersections:
                 plot_profile_polygon_intersection_line(plot_addit_params,
                                                        axes_elevation,
                                                        line_intersection_value)
 
         # plot geological attitudes intersections
 
-        if len(geoprofile.geoplane_attitudes) > 0:
-            for plane_attitude_set, color in zip(geoprofile.geoplane_attitudes, plot_addit_params["plane_attitudes_colors"]):
+        if len(geoprofile.profile_attitudes) > 0:
+            for plane_attitude_set, color in zip(geoprofile.profile_attitudes, plot_addit_params["plane_attitudes_colors"]):
                 plot_structural_attitude(plot_addit_params,
                                          axes_elevation,
                                          plot_s_max,
@@ -426,17 +426,17 @@ def plot_geoprofiles(
 
         # plot geological traces projections
 
-        if len(geoprofile.geosurfaces) > 0:
-            for curve_set, labels in zip(geoprofile.geosurfaces, geoprofile.geosurfaces_ids):
+        if len(geoprofile.projected_lines) > 0:
+            for curve_set, labels in zip(geoprofile.projected_lines, geoprofile.projected_lines_ids):
                 plot_projected_line_set(axes_elevation,
                                         curve_set,
                                         labels)
 
         # plot line-profile intersections
 
-        if len(geoprofile.lineaments) > 0:
+        if len(geoprofile.line_intersections) > 0:
             plot_profile_lines_intersection_points(axes_elevation,
-                                                   geoprofile.lineaments)
+                                                   geoprofile.line_intersections)
 
     profile_window.canvas.fig.tight_layout()
     profile_window.canvas.draw()

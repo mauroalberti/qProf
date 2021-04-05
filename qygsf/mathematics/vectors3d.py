@@ -1,14 +1,12 @@
 
 import numbers
 
-from qygsf.utils.types import *
-
-from qygsf.mathematics.defaults import *
-from qygsf.mathematics.arrays import *
-from qygsf.georeferenced.crs import *
+from ..utils.types import *
+from .arrays import *
+from .defaults import *
 
 
-class Vect(object):
+class Vect3D(object):
     """
     Cartesian 3D vector.
     Right-handed rectangular Cartesian coordinate system (ENU):
@@ -26,20 +24,20 @@ class Vect(object):
         Vect constructor.
 
         Example;
-          >>> Vect(1, 0, 1)
-          Vect(1.0000, 0.0000, 1.0000)
-          >>> Vect(1, np.nan, 1)
+          >>> Vect3D(1, 0, 1)
+          Vect3D(1.0000, 0.0000, 1.0000)
+          >>> Vect3D(1, np.nan, 1)
           Traceback (most recent call last):
           ...
           Exception: Input values must be finite
-          >>> Vect(1, 0, np.inf)
+          >>> Vect3D(1, 0, np.inf)
           Traceback (most recent call last):
           ...
           Exception: Input values must be finite
-          >>> Vect(0, 0, 0)
-          Vect(0.0000, 0.0000, 0.0000)
-          >>> Vect(2.2, -19.7)
-          Vect(2.2000, -19.7000, 0.0000)
+          >>> Vect3D(0, 0, 0)
+          Vect3D(0.0000, 0.0000, 0.0000)
+          >>> Vect3D(2.2, -19.7)
+          Vect3D(2.2000, -19.7000, 0.0000)
         """
 
         vals = [x, y, z]
@@ -62,19 +60,19 @@ class Vect(object):
         return self.length
 
     def __eq__(self,
-               another: 'Vect'
+               another: 'Vect3D'
         ) -> bool:
         """
         Return True if objects are equal.
 
         Example:
-          >>> Vect(1., 1., 1.) == Vect(1, 1, 1)
+          >>> Vect3D(1., 1., 1.) == Vect3D(1, 1, 1)
           True
-          >>> Vect(1., 1., 1.) == Vect(1, 1, -1)
+          >>> Vect3D(1., 1., 1.) == Vect3D(1, 1, -1)
           False
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             raise Exception("Instances must be of the same type")
         else:
             return all(
@@ -86,17 +84,17 @@ class Vect(object):
             )
 
     def __ne__(self,
-               another: 'Vect'
+               another: 'Vect3D'
         ) -> bool:
         """
         Return False if objects are equal.
 
         Example:
-          >>> Vect(1., 1., 1.) != Vect(0., 0., 0.)
+          >>> Vect3D(1., 1., 1.) != Vect3D(0., 0., 0.)
           True
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             raise Exception("Instances must be of the same type")
         else:
             return not (self == another)
@@ -109,7 +107,7 @@ class Vect(object):
         :return: double array of x, y, z values
 
         Examples:
-          >>> np.allclose(Vect(4, 3, 7).a, np.array([ 4.,  3.,  7.]))
+          >>> np.allclose(Vect3D(4, 3, 7).a, np.array([ 4.,  3.,  7.]))
           True
         """
 
@@ -121,7 +119,7 @@ class Vect(object):
         Return x value
 
         Example:
-          >>> Vect(1.5, 1, 1).x
+          >>> Vect3D(1.5, 1, 1).x
           1.5
         """
 
@@ -133,7 +131,7 @@ class Vect(object):
         Return y value
 
         Example:
-          >>> Vect(1.5, 3.0, 1).y
+          >>> Vect3D(1.5, 3.0, 1).y
           3.0
         """
         return self.a[1]
@@ -144,7 +142,7 @@ class Vect(object):
         Return z value
 
         Example:
-          >>> Vect(1.5, 3.2, 41.).z
+          >>> Vect3D(1.5, 3.2, 41.).z
           41.0
         """
         return self.a[2]
@@ -168,7 +166,7 @@ class Vect(object):
         :rtype: a tuple of three floats.
 
         Examples:
-          >>> Vect(1, 0, 3).toXYZ()
+          >>> Vect3D(1, 0, 3).toXYZ()
           (1.0, 0.0, 3.0)
         """
 
@@ -181,47 +179,47 @@ class Vect(object):
         :return: Numpy array
 
         Examples:
-          >>> np.allclose(Vect(1, 2, 3).toArray(), np.array([ 1., 2., 3.]))
+          >>> np.allclose(Vect3D(1, 2, 3).toArray(), np.array([ 1., 2., 3.]))
           True
         """
 
         return self.a
 
-    def pXY(self) -> 'Vect':
+    def pXY(self) -> 'Vect3D':
         """
         Projection on the x-y plane
 
         :return: projected object instance
 
         Examples:
-          >>> Vect(2, 3, 4).pXY()
-          Vect(2.0000, 3.0000, 0.0000)
+          >>> Vect3D(2, 3, 4).pXY()
+          Vect3D(2.0000, 3.0000, 0.0000)
         """
 
         return self.__class__(self.x, self.y, 0.0)
 
-    def pXZ(self) -> 'Vect':
+    def pXZ(self) -> 'Vect3D':
         """
         Projection on the x-z plane
 
         :return: projected object instance
 
         Examples:
-          >>> Vect(2, 3, 4).pXZ()
-          Vect(2.0000, 0.0000, 4.0000)
+          >>> Vect3D(2, 3, 4).pXZ()
+          Vect3D(2.0000, 0.0000, 4.0000)
         """
 
         return self.__class__(self.x, 0.0, self.z)
 
-    def pYZ(self) -> 'Vect':
+    def pYZ(self) -> 'Vect3D':
         """
         Projection on the y-z plane
 
         :return: projected object instance
 
         Examples:
-          >>> Vect(2, 3, 4).pYZ()
-          Vect(0.0000, 3.0000, 4.0000)
+          >>> Vect3D(2, 3, 4).pYZ()
+          Vect3D(0.0000, 3.0000, 4.0000)
         """
 
         return self.__class__(0.0, self.y, self.z)
@@ -235,7 +233,7 @@ class Vect(object):
         :rtype: numbers.Real
 
         Examples:
-          >>> Vect(4.0, 3.0, 0.0).length
+          >>> Vect3D(4.0, 3.0, 0.0).length
           5.0
         """
 
@@ -247,16 +245,16 @@ class Vect(object):
         2D distance of the point from the axis origin.
 
         Example:
-          >>> Vect(3, 4, 0).length_xy
+          >>> Vect3D(3, 4, 0).length_xy
           5.0
-          >>> Vect(12, 5, 3).length_xy
+          >>> Vect3D(12, 5, 3).length_xy
           13.0
         """
 
         return math.sqrt(self.x * self.x + self.y * self.y)
 
     def delta_x(self,
-                another: 'Vect'
+                another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Delta between x components of two Vect Instances.
@@ -265,17 +263,17 @@ class Vect(object):
         :rtype: Optional[numbers.Real].
 
         Examples:
-          >>> Vect(1, 2, 3).delta_x(Vect(4, 7, 1))
+          >>> Vect3D(1, 2, 3).delta_x(Vect3D(4, 7, 1))
           3.0
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             return None
 
         return another.x - self.x
 
     def delta_y(self,
-                another: 'Vect'
+                another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Delta between y components of two Vect Instances.
@@ -284,17 +282,17 @@ class Vect(object):
         :rtype: Optional[numbers.Real].
 
         Examples:
-          >>> Vect(1, 2, 3).delta_y(Vect(4, 7, 1))
+          >>> Vect3D(1, 2, 3).delta_y(Vect3D(4, 7, 1))
           5.0
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             return None
 
         return another.y - self.y
 
     def delta_z(self,
-                another: 'Vect'
+                another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Delta between x components of two Vect Instances.
@@ -303,29 +301,29 @@ class Vect(object):
         :rtype: Optional[numbers.Real].
 
         Examples:
-          >>> Vect(1, 2, 3).delta_z(Vect(4, 7, 1))
+          >>> Vect3D(1, 2, 3).delta_z(Vect3D(4, 7, 1))
           -2.0
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             return None
 
         return another.z - self.z
 
     def scale(self,
               scale_factor: numbers.Real
-        ) -> Optional['Vect']:
+        ) -> Optional['Vect3D']:
         """
         Create a scaled object.
 
         Example;
-          >>> Vect(1, 0, 1).scale(2.5)
-          Vect(2.5000, 0.0000, 2.5000)
-          >>> Vect(1, 0, 1).scale(2.5)
-          Vect(2.5000, 0.0000, 2.5000)
-          >>> Vect(1, 0, 1).scale(np.nan) is None
+          >>> Vect3D(1, 0, 1).scale(2.5)
+          Vect3D(2.5000, 0.0000, 2.5000)
+          >>> Vect3D(1, 0, 1).scale(2.5)
+          Vect3D(2.5000, 0.0000, 2.5000)
+          >>> Vect3D(1, 0, 1).scale(np.nan) is None
           True
-          >>> Vect(1, 0, 1).scale(np.inf) is None
+          >>> Vect3D(1, 0, 1).scale(np.inf) is None
           True
         """
 
@@ -338,66 +336,66 @@ class Vect(object):
         x, y, z = arrToTuple(self.a * scale_factor)
         return self.__class__(x, y, z)
 
-    def invert(self) -> 'Vect':
+    def invert(self) -> 'Vect3D':
         """
         Create a new object with inverted direction.
 
         Examples:
-          >>> Vect(1, 1, 1).invert()
-          Vect(-1.0000, -1.0000, -1.0000)
-          >>> Vect(2, -1, 4).invert()
-          Vect(-2.0000, 1.0000, -4.0000)
+          >>> Vect3D(1, 1, 1).invert()
+          Vect3D(-1.0000, -1.0000, -1.0000)
+          >>> Vect3D(2, -1, 4).invert()
+          Vect3D(-2.0000, 1.0000, -4.0000)
         """
 
         return self.scale(-1)
 
     def __repr__(self) -> str:
 
-        return f"Vect({self.x:.4f}, {self.y:.4f}, {self.z:.4f})"
+        return f"Vect3D({self.x:.4f}, {self.y:.4f}, {self.z:.4f})"
 
     def __add__(self,
-                another: 'Vect'
-        ) -> 'Vect':
+                another: 'Vect3D'
+        ) -> 'Vect3D':
         """
         Sum of two vectors.
 
         :param another: the vector to add
-        :type another: Vect
+        :type another: Vect3D
         :return: the sum of the two vectors
-        :rtype: Vect
+        :rtype: Vect3D
         :raise: Exception
 
         Example:
-          >>> Vect(1, 0, 0) + Vect(0, 1, 1)
-          Vect(1.0000, 1.0000, 1.0000)
-          >>> Vect(1, 1, 1) + Vect(-1, -1, -1)
-          Vect(0.0000, 0.0000, 0.0000)
+          >>> Vect3D(1, 0, 0) + Vect3D(0, 1, 1)
+          Vect3D(1.0000, 1.0000, 1.0000)
+          >>> Vect3D(1, 1, 1) + Vect3D(-1, -1, -1)
+          Vect3D(0.0000, 0.0000, 0.0000)
         """
 
-        check_type(another, "Second vector", Vect)
+        check_type(another, "Second vector", Vect3D)
 
         x, y, z = arrToTuple(self.a + another.a)
         return self.__class__(x, y, z)
 
     def __sub__(self,
-                another: 'Vect'
-        ) -> 'Vect':
+                another: 'Vect3D'
+        ) -> 'Vect3D':
         """Subtract two vectors.
 
         :param another: the vector to subtract
-        :type another: Vect
+        :type another: Vect3D
         :return: the difference between the two vectors
-        :rtype: Vect
+        :rtype: Vect3D
         :raise: Exception
 
         Example:
-          >>> Vect(1., 1., 1.) - Vect(1., 1., 1.)
-          Vect(0.0000, 0.0000, 0.0000)
-          >>> Vect(1., 1., 3.) - Vect(1., 1., 2.2)
-          Vect(0.0000, 0.0000, 0.8000)
+          >>> Vect3D(1., 1., 1.) - Vect3D(1., 1., 1.)
+          Vect3D(0.0000, 0.0000, 0.0000)
+          >>> Vect3D(1., 1., 3.) - Vect3D(1., 1., 2.2)
+          Vect3D(0.0000, 0.0000, 0.8000)
         """
 
-        check_type(another, "Second vector", Vect)
+        check_type(another, "Second vector", Vect3D)
 
         x, y, z = arrToTuple(self.a - another.a)
         return self.__class__(x, y, z)
@@ -410,9 +408,9 @@ class Vect(object):
         :return: Boolean
 
         Example:
-          >>> Vect(1, 2, 0).is_close_to_zero
+          >>> Vect3D(1, 2, 0).is_close_to_zero
           False
-          >>> Vect(0.0, 0.0, 0.0).is_close_to_zero
+          >>> Vect3D(0.0, 0.0, 0.0).is_close_to_zero
           True
         """
 
@@ -426,9 +424,9 @@ class Vect(object):
         :return: Boolean
 
         Example:
-          >>> Vect(1, 2, 0).is_close_to_1
+          >>> Vect3D(1, 2, 0).is_close_to_1
           False
-          >>> Vect(0.0, 1.0, 0.0).is_close_to_1
+          >>> Vect3D(0.0, 1.0, 0.0).is_close_to_1
           True
         """
 
@@ -442,24 +440,24 @@ class Vect(object):
         :return: Boolean
 
         Example:
-          >>> Vect(1, 2, 0).is_valid
+          >>> Vect3D(1, 2, 0).is_valid
           True
-          >>> Vect(0.0, 0.0, 0.0).is_valid
+          >>> Vect3D(0.0, 0.0, 0.0).is_valid
           False
         """
 
         return not self.is_close_to_zero
 
-    def versor(self) -> Optional['Vect']:
+    def versor(self) -> Optional['Vect3D']:
         """
         Calculate versor in xyz space.
 
         Example:
-          >>> Vect(5, 0, 0).versor()
-          Vect(1.0000, 0.0000, 0.0000)
-          >>> Vect(0, 0, -1).versor()
-          Vect(0.0000, 0.0000, -1.0000)
-          >>> Vect(0, 0, 0).versor() is None
+          >>> Vect3D(5, 0, 0).versor()
+          Vect3D(1.0000, 0.0000, 0.0000)
+          >>> Vect3D(0, 0, -1).versor()
+          Vect3D(0.0000, 0.0000, -1.0000)
+          >>> Vect3D(0, 0, 0).versor() is None
           True
         """
 
@@ -468,16 +466,16 @@ class Vect(object):
         else:
             return self.scale(1.0 / self.length)
 
-    def versor_2d(self) -> Optional['Vect']:
+    def versor_2d(self) -> Optional['Vect3D']:
         """
         Create 2D versor version of the current vector
 
         :return: unit vector
 
         Example:
-          >>> Vect(7, 0, 10).versor_2d()
-          Vect(1.0000, 0.0000, 0.0000)
-          >>> Vect(0, 0, 10).versor_2d() is None
+          >>> Vect3D(7, 0, 10).versor_2d()
+          Vect3D(1.0000, 0.0000, 0.0000)
+          >>> Vect3D(0, 0, 10).versor_2d() is None
           True
         """
 
@@ -495,13 +493,13 @@ class Vect(object):
         :return: boolean
 
         Example:
-          >>> Vect(0, 0, 1).is_upward
+          >>> Vect3D(0, 0, 1).is_upward
           True
-          >>> Vect(0, 0, -0.5).is_upward
+          >>> Vect3D(0, 0, -0.5).is_upward
           False
-          >>> Vect(1, 3, 0).is_upward
+          >>> Vect3D(1, 3, 0).is_upward
           False
-          >>> Vect(0, 0, 0).is_upward is None
+          >>> Vect3D(0, 0, 0).is_upward is None
           True
         """
 
@@ -518,13 +516,13 @@ class Vect(object):
         :return: boolean
 
         Example:
-          >>> Vect(0, 0, 1).is_downward
+          >>> Vect3D(0, 0, 1).is_downward
           False
-          >>> Vect(0, 0, -0.5).is_downward
+          >>> Vect3D(0, 0, -0.5).is_downward
           True
-          >>> Vect(1, 3, 0).is_downward
+          >>> Vect3D(1, 3, 0).is_downward
           False
-          >>> Vect(0, 0, 0).is_downward is None
+          >>> Vect3D(0, 0, 0).is_downward is None
           True
         """
 
@@ -533,16 +531,16 @@ class Vect(object):
         else:
             return self.z < 0.0
 
-    def upward(self) -> Optional['Vect']:
+    def upward(self) -> Optional['Vect3D']:
         """
         Calculate a new upward-pointing vector.
 
         Example:
-          >>> Vect(1, 1, 1).upward()
-          Vect(1.0000, 1.0000, 1.0000)
-          >>> Vect(-1, -1, -1).upward()
-          Vect(1.0000, 1.0000, 1.0000)
-          >>> Vect(0, 0, 0).upward() is None
+          >>> Vect3D(1, 1, 1).upward()
+          Vect3D(1.0000, 1.0000, 1.0000)
+          >>> Vect3D(-1, -1, -1).upward()
+          Vect3D(1.0000, 1.0000, 1.0000)
+          >>> Vect3D(0, 0, 0).upward() is None
           True
         """
 
@@ -553,16 +551,16 @@ class Vect(object):
         else:
             return self.scale(1.0)
 
-    def downward(self) -> Optional['Vect']:
+    def downward(self) -> Optional['Vect3D']:
         """
         Calculate a new vector downward-pointing.
 
         Example:
-          >>> Vect(1, 1, 1).downward()
-          Vect(-1.0000, -1.0000, -1.0000)
-          >>> Vect(-1, -1, -1).downward()
-          Vect(-1.0000, -1.0000, -1.0000)
-          >>> Vect(0, 0, 0).downward() is None
+          >>> Vect3D(1, 1, 1).downward()
+          Vect3D(-1.0000, -1.0000, -1.0000)
+          >>> Vect3D(-1, -1, -1).downward()
+          Vect3D(-1.0000, -1.0000, -1.0000)
+          >>> Vect3D(0, 0, 0).downward() is None
           True
         """
 
@@ -580,15 +578,15 @@ class Vect(object):
         negative when upward pointing.
 
         Example:
-          >>> Vect(1, 0, -1).slope_degr()
+          >>> Vect3D(1, 0, -1).slope_degr()
           45.0
-          >>> Vect(1, 0, 1).slope_degr()
+          >>> Vect3D(1, 0, 1).slope_degr()
           -45.0
-          >>> Vect(0, 1, 0).slope_degr()
+          >>> Vect3D(0, 1, 0).slope_degr()
           0.0
-          >>> Vect(0, 0, 1).slope_degr()
+          >>> Vect3D(0, 0, 1).slope_degr()
           -90.0
-          >>> Vect(0, 0, -1).slope_degr()
+          >>> Vect3D(0, 0, -1).slope_degr()
           90.0
         """
 
@@ -608,42 +606,42 @@ class Vect(object):
                 return 0.
 
     def dot_product(self,
-                    another: 'Vect'
+                    another: 'Vect3D'
         ) -> numbers.Real:
         """
         Vector scalar multiplication.
 
         Examples:
-          >>> Vect(1, 0, 0).dot_product(Vect(1, 0, 0))
+          >>> Vect3D(1, 0, 0).dot_product(Vect3D(1, 0, 0))
           1.0
-          >>> Vect(1, 0, 0).dot_product(Vect(0, 1, 0))
+          >>> Vect3D(1, 0, 0).dot_product(Vect3D(0, 1, 0))
           0.0
-          >>> Vect(1, 0, 0).dot_product(Vect(-1, 0, 0))
+          >>> Vect3D(1, 0, 0).dot_product(Vect3D(-1, 0, 0))
           -1.0
         """
 
         return self.x * another.x + self.y * another.y + self.z * another.z
 
     def cosine_of_angle(self,
-                        another: 'Vect'
+                        another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Return the cosine of the angle between two vectors.
 
         Examples:
-          >>> Vect(1,0,0).cosine_of_angle(Vect(0,0,1))
+          >>> Vect3D(1,0,0).cosine_of_angle(Vect3D(0,0,1))
           0.0
-          >>> Vect(1,0,0).cosine_of_angle(Vect(-1,0,0))
+          >>> Vect3D(1,0,0).cosine_of_angle(Vect3D(-1,0,0))
           -1.0
-          >>> Vect(1,0,0).cosine_of_angle(Vect(1,0,0))
+          >>> Vect3D(1,0,0).cosine_of_angle(Vect3D(1,0,0))
           1.0
-          >>> Vect(0, 0, 0).cosine_of_angle(Vect(1,0,0)) is None
+          >>> Vect3D(0, 0, 0).cosine_of_angle(Vect3D(1,0,0)) is None
           True
-          >>> Vect(1, 0, 0).cosine_of_angle(Vect(0,0,0)) is None
+          >>> Vect3D(1, 0, 0).cosine_of_angle(Vect3D(0,0,0)) is None
           True
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             return None
 
         if not (self.is_valid and another.is_valid):
@@ -658,69 +656,69 @@ class Vect(object):
             return val
 
     def scalar_projection(self,
-                          another: 'Vect'
+                          another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Return the scalar projection of the second vector on the first vector.
 
         Examples:
-          >>> Vect(1,0,0).scalar_projection(Vect(0,0,1))
+          >>> Vect3D(1,0,0).scalar_projection(Vect3D(0,0,1))
           0.0
-          >>> Vect(2,0,0).scalar_projection(Vect(1,5,0))
+          >>> Vect3D(2,0,0).scalar_projection(Vect3D(1,5,0))
           1.0
-          >>> Vect(2,0,0).scalar_projection(Vect(-1,5,0))
+          >>> Vect3D(2,0,0).scalar_projection(Vect3D(-1,5,0))
           -1.0
-          >>> Vect(4,0,0).scalar_projection(Vect(7.5, 19.2, -14.72))
+          >>> Vect3D(4,0,0).scalar_projection(Vect3D(7.5, 19.2, -14.72))
           7.5
         """
 
-        check_type(another, "Second vector", Vect)
+        check_type(another, "Second vector", Vect3D)
 
         return self.cosine_of_angle(another) * another.length
 
     def fractional_projection(self,
-                              another: 'Vect'
+                              another: 'Vect3D'
         ) -> Optional[numbers.Real]:
         """
         Return the fractional projection of the second vector on the first vector.
 
         Examples:
-          >>> Vect(1,0,0).fractional_projection(Vect(0,0,1))
+          >>> Vect3D(1,0,0).fractional_projection(Vect3D(0,0,1))
           0.0
-          >>> Vect(2,0,0).fractional_projection(Vect(1,5,0))
+          >>> Vect3D(2,0,0).fractional_projection(Vect3D(1,5,0))
           0.5
-          >>> Vect(2,0,0).fractional_projection(Vect(-1,5,0))
+          >>> Vect3D(2,0,0).fractional_projection(Vect3D(-1,5,0))
           -0.5
         """
 
-        check_type(another, "Second vector", Vect)
+        check_type(another, "Second vector", Vect3D)
 
         return self.scalar_projection(another) / self.length
 
     def angle_as_degrees(self,
-                         another: 'Vect',
+                         another: 'Vect3D',
                          unit='d'
-        ) -> Optional[numbers.Real]:
+                         ) -> Optional[numbers.Real]:
         """
         Calculate angle between two vectors,
         in 0° - 180° range (as degrees).
 
         Example:
-          >>> Vect(1, 0, 0).angle_as_degrees(Vect(0, 0, 1))
+          >>> Vect3D(1, 0, 0).angle_as_degrees(Vect3D(0, 0, 1))
           90.0
-          >>> Vect(1, 0, 0).angle_as_degrees(Vect(-1, 0, 0))
+          >>> Vect3D(1, 0, 0).angle_as_degrees(Vect3D(-1, 0, 0))
           180.0
-          >>> Vect(0, 0, 1).angle_as_degrees(Vect(0, 0, -1))
+          >>> Vect3D(0, 0, 1).angle_as_degrees(Vect3D(0, 0, -1))
           180.0
-          >>> Vect(1, 1, 1).angle_as_degrees(Vect(1, 1,1))
+          >>> Vect3D(1, 1, 1).angle_as_degrees(Vect3D(1, 1,1))
           0.0
-          >>> Vect(0, 0, 0).angle_as_degrees(Vect(1,0,0)) is None
+          >>> Vect3D(0, 0, 0).angle_as_degrees(Vect3D(1,0,0)) is None
           True
-          >>> Vect(1, 0, 0).angle_as_degrees(Vect(0,0,0)) is None
+          >>> Vect3D(1, 0, 0).angle_as_degrees(Vect3D(0,0,0)) is None
           True
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             return None
 
         if not (self.is_valid and another.is_valid):
@@ -735,36 +733,36 @@ class Vect(object):
             return None
 
     def cross_product(self,
-                      another: 'Vect'
-        ) -> Optional['Vect']:
+                      another: 'Vect3D'
+        ) -> Optional['Vect3D']:
         """
         Vector product (cross product).
 
         Examples:
-          >>> Vect(1, 0, 0).cross_product(Vect(0, 1, 0))
-          Vect(0.0000, 0.0000, 1.0000)
-          >>> Vect(1, 0, 0).cross_product(Vect(1, 0, 0))
-          Vect(0.0000, 0.0000, 0.0000)
-          >>> (Vect(1, 0, 0).cross_product(Vect(-1, 0, 0))).is_close_to_zero
+          >>> Vect3D(1, 0, 0).cross_product(Vect3D(0, 1, 0))
+          Vect3D(0.0000, 0.0000, 1.0000)
+          >>> Vect3D(1, 0, 0).cross_product(Vect3D(1, 0, 0))
+          Vect3D(0.0000, 0.0000, 0.0000)
+          >>> (Vect3D(1, 0, 0).cross_product(Vect3D(-1, 0, 0))).is_close_to_zero
           True
         """
 
-        if not isinstance(another, Vect):
+        if not isinstance(another, Vect3D):
             raise Exception("Another instance should be Vect but is {}".format(type(another)))
 
         x, y, z = arrToTuple(np.cross(self.a[:3], another.a[:3]))
-        return Vect(x, y, z)
+        return Vect3D(x, y, z)
 
     def multiply_by_matrix(self,
                           array3x3: np.ndarray
-        ) -> 'Vect':
+        ) -> 'Vect3D':
         """
         Matrix multiplication of a vector.
 
         """
 
         x, y, z = arrToTuple(array3x3.dot(self.a))
-        return Vect(x, y, z)
+        return Vect3D(x, y, z)
 
     @property
     def azimuth_degr(self
@@ -776,29 +774,29 @@ class Vect(object):
         :rtype: optional numbers.Real.
 
         Examples:
-          >>> Vect(0, 1, 0).azimuth_degr
+          >>> Vect3D(0, 1, 0).azimuth_degr
           0.0
-          >>> Vect(1, 1, 0).azimuth_degr
+          >>> Vect3D(1, 1, 0).azimuth_degr
           45.0
-          >>> Vect(1, 0, 0).azimuth_degr
+          >>> Vect3D(1, 0, 0).azimuth_degr
           90.0
-          >>> Vect(1, -1, 0).azimuth_degr
+          >>> Vect3D(1, -1, 0).azimuth_degr
           135.0
-          >>> Vect(0, -1, 0).azimuth_degr
+          >>> Vect3D(0, -1, 0).azimuth_degr
           180.0
-          >>> Vect(-1, -1, 0).azimuth_degr
+          >>> Vect3D(-1, -1, 0).azimuth_degr
           225.0
-          >>> Vect(-1, 0, 0).azimuth_degr
+          >>> Vect3D(-1, 0, 0).azimuth_degr
           270.0
-          >>> Vect(-1, 1, 0).azimuth_degr
+          >>> Vect3D(-1, 1, 0).azimuth_degr
           315.0
-          >>> Vect(0, 0, 1).azimuth_degr is None
+          >>> Vect3D(0, 0, 1).azimuth_degr is None
           True
-          >>> Vect(0, 0, -1).azimuth_degr is None
+          >>> Vect3D(0, 0, -1).azimuth_degr is None
           True
         """
 
-        y_axis = Vect(0, 1, 0)
+        y_axis = Vect3D(0, 1, 0)
         vector_2d = self.versor_2d()
 
         if not vector_2d:

@@ -1,15 +1,11 @@
 
-import copy
-from typing import Optional, List, Tuple, Union
+from typing import Optional
 
 import numbers
-from array import array
 
-import numpy as np
-
-from qygsf.geometries.shapes.space3d import Point3D, Segment3D, Line3D, analizeJoins
-from qygsf.georeferenced.crs import Crs, check_crs
-from qygsf.utils.types import check_type
+from ..geometries.shapes.joins import *
+from .crs import *
+from ..utils.types import *
 
 
 class GeoPoints3D:
@@ -413,9 +409,9 @@ class GeoPoints3D:
         :return: a new Points instance.
         """
 
-        xs = self._x_array.reverse()
-        ys = self._y_array.reverse()
-        zs = self._z_array.reverse()
+        xs = self._x_array.reversed()
+        ys = self._y_array.reversed()
+        zs = self._z_array.reversed()
 
         return GeoPoints3D(
             epsg_code=self.epsg_code,
@@ -656,7 +652,7 @@ class GeoMultiLine3D(object):
         for line_ndx in range(len(self._lines) - 1):
             first = self._lines[line_ndx]
             second = self._lines[line_ndx + 1]
-            if not analizeJoins(first, second):
+            if not analizeJoins3D(first, second):
                 return False
 
         return True
@@ -673,6 +669,7 @@ class GeoMultiLine3D(object):
 
         return Line3D([point for line in self._lines for point in line.pts()])
 
+    '''
     def densify_2d_multiline(self, sample_distance):
 
         lDensifiedLines = []
@@ -680,6 +677,7 @@ class GeoMultiLine3D(object):
             lDensifiedLines.append(line.densify_2d_line(sample_distance))
 
         return GeoMultiLine3D(lDensifiedLines, self.epsg_code)
+    '''
 
     def remove_coincident_points(self):
 

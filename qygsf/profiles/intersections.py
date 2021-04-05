@@ -1,6 +1,6 @@
-from qygsf.geology.profiles.geoprofiles import *
-from qygsf.geometries.shapes.space3d import *
-from qygsf.geometries.shapes.space4d import Segment4D
+from .geoprofiles import *
+from ..geometries.shapes.space3d import *
+from ..geometries.shapes.space4d import *
 
 
 def calculate_distance_with_sign(

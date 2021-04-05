@@ -4,7 +4,7 @@ from typing import Union, List, Tuple
 
 from numpy import linspace, fromfunction
 
-from qygsf.utils.types import check_type
+from .types import check_type
 
 
 class ArrayList:
@@ -56,6 +56,9 @@ def to_float(
 
 
 def almost_zero(val):
+    """
+    Deprecated: use mathematics.scalars.almost_zero
+    """
 
     tolerance = 1e-10
     if abs(val) > tolerance:

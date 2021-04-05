@@ -1,21 +1,16 @@
 
 import copy
 
-from typing import List, Tuple, Optional, Union
+from typing import Optional
 
 import numbers
-from array import array
-
-import numpy as np
 
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.linestring import LineString
 
-
-from qygsf.geometries.shapes.space2d import Point2D, Segment2D, Line2D
-from qygsf.georeferenced.crs import Crs, check_crs
-from qygsf.utils.types import check_type
+from .crs import *
+from ..geometries.shapes.joins import *
 
 
 class GeoPoints2D:
@@ -331,8 +326,8 @@ class GeoPoints2D:
         :return: a new Points instance.
         """
 
-        xs = self._x_array.reverse()
-        ys = self._y_array.reverse()
+        xs = self._x_array.reversed()
+        ys = self._y_array.reversed()
 
         return GeoPoints2D(
             epsg_code=self.epsg_code,
@@ -398,6 +393,219 @@ class GeoLines2D(list):
         return intersections
 
 
+class GeoMultiLine2D(object):
+    """
+    GeoMultiLine2D is a list of Line objects, each one with the same CRS.
+    """
+
+    def __init__(self,
+        lines: Optional[List[Line2D]] = None,
+        epsg_cd: numbers.Integral = -1
+        ):
+
+        if lines is None:
+            lines = []
+
+        self._lines = lines
+        self._crs = Crs(epsg_cd)
+
+    def lines(self):
+
+        return self._lines
+
+    @property
+    def crs(self) -> Crs:
+
+        return self._crs
+
+    @property
+    def epsg_code(self) -> numbers.Integral:
+
+        return self._crs.epsg_code
+
+    def num_lines(self):
+
+        return len(self.lines())
+
+    def num_tot_pts(self) -> numbers.Integral:
+
+        num_points = 0
+        for line in self._lines:
+            num_points += line.num_pts()
+
+        return num_points
+
+    def line(self, ln_ndx: numbers.Integral = 0) -> Optional[Line2D]:
+        """
+        Extracts a line from the multiline instance, based on the provided index.
+
+        :return: Line instance or None when ln_ndx is out-of-range.
+        :rtype: Optional[Line].
+        """
+
+        num_lines = self.num_lines()
+        if num_lines == 0:
+            return None
+
+        if ln_ndx not in range(num_lines):
+            return None
+
+        return self.lines()[ln_ndx]
+
+    def __iter__(self):
+        """
+        Return the elements of a GeoMultiLine, i.e., its lines.
+        """
+
+        return (self.line(i) for i in range(0, self.num_lines()-1))
+
+    def __repr__(self) -> str:
+        """
+        Represents a GeoMultiLine instance as a shortened text.
+
+        :return: a textual shortened representation of a MultiLine instance.
+        :rtype: basestring.
+        """
+
+        num_lines = self.num_lines()
+        num_tot_pts = self.num_tot_pts()
+        epsg = self.epsg_code
+
+        txt = "GeoMultiLine with {} line(s) and {} total point(s) - EPSG: {}".format(num_lines, num_tot_pts, epsg)
+
+        return txt
+
+    def __len__(self):
+        """
+        Return number of lines.
+
+        :return: number of lines
+        :rtype: numbers.Integral
+        """
+
+        return self.num_lines()
+
+    def add_line(self, line) -> bool:
+        """
+        In-place addition of a Line instance (that is not cloned).
+
+        :param line: the line to add.
+        :type line: Line.
+        :return: status of addition. True when added, False otherwise.
+        :rtype: bool.
+        """
+
+        if self.num_lines() == 0 and not self.crs.valid():
+            self._crs = line.crs
+
+        if self.num_lines() > 0 and line.crs != self.crs:
+            return False
+
+        self._lines += [line]
+        return True
+
+    def clone(self) -> 'GeoMultiLine2D':
+
+        return GeoMultiLine2D(
+            lines=[line.clone() for line in self._lines],
+            epsg_cd=self.epsg_code
+        )
+
+    def x_min(self) -> Optional[numbers.Real]:
+
+        if self.num_tot_pts() == 0:
+            return None
+        else:
+            return float(np.nanmin([line.x_min() for line in self.lines()]))
+
+    def x_max(self) -> Optional[numbers.Real]:
+
+        if self.num_tot_pts() == 0:
+            return None
+        else:
+            return float(np.nanmax([line.x_max() for line in self.lines()]))
+
+    def y_min(self) -> Optional[numbers.Real]:
+
+        if self.num_tot_pts() == 0:
+            return None
+        else:
+            return float(np.nanmin([line.y_min() for line in self.lines()]))
+
+    def y_max(self) -> Optional[numbers.Real]:
+
+        if self.num_tot_pts() == 0:
+            return None
+        else:
+            return float(np.nanmax([line.y_max() for line in self.lines()]))
+
+    def is_continuous(self) -> bool:
+        """
+        Checks whether all lines in a multiline are connected.
+
+        :return: whether all lines are connected.
+        :rtype: bool.
+        """
+
+        if len(self._lines) <= 1:
+            return False
+
+        for line_ndx in range(len(self._lines) - 1):
+            first = self._lines[line_ndx]
+            second = self._lines[line_ndx + 1]
+            if not analizeJoins2D(first, second):
+                return False
+
+        return True
+
+    def is_unidirectional(self):
+
+        for line_ndx in range(len(self.lines()) - 1):
+            if not self.lines()[line_ndx].pt(-1).is_coincident(self.lines()[line_ndx + 1].pt(0)):
+                return False
+
+        return True
+
+    def to_line(self):
+
+        return Line2D([point for line in self._lines for point in line.pts()])
+
+    def densify_2d_multiline(self, sample_distance):
+
+        lDensifiedLines = []
+        for line in self.lines():
+            lDensifiedLines.append(line.densify_2d_line(sample_distance))
+
+        return GeoMultiLine2D(lDensifiedLines, self.epsg_code)
+
+    def remove_coincident_points(self):
+
+        cleaned_lines = []
+        for line in self.lines():
+            cleaned_lines.append(line.remove_coincident_points())
+
+        return GeoMultiLine2D(cleaned_lines, self.epsg_code)
+
+    def intersectSegment(self,
+        segment: Segment2D
+    ) -> List[Optional[Union[Point2D, 'Segment2D']]]:
+        """
+        Calculates the possible intersection between the multiline and a provided segment.
+
+        :param segment: the input segment
+        :return: the possible intersections, points or segments
+        """
+
+        check_type(segment, "Input segment", Segment2D)
+        check_crs(self, segment)
+
+        intersections = []
+        for line in self:
+            intersections.extend(line.intersectSegment(segment))
+
+        return intersections
+
+
 class GeoMPolygon2D:
     """
     A shapely (multi)polygon with EPSG code.
@@ -449,8 +657,7 @@ class GeoMPolygon2D:
             if intersections.geom_type == "LineString":
 
                 inters_ln = line2d_from_shapely(
-                    shapely_geom=intersections,
-                    epsg_code=self.epsg_code
+                    shapely_geom=intersections
                 )
 
                 lines.append(inters_ln)
@@ -460,8 +667,7 @@ class GeoMPolygon2D:
                 for intersection_line in intersections:
 
                     inters_ln = line2d_from_shapely(
-                        shapely_geom=intersection_line,
-                        epsg_code=self.epsg_code
+                        shapely_geom=intersection_line
                     )
 
                     lines.append(inters_ln)
@@ -474,19 +680,14 @@ class GeoMPolygon2D:
 
 
 def line2d_from_shapely(
-        shapely_geom: LineString,
-        epsg_code: numbers.Integral
-) -> GeoPoints2D:
+        shapely_geom: LineString
+) -> Line2D:
     # Side effects: none
     """
     Create a Line instance from a shapely Linestring instance.
 
     :param shapely_geom: the shapely input LineString instance
-    :type shapely_geom: shapely.geometry.linestring.LineString
-    :param epsg_code: the EPSG code of the LineString instance
-    :type epsg_code: numbers.Integral
     :return: the converted Line instance
-    :rtype: Line3D
     """
 
     x_array, y_array = shapely_geom.xy
@@ -504,9 +705,7 @@ def line2d_to_shapely(
     Create a shapely.LineString instance from a Line one.
 
     :param src_line: the source line to convert to the shapely format
-    :type src_line: Line3D
     :return: the shapely LineString instance and the EPSG code
-    :rtype: Tuple[LineString, numbers.Integral]
     """
 
     return LineString(src_line.xy_zipped())

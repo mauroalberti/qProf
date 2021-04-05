@@ -1,14 +1,14 @@
 
-from math import floor
 from typing import Optional, Sequence, List
 
 import numpy as np
 
-from qygsf.mathematics.interpolations import scalars_bilin_interp as s_interp_bilinear, interp_linear
-from qygsf.mathematics.scalars import *
+from .scalars import *
 
 
-def arrToTuple(arr1D: np.ndarray) -> Tuple[numbers.Real, ...]:
+def arrToTuple(
+        arr1D: np.ndarray
+) -> Tuple[numbers.Real, ...]:
     """
     Converts a 1D arrays into a tuple of floats.
     It assumes a 1D np.ndarray as input.
@@ -28,7 +28,9 @@ def arrToTuple(arr1D: np.ndarray) -> Tuple[numbers.Real, ...]:
     return tuple(map(float, arr1D))
 
 
-def toFloats(iterable_obj: Sequence[numbers.Real]) -> List[numbers.Real]:
+def toFloats(
+        iterable_obj: Sequence[numbers.Real]
+) -> List[numbers.Real]:
     """
     Converts an iterable object storing float-compatible values to a list of floats.
 
@@ -117,61 +119,6 @@ def arraysSameShape(
     return a_array.shape == b_array.shape
 
 
-def array_bilin_interp(
-        arr: np.ndarray,
-        i: numbers.Real,
-        j: numbers.Real
-) -> numbers.Real:
-    """
-    Interpolate the z value at a given i,j values couple.
-    Interpolation method: bilinear.
-
-    0, 0   0, 1
-
-    1, 0,  1, 1
-
-    :param arr: array with values for which the interpolation will be made.
-    :type arr: Numpy array.
-    :param i: i array index of the point (may be fractional).
-    :type i: numbers.Real.
-    :param j: j array index of the point (may be fractional).
-    :type j: numbers.Real.
-    :return: interpolated z value (may be math.nan).
-    :rtype: numbers.Real.
-    """
-
-    i_max, j_max = arr.shape
-    di = i - floor(i)
-    dj = j - floor(j)
-
-    if i < 0.0 or j < 0.0:
-        return math.nan
-    elif i > i_max - 1 or j > j_max - 1:
-        return math.nan
-    elif i == i_max - 1 and j == j_max - 1:
-        return arr[i, j]
-    elif i == i_max - 1:
-        v0 = arr[i, int(floor(j))]
-        v1 = arr[i, int(floor(j + 1))]
-        return interp_linear(
-            frac_s=dj,
-            v0=v0,
-            v1=v1)
-    elif j == j_max - 1:
-        v0 = arr[int(floor(i)), j]
-        v1 = arr[int(floor(i + 1)), j]
-        return interp_linear(
-            frac_s=di,
-            v0=v0,
-            v1=v1)
-    else:
-        v00 = arr[int(floor(i)), int(floor(j))]
-        v01 = arr[int(floor(i)), int(floor(j + 1))]
-        v10 = arr[int(floor(i + 1)), int(floor(j))]
-        v11 = arr[int(floor(i + 1)), int(floor(j + 1))]
-        return s_interp_bilinear(di, dj, v00, v01, v10, v11)
-
-
 def pointSolution(
         a_array: np.ndarray,
         b_array: np.ndarray
@@ -196,29 +143,6 @@ def pointSolution(
     except Exception:
 
         return None, None, None
-
-
-def xyzSvd(xyz_array) -> dict:
-    """
-    Calculates the SVD solution given a Numpy array.
-
-    # modified after:
-    # http://stackoverflow.com/questions/15959411/best-fit-plane-algorithms-why-different-results-solved
-
-    :param xyz_array:
-    :type xyz_array: numpy array.
-    :return:
-    :rtype:
-
-    Examples:
-    """
-
-    try:
-        result = np.linalg.svd(xyz_array)
-    except Exception:
-        result = None
-
-    return dict(result=result)
 
 
 def svd(xyz_array

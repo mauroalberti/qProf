@@ -11,15 +11,12 @@ try:
 except ImportError:
     import gdal
 
-from qygsf.geometries.shapes.space4d import Segment4D
-from qygsf.utils.arrays import *
-from qygsf.mathematics.transformations import *
-from qygsf.io.gdal.vector import *
+from ..utils.arrays import *
+from ..geometries.transformations import *
+from ..geometries.shapes.space4d import *
 
+from ..io.gdal.vector import *
 
-from pygsf.geometries.shapes.space3d import *
-from pygsf.io.gdal.vector import *
-#from pygsf.errors import *
 
 
 class TriangBeam(object):

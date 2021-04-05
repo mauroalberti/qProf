@@ -1,7 +1,13 @@
+import datetime
+import numbers
+from copy import copy
 
 from qgis.core import *
 
-from pygsf.geometries.shapes.space2d import *
+from qygsf.geometries.shapes.space2d import *
+from qygsf.geometries.shapes.space4d import Point4D
+from qygsf.georeferenced.geodetic import geodetic2ecef
+from qygsf.utils.time import standard_gpstime_to_seconds
 
 
 def distance_projected_pts(
@@ -95,3 +101,83 @@ def qgs_pt(x, y):
 
     return QgsPointXY(x, y)
 
+
+def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
+
+    pts_in_prj_crs = []
+    for pt in pts_in_orig_crs:
+        qgs_pt = QgsPointXY(pt.x, pt.y)
+        qgs_pt_prj_crs = project_qgs_point(qgs_pt, srcCrs, destCrs)
+        pts_in_prj_crs.append(Point4D(qgs_pt_prj_crs.x(), qgs_pt_prj_crs.y()))
+    return pts_in_prj_crs
+
+
+def calculate_projected_3d_pts(
+    struct_pts,
+    structural_pts_crs,
+    demObj
+):
+
+    demCrs = demObj.params.crs
+
+    # check if on-the-fly-projection is set on
+    project_crs = projectCrs()
+
+    # set points in the project crs
+    if structural_pts_crs != project_crs:
+        struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
+    else:
+        struct_pts_in_prj_crs = copy.deepcopy(struct_pts)
+
+        # project the source points from point layer crs to DEM crs
+    # if the two crs are different
+    if structural_pts_crs != demCrs:
+        struct_pts_in_dem_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
+    else:
+        struct_pts_in_dem_crs = copy.deepcopy(struct_pts)
+
+        # - 3D structural points, with x, y, and z extracted from the current DEM
+    struct_pts_z = get_zs_from_dem(struct_pts_in_dem_crs, demObj)
+
+    assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
+
+    return [Point4D(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
+
+
+class TrackPointGPX(object):
+
+    def __init__(self,
+                 lat: numbers.Real,
+                 lon: numbers.Real,
+                 elev: numbers.Real,
+                 time: datetime.datetime):
+
+        self.lat = float(lat)
+        self.lon = float(lon)
+        self.elev = float(elev)
+        self.time = time
+
+    def as_pt3dt(self):
+
+        x, y, _ = geodetic2ecef(self.lat, self.lon, self.elev)
+        t = standard_gpstime_to_seconds(self.time)
+
+        return Point4D(x, y, self.elev, t)
+
+    def project(self,
+                dest_crs: QgsCoordinateReferenceSystem):
+
+        pt = Point4D(
+            x=self.lon,
+            y=self.lat,
+            z=self.elev,
+            t=self.time
+        )
+        crs = QgsCoordinateReferenceSystem("EPSG:4326")
+
+        projected_pt = project_point(
+                pt=pt,
+                srcCrs=crs,
+                destCrs=dest_crs)
+
+        return projected_pt

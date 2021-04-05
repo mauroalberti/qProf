@@ -1,8 +1,11 @@
+
 import math
 import numbers
 from typing import Tuple
 
-from qygsf.mathematics.defaults import MIN_VECTOR_MAGNITUDE
+import numpy as np
+
+from .defaults import MIN_VECTOR_MAGNITUDE
 
 
 def normXYZ(

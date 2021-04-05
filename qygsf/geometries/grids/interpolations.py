@@ -1,6 +1,11 @@
 
 import numbers
 
+import math
+from math import floor
+
+import numpy as np
+
 
 def interp_linear(
         frac_s: numbers.Real,
@@ -49,19 +54,12 @@ def scalars_bilin_interp(
     Return an interpolated number based on a bilinear interpolation.
 
     :param i: the delta i relative to the preceding cell center.
-    :type i: numbers.Real.
     :param j: the delta j relative to the preceding cell center.
-    :type j: numbers.Real.
     :param v00: the z value of the (i=0, j=0) cell center.
-    :type v00: numbers.Real.
     :param v01: the z value of the (i=0, j=1) cell center.
-    :type v01: numbers.Real.
     :param v10: the z value of the (i=1, j=0) cell center.
-    :type v10: numbers.Real.
     :param v11: the z value of the (i=1, j=1) cell center.
-    :type v11: numbers.Real.
     :return: the interpolated z value.
-    :rtype: numbers.Real.
     """
 
     grid_val_y0 = v00 + (v10 - v00) * i
@@ -75,3 +73,58 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
+
+
+def array_bilin_interp(
+        arr: np.ndarray,
+        i: numbers.Real,
+        j: numbers.Real
+) -> numbers.Real:
+    """
+    Interpolate the z value at a given i,j values couple.
+    Interpolation method: bilinear.
+
+    0, 0   0, 1
+
+    1, 0,  1, 1
+
+    :param arr: array with values for which the interpolation will be made.
+    :type arr: Numpy array.
+    :param i: i array index of the point (may be fractional).
+    :type i: numbers.Real.
+    :param j: j array index of the point (may be fractional).
+    :type j: numbers.Real.
+    :return: interpolated z value (may be math.nan).
+    :rtype: numbers.Real.
+    """
+
+    i_max, j_max = arr.shape
+    di = i - floor(i)
+    dj = j - floor(j)
+
+    if i < 0.0 or j < 0.0:
+        return math.nan
+    elif i > i_max - 1 or j > j_max - 1:
+        return math.nan
+    elif i == i_max - 1 and j == j_max - 1:
+        return arr[i, j]
+    elif i == i_max - 1:
+        v0 = arr[i, int(floor(j))]
+        v1 = arr[i, int(floor(j + 1))]
+        return interp_linear(
+            frac_s=dj,
+            v0=v0,
+            v1=v1)
+    elif j == j_max - 1:
+        v0 = arr[int(floor(i)), j]
+        v1 = arr[int(floor(i + 1)), j]
+        return interp_linear(
+            frac_s=di,
+            v0=v0,
+            v1=v1)
+    else:
+        v00 = arr[int(floor(i)), int(floor(j))]
+        v01 = arr[int(floor(i)), int(floor(j + 1))]
+        v10 = arr[int(floor(i + 1)), int(floor(j))]
+        v11 = arr[int(floor(i + 1)), int(floor(j + 1))]
+        return scalars_bilin_interp(di, dj, v00, v01, v10, v11)

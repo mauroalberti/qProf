@@ -3,12 +3,9 @@ from typing import Union
 
 from math import sqrt, degrees, acos
 
-from qygsf.mathematics.vectors import *
-
-
-QUAT_NORMALIZ_TOL = 1.0e-6
-QUAT_DIVISION_TOL = 1.0e-10
-QUAT_MAGN_THRESH = 1.0e-6
+from .vectors3d import *
+from .arrays import *
+from .defaults import *
 
 
 class Quaternion(object):
@@ -45,7 +42,7 @@ class Quaternion(object):
         return "Quaternion({:.5f}, {:.5f}, {:.5f}, {:.5f})".format(self.q[0], self.q[1], self.q[2], self.q[3])
 
     def components(self
-                   ) -> Tuple[numbers.Real, numbers.Real, numbers.Real, numbers.Real]:
+    ) -> Tuple[numbers.Real, numbers.Real, numbers.Real, numbers.Real]:
         """
         Returns the quaternion xyz as a float tuple.
 
@@ -77,21 +74,21 @@ class Quaternion(object):
         return self.q[0]
 
     def vector(self,
-        ) -> Vect:
+        ) -> Vect3D:
         """
         Return the vector component of the quaternion.
 
         :return:
-        :rtype: Vect
+        :rtype: Vect3D
 
         Examples:
           >>> Quaternion(0.1, 1.2, 3.1, 0.9).vector()
-          Vect(1.2000, 3.1000, 0.9000)
+          Vect3D(1.2000, 3.1000, 0.9000)
           >>> Quaternion(6.1, 4.9, 1.03, 5.12).vector()
-          Vect(4.9000, 1.0300, 5.1200)
+          Vect3D(4.9000, 1.0300, 5.1200)
         """
 
-        return Vect(*self.components()[1:])
+        return Vect3D(*self.components()[1:])
 
     @classmethod
     def fromArray(cls,
@@ -130,7 +127,7 @@ class Quaternion(object):
         :return: Quaternion instance
 
         Examples:
-          >>> Quaternion.fromVect(Vect(1, 0, 3))
+          >>> Quaternion.fromVect(Vect3D(1, 0, 3))
           Quaternion(0.00000, 1.00000, 0.00000, 3.00000)
         """
 
@@ -424,7 +421,7 @@ class Quaternion(object):
         return Quaternion(a, b, c, d)
 
     def multByVect(self,
-                   vect: Vect
+                   vect: Vect3D
                    ) -> 'Quaternion':
         """
         Quaternion multiplication by a Vect.
@@ -437,13 +434,13 @@ class Quaternion(object):
         Examples:
         """
 
-        if not isinstance(vect, Vect):
+        if not isinstance(vect, Vect3D):
             raise Exception("Multiplier must be of Vect type")
 
         return self.multByQuater(Quaternion.fromVect(vect))
 
     def __mul__(self,
-                another: [numbers.Real, Vect, 'Quaternion']
+                another: [numbers.Real, Vect3D, 'Quaternion']
                 ) -> 'Quaternion':
         """
         Wrapper for quaternion multiplication.
@@ -461,13 +458,13 @@ class Quaternion(object):
           Quaternion(8.00000, -9.00000, -2.00000, 11.00000)
           >>> Quaternion(1, 1, 3, 0) * Quaternion(1, 0, 0, 0)
           Quaternion(1.00000, 1.00000, 3.00000, 0.00000)
-          >>> Quaternion.identity() * Vect(1, 3, 2)
+          >>> Quaternion.identity() * Vect3D(1, 3, 2)
           Quaternion(0.00000, 1.00000, 3.00000, 2.00000)
         """
 
         if isinstance(another, numbers.Real):
             return self.multByScalar(another)
-        elif isinstance(another, Vect):
+        elif isinstance(another, Vect3D):
             return self.multByVect(another)
         elif isinstance(another, Quaternion):
             return self.multByQuater(another)

@@ -1,7 +1,8 @@
-
+import numbers
 from collections import namedtuple
 
 from math import ceil
+from typing import List
 
 from .points import *
 
@@ -154,7 +155,6 @@ class QGisRasterParameters(object):
         Check that a point is within or on the boundary of the grid area.
         Assume grid has no rotation.
 
-        :param point: qProf.pygsf.geometry.Point
         :return: bool
         """
 
@@ -172,7 +172,6 @@ class QGisRasterParameters(object):
         the extreme cell center values.
         Assume grid has no rotation.
 
-        :param point: qProf.pygsf.geometry.Point
         :return: bool
         """
 
@@ -189,7 +188,6 @@ class QGisRasterParameters(object):
         Convert from geographic to raster-based coordinates.
         Assume grid has no rotation.
 
-        :param point: qProf.pygsf.geometry.Point
         :return: dict
         """
 
@@ -326,4 +324,26 @@ def get_dem_resolution_in_prj_crs(
     return 0.5 * (cellsizeEW_prj_crs + cellsizeNS_prj_crs)
 
 
+def get_min_dem_resolution(
+    selected_dems: List,
+    selected_dem_parameters: List
+) -> numbers.Real:
 
+    dem_resolutions_prj_crs_list = []
+
+    for dem, dem_params in zip(selected_dems, selected_dem_parameters):
+        dem_resolutions_prj_crs_list.append(
+            get_dem_resolution_in_prj_crs(
+                dem,
+                dem_params,
+                projectCrs())
+        )
+
+    min_dem_resolution = min(dem_resolutions_prj_crs_list)
+
+    if min_dem_resolution > 1:
+        sample_distance = round(min_dem_resolution)
+    else:
+        sample_distance = min_dem_resolution
+
+    return sample_distance

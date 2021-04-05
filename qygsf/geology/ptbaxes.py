@@ -1,7 +1,7 @@
 
 from .faults import *
 
-from pygsf.orientations.orientations import RotationAxis, sortRotations
+from ..orientations.orientations import RotationAxis, sortRotations
 
 
 class PTBAxes(object):
@@ -38,7 +38,7 @@ class PTBAxes(object):
         self._p_versor = b_vect.cross_product(self._t_versor).versor()
 
     @classmethod
-    def fromVects(cls, p_vector: Vect, t_vector: Vect) -> 'PTBAxes':
+    def fromVects(cls, p_vector: Vect3D, t_vector: Vect3D) -> 'PTBAxes':
         """
         Class method to create a PTBAxes instance from T and P axis vectors.
         Vectors are not required to be normalized but are required to be
@@ -49,25 +49,25 @@ class PTBAxes(object):
         :return: a PTBAxes instance.
 
         Example:
-          >>> PTBAxes.fromVects(p_vector=Vect(0,1,0), t_vector=Vect(1,0,0))
+          >>> PTBAxes.fromVects(p_vector=Vect3D(0,1,0), t_vector=Vect3D(1,0,0))
           PTBAxes(P Axis(az: 0.00°, pl: -0.00°), T Axis(az: 90.00°, pl: -0.00°))
-          >>> PTBAxes.fromVects(p_vector=Vect(1,0,0), t_vector=Vect(0,0,-1))
+          >>> PTBAxes.fromVects(p_vector=Vect3D(1,0,0), t_vector=Vect3D(0,0,-1))
           PTBAxes(P Axis(az: 90.00°, pl: -0.00°), T Axis(az: 0.00°, pl: 90.00°))
-          >>> PTBAxes.fromVects(p_vector=Vect(-1,1,0), t_vector=Vect(1,1,0))
+          >>> PTBAxes.fromVects(p_vector=Vect3D(-1,1,0), t_vector=Vect3D(1,1,0))
           PTBAxes(P Axis(az: 315.00°, pl: -0.00°), T Axis(az: 45.00°, pl: -0.00°))
-          >>> PTBAxes.fromVects(p_vector=Vect(0.5, 1, 0), t_vector=Vect(1, 1, 0))
+          >>> PTBAxes.fromVects(p_vector=Vect3D(0.5, 1, 0), t_vector=Vect3D(1, 1, 0))
           Traceback (most recent call last):
           ...
           Exception: P and T axes must be sub-orthogonal
         """
 
-        if not isinstance(t_vector, Vect):
+        if not isinstance(t_vector, Vect3D):
             raise Exception("T vector must be of type Vect")
 
         if t_vector.is_close_to_zero:
             raise Exception("T vector cannot be zero-valued")
 
-        if not isinstance(p_vector, Vect):
+        if not isinstance(p_vector, Vect3D):
             raise Exception("P vector must be of type Vect")
 
         if p_vector.is_close_to_zero:
@@ -146,8 +146,8 @@ class PTBAxes(object):
         p2 = q0q0 - q1q1 + q2q2 - q3q3
         p3 = 2*(q2q3 + q0q1)
 
-        t_vector = Vect(t1, t2, t3)
-        p_vector = Vect(p1, p2, p3)
+        t_vector = Vect3D(t1, t2, t3)
+        p_vector = Vect3D(p1, p2, p3)
 
         return PTBAxes.fromVects(t_vector=t_vector, p_vector=p_vector)
 
@@ -158,7 +158,7 @@ class PTBAxes(object):
             Axis.fromVect(self._t_versor))
 
     @property
-    def PVersor(self) -> Vect:
+    def PVersor(self) -> Vect3D:
         """
         Return the P versor component of the PTBAxes instance.
 
@@ -166,13 +166,13 @@ class PTBAxes(object):
 
         Example:
           >>> PTBAxes(p_axis=Axis(0, 0), t_axis=Axis(90, 0)).PVersor
-          Vect(-0.0000, 1.0000, 0.0000)
+          Vect3D(-0.0000, 1.0000, 0.0000)
         """
 
         return self._p_versor
 
     @property
-    def TVersor(self) -> Vect:
+    def TVersor(self) -> Vect3D:
         """
         Return the T versor component of the PTBAxes instance.
 
@@ -180,13 +180,13 @@ class PTBAxes(object):
 
         Example:
           >>> PTBAxes(p_axis=Axis(0, 0), t_axis=Axis(90, 0)).TVersor
-          Vect(1.0000, 0.0000, -0.0000)
+          Vect3D(1.0000, 0.0000, -0.0000)
         """
 
         return self._t_versor
 
     @property
-    def BVersor(self) -> Vect:
+    def BVersor(self) -> Vect3D:
         """
         Return the B versor component of the PTBAxes instance.
 
@@ -194,7 +194,7 @@ class PTBAxes(object):
 
         Example:
           >>> PTBAxes(p_axis=Axis(0, 0), t_axis=Axis(90, 0)).BVersor
-          Vect(0.0000, 0.0000, 1.0000)
+          Vect3D(0.0000, 0.0000, 1.0000)
         """
 
         return self.TVersor.cross_product(self.PVersor)
@@ -290,7 +290,7 @@ class PTBAxes(object):
 
         return True
 
-    def toMatrix(self) -> 'array':
+    def toMatrix(self) -> np.ndarray:
         """
         Creates a rotation matrix from the PTB as_vect xyz.
         Formula as in:
@@ -339,11 +339,8 @@ def focmech_rotate(
     via a rotation axis.
 
     :param fm: the focal mechanism to rotVectByAxis
-    :type fm: PTBAxes
     :param ra: the rotation axis
-    :type ra: pygsf.orientations.orientations.RotationAxis
     :return: the rotated focal mechanism
-    :rtype: PTBAxes
     """
 
     qfm = fm.toQuatern()

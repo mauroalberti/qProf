@@ -1,20 +1,22 @@
 
 import abc
-from enum import Enum
-from typing import List, Optional
+
+from typing import Optional, Callable
+
 from math import fabs
+
 import itertools
 
-import copy
+from copy import copy
 
 import numbers
 from array import array
 
-from qygsf.orientations.orientations import *
-from qygsf.mathematics.statistics import *
-from qygsf.mathematics.quaternions import *
-from qygsf.utils.types import check_type
-from qygsf.georeferenced.crs import *
+from ...orientations.orientations import *
+from ...mathematics.statistics import *
+from ...mathematics.quaternions import *
+from ...utils.types import check_type
+
 
 
 class Shape3D(object, metaclass=abc.ABCMeta):
@@ -69,7 +71,7 @@ class Point3D:
 
     @classmethod
     def fromVect(cls,
-        vect: Vect) -> 'Point3D':
+                 vect: Vect3D) -> 'Point3D':
         """
 
         :param vect:
@@ -557,7 +559,7 @@ class Point3D:
         return Point3D(self.x + sx, self.y + sy, self.z + sz)
 
     def shiftByVect(self,
-        v: Vect
+        v: Vect3D
     ) -> 'Point3D':
         """
         Create a new point shifted from the self instance by given vector.
@@ -569,9 +571,9 @@ class Point3D:
         :raise: Exception
 
         Example:
-          >>> Point3D(1, 1, 1).shiftByVect(Vect(0.5, 1., 1.5))
+          >>> Point3D(1, 1, 1).shiftByVect(Vect3D(0.5, 1., 1.5))
           Point3D(1.5000, 2.0000, 2.5000)
-          >>> Point3D(1, 2, -1).shiftByVect(Vect(0.5, 1., 1.5))
+          >>> Point3D(1, 2, -1).shiftByVect(Vect3D(0.5, 1., 1.5))
           Point3D(1.5000, 3.0000, 0.5000)
        """
 
@@ -581,18 +583,18 @@ class Point3D:
 
         return Point3D(x + sx, y + sy, z + sz)
 
-    def asVect(self) -> 'Vect':
+    def asVect(self) -> 'Vect3D':
         """
         Create a vector based on the point coordinates
 
         Example:
           >>> Point3D(1, 1, 0).asVect()
-          Vect(1.0000, 1.0000, 0.0000)
+          Vect3D(1.0000, 1.0000, 0.0000)
           >>> Point3D(0.2, 1, 6).asVect()
-          Vect(0.2000, 1.0000, 6.0000)
+          Vect3D(0.2000, 1.0000, 6.0000)
         """
 
-        return Vect(self.x, self.y, self.z)
+        return Vect3D(self.x, self.y, self.z)
 
     def rotate(self,
         rotation_axis: RotationAxis,
@@ -753,10 +755,10 @@ class Segment3D:
     @classmethod
     def fromVector(cls,
                    point: Point3D,
-                   dir_vector: Vect):
+                   dir_vector: Vect3D):
 
         check_type(point, "Input point", Point3D)
-        check_type(dir_vector, "Directional vector", Vect)
+        check_type(dir_vector, "Directional vector", Vect3D)
 
         start_pt = point
         end_pt = start_pt.shiftByVect(dir_vector)
@@ -855,12 +857,12 @@ class Segment3D:
 
         return self.end_pt.z - self.start_pt.z
 
-    def as_vector(self) -> Vect:
+    def as_vector(self) -> Vect3D:
         """
         Convert a segment to a vector.
         """
 
-        return Vect(
+        return Vect3D(
             x=self.delta_x(),
             y=self.delta_y(),
             z=self.delta_z()
@@ -903,14 +905,14 @@ class Segment3D:
         else:
             return - math.atan(delta_zs)
 
-    def vector(self) -> Vect:
+    def vector(self) -> Vect3D:
 
-        return Vect(self.delta_x(),
-                    self.delta_y(),
-                    self.delta_z()
-        )
+        return Vect3D(self.delta_x(),
+                      self.delta_y(),
+                      self.delta_z()
+                      )
 
-    def antivector(self) -> Vect:
+    def antivector(self) -> Vect3D:
         """
         Returns the vector pointing from the segment end to the segment start.
 
@@ -1492,11 +1494,9 @@ def point_or_segment(
     check_type(point1, "First point", Point3D)
     check_type(point2, "Second point", Point3D)
 
-    #check_crs(point1, point2)
-
     if point1.distance(point2) <= tol:
         return Point3D(
-            x=(point1.x+ point2.x)/2,
+            x=(point1.x + point2.x) / 2,
             y=(point1.y + point2.y) / 2,
             z=(point1.z + point2.z) / 2
         )
@@ -1662,7 +1662,7 @@ def intersect_segments(
     return inters_pt
 
 
-class PointSegmentCollection(list):
+class PointSegmentCollection3D(list):
     """
     Collection of point or segment elements.
 
@@ -1702,11 +1702,11 @@ class PointSegmentCollection(list):
 
         if geoms is not None and len(geoms) > 0:
 
-            super(PointSegmentCollection, self).__init__(geoms)
+            super(PointSegmentCollection3D, self).__init__(geoms)
 
         else:
 
-            super(PointSegmentCollection, self).__init__()
+            super(PointSegmentCollection3D, self).__init__()
 
         # self.epsg_code = epsg_code
 
@@ -1892,7 +1892,7 @@ class Line3D:
         return densifyied_line_wo_coinc_pts
     '''
 
-    def join(self, another) -> List[Point3D]:
+    def join(self, another) -> 'Line3D':
         """
         Joins together two lines and returns the join as a new line without point changes,
         with possible overlapping points
@@ -2180,10 +2180,9 @@ class Line3D:
 
         return new_line
 
-
     def intersectSegment(self,
         segment: Segment3D
-    ) -> Optional[PointSegmentCollection]:
+    ) -> Optional[PointSegmentCollection3D]:
         """
         Calculates the possible intersection between the line and a provided segment.
 
@@ -2199,59 +2198,127 @@ class Line3D:
 
         intersections = [intersect_segments(curr_segment, segment) for curr_segment in self if curr_segment is not None]
         intersections = list(filter(lambda val: val is not None, intersections))
-        intersections = PointSegmentCollection(intersections)
+        intersections = PointSegmentCollection3D(intersections)
 
         return intersections
 
 
-class JoinTypes(Enum):
+class MultiLine3D:
     """
-    Enumeration for Line and Segment type.
-    """
-
-    START_START = 1  # start point coincident with start point
-    START_END   = 2  # start point coincident with end point
-    END_START   = 3  # end point coincident with start point
-    END_END     = 4  # end point coincident with end point
-
-
-def analizeJoins(first: Union[Line3D, Segment3D], second: Union[Line3D, Segment3D]) -> List[Optional[JoinTypes]]:
-    """
-    Analyze join types between two lines/segments.
-
-    :param first: a line or segment.
-    :type first: Line or Segment.
-    :param second: a line or segment.
-    :param second: Line or Segment.
-    :return: a list of join types.
-    :rtype: List[Optional[JoinTypes]].
-
-    Examples:
-      >>> first = Segment3D(Point3D(x=0,y=0), Point3D(x=1,y=0))
-      >>> second = Segment3D(Point3D(x=1,y=0), Point3D(x=0,y=0))
-      >>> analizeJoins(first, second)
-      [<JoinTypes.START_END: 2>, <JoinTypes.END_START: 3>]
-      >>> first = Segment3D(Point3D(x=0,y=0), Point3D(x=1,y=0))
-      >>> second = Segment3D(Point3D(x=2,y=0), Point3D(x=3,y=0))
-      >>> analizeJoins(first, second)
-      []
+    MultiLine is a list of Line objects
     """
 
-    join_types = []
+    def __init__(self, lines_list=None):
 
-    if first.start_pt.is_coincident(second.start_pt):
-        join_types.append(JoinTypes.START_START)
+        if lines_list is None:
+            lines_list = []
+        self._lines = lines_list
 
-    if first.start_pt.is_coincident(second.end_pt):
-        join_types.append(JoinTypes.START_END)
+    @property
+    def lines(self):
 
-    if first.end_pt.is_coincident(second.start_pt):
-        join_types.append(JoinTypes.END_START)
+        return self._lines
 
-    if first.end_pt.is_coincident(second.end_pt):
-        join_types.append(JoinTypes.END_END)
+    def add(self, line):
 
-    return join_types
+        return MultiLine3D(self.lines + [line])
+
+    def clone(self):
+
+        return MultiLine3D(self.lines)
+
+    @property
+    def num_parts(self):
+
+        return len(self.lines)
+
+    @property
+    def num_points(self):
+
+        num_points = 0
+        for line in self.lines:
+            num_points += line.num_pts
+
+        return num_points
+
+    @property
+    def x_min(self):
+
+        return np.nanmin([line.x_min for line in self.lines])
+
+    @property
+    def x_max(self):
+
+        return np.nanmax([line.x_max for line in self.lines])
+
+    @property
+    def y_min(self):
+
+        return np.nanmin([line.y_min for line in self.lines])
+
+    @property
+    def y_max(self):
+
+        return np.nanmax([line.y_max for line in self.lines])
+
+    @property
+    def z_min(self):
+
+        return np.nanmin([line.z_min for line in self.lines])
+
+    @property
+    def z_max(self):
+
+        return np.nanmax([line.z_max for line in self.lines])
+
+    def is_continuous(self):
+
+        for line_ndx in range(len(self._lines) - 1):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
+               not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
+                return False
+
+        return True
+
+    def is_unidirectional(self):
+
+        for line_ndx in range(len(self.lines) - 1):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]):
+                return False
+
+        return True
+
+    def to_line(self):
+
+        return Line3D([point for line in self.lines for point in line.pts])
+
+    '''
+    def crs_project(self, srcCrs, destCrs):
+
+        lines = []
+        for line in self.lines:
+            lines.append(line.crs_project(srcCrs, destCrs))
+
+        return MultiLine4D(lines)
+    '''
+
+    '''
+    def densify_2d_multiline(self, sample_distance):
+
+        lDensifiedLines = []
+        for line in self.lines:
+            lDensifiedLines.append(line.densify_2d_line(sample_distance))
+
+        return MultiLine4D(lDensifiedLines)
+    '''
+
+    def remove_coincident_points(self):
+
+        cleaned_lines = []
+        for line in self.lines:
+            cleaned_lines.append(line.remove_coincident_points())
+
+        return MultiLine3D(cleaned_lines)
 
 
 def shortest_segment_or_point(
@@ -2400,7 +2467,7 @@ def shortest_segment_or_point(
 
     return intersection
 
-
+'''
 class ParamLine3D(object):
     """
     parametric line
@@ -2436,10 +2503,10 @@ class ParamLine3D(object):
         except ZeroDivisionError:
             return None
 
-        return Point4D(x1 - l * k,
+        return Point3D(x1 - l * k,
                        y1 - m * k,
                        z1 - n * k)
-
+'''
 
 def eq_xy_pair(xy_pair_1, xy_pair_2):
 
@@ -2627,18 +2694,18 @@ class CPlane3D:
 
         return "CPlane3D({:.4f}, {:.4f}, {:.4f}, {:.4f})".format(*self.v())
 
-    def normVersor(self) -> Vect:
+    def normVersor(self) -> Vect3D:
         """
         Return the versor normal to the cartesian plane.
 
         Examples:
           >>> CPlane3D(0, 0, 5, -2).normVersor()
-          Vect(0.0000, 0.0000, 1.0000)
+          Vect3D(0.0000, 0.0000, 1.0000)
           >>> CPlane3D(0, 7, 0, 5).normVersor()
-          Vect(0.0000, 1.0000, 0.0000)
+          Vect3D(0.0000, 1.0000, 0.0000)
         """
 
-        return Vect(self.a(), self.b(), self.c()).versor()
+        return Vect3D(self.a(), self.b(), self.c()).versor()
 
     def toPoint(self) -> Point3D:
         """
@@ -2657,8 +2724,9 @@ class CPlane3D:
 
         return point
 
+    """
     def gplane_point(self):
-        """
+        '''
         Converts a cartesian plane into a geological plane
         and a point lying in the plane (non-unique solution).
 
@@ -2668,14 +2736,15 @@ class CPlane3D:
           GPlane(000.00, +00.00)
           >>> pt
           Point(0.0000, 0.0000, 1.0000, nan)
-        """
+        '''
 
-        geol_plane = self.nversor.gvect.normal_gplane
+        geol_plane = self.normVersor().gvect.normal_gplane
         point = Point4D(*point_solution(np.array([[self.a, self.b, self.c]]),
                                         np.array([-self.d])))
         return geol_plane, point
+    """
 
-    def intersVersor(self, another) -> Optional[Vect]:
+    def intersVersor(self, another) -> Optional[Vect3D]:
         """
         Return intersection versor for two intersecting planes.
         Return None for not intersecting planes.
@@ -2690,7 +2759,7 @@ class CPlane3D:
           >>> a = CPlane3D(1, 0, 0, 0)
           >>> b = CPlane3D(0, 0, 1, 0)
           >>> a.intersVersor(b)
-          Vect(0.0000, -1.0000, 0.0000)
+          Vect3D(0.0000, -1.0000, 0.0000)
           >>> b = CPlane3D(-1, 0, 0, 0)  # parallel plane, no intersection
           >>> a.intersVersor(b) is None
           True
@@ -3276,9 +3345,9 @@ class Points3D:
         :return: a new Points3D instance.
         """
 
-        xs = self._x_array.reverse()
-        ys = self._y_array.reverse()
-        zs = self._z_array.reverse()
+        xs = self._x_array.reversed()
+        ys = self._y_array.reversed()
+        zs = self._z_array.reversed()
 
         return Points3D(
             x_array=xs,

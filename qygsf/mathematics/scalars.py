@@ -1,9 +1,17 @@
 
 from typing import Tuple
+import numbers
 
 import math
 
-import numbers
+
+def almost_zero(val: numbers.Real):
+
+    tolerance = 1e-10
+    if abs(val) > tolerance:
+        return False
+    else:
+        return True
 
 
 def areClose(

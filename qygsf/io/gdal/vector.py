@@ -20,8 +20,8 @@ except ImportError:
 
 import geopandas as gpd
 
-from qygsf.georeferenced.geoshapes3d import *
-from qygsf.utils.types import *
+from ...georeferenced.geoshapes3d import *
+from ...utils.types import *
 
 
 ogr_simpleline_types = [
@@ -432,7 +432,7 @@ def parse_ogr_type(ogr_type_str: str) -> 'ogr.OGRFieldType':
 
 class GDALParameters(object):
     """
-    Manage GDAL parameters from rasters.
+    Manage GDAL parameters from grids.
 
     """
 
@@ -696,7 +696,7 @@ class GDALParameters(object):
 
     def geo_equiv(self, other, tolerance=1.0e-6):
         """
-        Checks if two rasters are geographically equivalent.
+        Checks if two grids are geographically equivalent.
 
         @param  other:  a grid to be compared with self.
         @type  other:  Grid instance.

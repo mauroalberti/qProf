@@ -3,33 +3,19 @@ from typing import Optional
 
 from array import array
 
-from qygsf.geology.profiles.elements import *
+from .elements import *
 from qygsf.utils.arrays import *
 
-
-'''
-class ProfileSubpartsSet(list):
-    """
-    Describes subelements (point or segment-type) of a profile
-    """
-
-    def __init__(self,
-        subelements: Optional[List] = None):
-        """
-        """
-
-        if subelements is None:
-            subelements = []
-
-        super(ProfileSubpartsSet, self).__init__(subelements)
-'''
 
 class TopographicProfile:
     """
 
     """
 
-    def __init__(self, s_array: array, z_array: array):
+    def __init__(self,
+                 s_array: array,
+                 z_array: array
+                 ):
 
         check_type(s_array, "Distances array", array)
         if s_array.typecode != 'd':

@@ -1,16 +1,5 @@
 
-from typing import Tuple, Union, List
-
-from functools import singledispatch
-import numpy as np
-
-from qygsf.mathematics.arrays import *
-from qygsf.mathematics.vectors import *
-
-from qygsf.orientations.orientations import *
-
-#from qygsf.geometries.shapes.space2d import *
-from qygsf.geometries.shapes.space3d import *
+from .space3d import *
 
 """
 @singledispatch
@@ -43,17 +32,17 @@ def try_derive_bestfitplane(
 
     xyz_mean = np.mean(npaXyz, axis=0)
 
-    svd = xyzSvd(npaXyz - xyz_mean)
+    svd_result = svd(npaXyz - xyz_mean)
 
-    if svd['result'] is None:
+    if svd_result is None:
         return False, "Unable to calculate result"
 
-    _, _, eigenvectors = svd['result']
+    _, _, eigenvectors = svd_result
 
-    lowest_eigenvector = eigenvectors[-1, : ]  # Solution is last row
+    lowest_eigenvector = eigenvectors[-1, :]  # Solution is last row
 
     normal = lowest_eigenvector[: 3 ] / np.linalg.norm(lowest_eigenvector[: 3 ])
-    normal_vector = Vect(normal[0], normal[1], normal[2])
+    normal_vector = Vect3D(normal[0], normal[1], normal[2])
     normal_direct = Direct.fromVect(normal_vector)
 
     return True, normal_direct.normal_plane()

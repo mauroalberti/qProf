@@ -3,9 +3,8 @@ import datetime
 
 import numbers
 
-from qygsf.georeferenced.crs import *
-from qygsf.orientations.orientations import *
-from qygsf.geometries.shapes.space3d import *
+from .crs import *
+from ..geometries.shapes.space3d import *
 
 
 class GeoPoint4D:
@@ -53,9 +52,9 @@ class GeoPoint4D:
 
     @classmethod
     def fromVect(cls,
-        vect: Vect,
-        epsg_cd: Optional[numbers.Integral] = -1
-    ) -> 'GeoPoint4D':
+                 vect: Vect3D,
+                 epsg_cd: Optional[numbers.Integral] = -1
+                 ) -> 'GeoPoint4D':
 
         return cls(
             x=vect.x,
@@ -557,7 +556,7 @@ class GeoPoint4D:
         )
 
     def shiftByVect(self,
-        v: Vect
+        v: Vect3D
     ) -> 'GeoPoint4D':
         """
         Create a new point shifted from the self instance by given vector.
@@ -569,9 +568,9 @@ class GeoPoint4D:
         :raise: Exception
 
         Example:
-          >>> GeoPoint4D(1, 1, 1).shiftByVect(Vect(0.5, 1., 1.5))
+          >>> GeoPoint4D(1, 1, 1).shiftByVect(Vect3D(0.5, 1., 1.5))
           GeoPoint4D(x=1.5000, y=2.0000, z=2.5000, time=None, epsg_code=-1)
-          >>> GeoPoint4D(1, 2, -1).shiftByVect(Vect(0.5, 1., 1.5))
+          >>> GeoPoint4D(1, 2, -1).shiftByVect(Vect3D(0.5, 1., 1.5))
           GeoPoint4D(x=1.5000, y=3.0000, z=0.5000, time=None, epsg_code=-1)
        """
 
@@ -587,18 +586,18 @@ class GeoPoint4D:
             epsg_cd=epsg_cd
         )
 
-    def asVect(self) -> 'Vect':
+    def asVect(self) -> 'Vect3D':
         """
         Create a vector based on the point coordinates
 
         Example:
           >>> GeoPoint4D(1, 1, 0).asVect()
-          Vect(1.0000, 1.0000, 0.0000)
+          Vect3D(1.0000, 1.0000, 0.0000)
           >>> GeoPoint4D(0.2, 1, 6).asVect()
-          Vect(0.2000, 1.0000, 6.0000)
+          Vect3D(0.2000, 1.0000, 6.0000)
         """
 
-        return Vect(
+        return Vect3D(
             x=self.x,
             y=self.y,
             z=self.z
@@ -746,10 +745,10 @@ class GeoSegment4D:
     @classmethod
     def fromVector(cls,
                    point: GeoPoint4D,
-                   dir_vector: Vect):
+                   dir_vector: Vect3D):
 
         check_type(point, "Input point", GeoPoint4D)
-        check_type(dir_vector, "Directional vector", Vect)
+        check_type(dir_vector, "Directional vector", Vect3D)
 
         start_pt = point
         end_pt = start_pt.shiftByVect(dir_vector)
@@ -872,12 +871,12 @@ class GeoSegment4D:
 
         return self.end_pt.z - self.start_pt.z
 
-    def as_vector(self) -> Vect:
+    def as_vector(self) -> Vect3D:
         """
         Convert a segment to a vector.
         """
 
-        return Vect(
+        return Vect3D(
             x=self.delta_x(),
             y=self.delta_y(),
             z=self.delta_z()
@@ -920,14 +919,14 @@ class GeoSegment4D:
         else:
             return - math.atan(delta_zs)
 
-    def vector(self) -> Vect:
+    def vector(self) -> Vect3D:
 
-        return Vect(self.delta_x(),
-                    self.delta_y(),
-                    self.delta_z()
-                    )
+        return Vect3D(self.delta_x(),
+                      self.delta_y(),
+                      self.delta_z()
+                      )
 
-    def antivector(self) -> Vect:
+    def antivector(self) -> Vect3D:
         """
         Returns the vector pointing from the segment end to the segment start.
 
@@ -1411,7 +1410,7 @@ class GeoSegment4D:
 
     def densify_as_line3d(self,
                           densify_distance
-                          ) -> 'Line3D':
+                          ) -> Line3D:
         """
         Densify a segment by adding additional points
         separated a distance equal to densify_distance.

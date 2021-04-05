@@ -3,10 +3,10 @@ from typing import Callable
 
 from math import sin, cos
 
-
 import numbers
 
-from qygsf.geometries.rasters.geotransform import *
+
+from .geotransform import *
 
 
 def ij_transfer_func(

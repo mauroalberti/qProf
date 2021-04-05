@@ -3,11 +3,10 @@ from typing import List, Iterable
 from operator import attrgetter
 
 from qygsf.georeferenced.geoshapes2d import *
-from qygsf.georeferenced.geoshapes3d import *
 from qygsf.georeferenced.rasters import *
 from qygsf.geology.base import *
 
-from qygsf.geology.profiles.sets import *
+from qygsf.profiles.sets import *
 from qygsf.orientations.orientations import Axis, Azim, Plunge
 
 
@@ -231,7 +230,7 @@ class LinearProfiler:
 
         return self.segment().length()
 
-    def vector(self) -> Vect:
+    def vector(self) -> Vect3D:
         """
         Returns the horizontal vector representing the profile.
 
@@ -241,7 +240,7 @@ class LinearProfiler:
 
         return self.segment().vector()
 
-    def versor(self) -> Vect:
+    def versor(self) -> Vect3D:
         """
         Returns the horizontal versor (unit vector) representing the profile.
 
@@ -290,7 +289,7 @@ class LinearProfiler:
 
         return self.segment().vertical_plane()
 
-    def normal_versor(self) -> Vect:
+    def normal_versor(self) -> Vect3D:
         """
         Returns the perpendicular (horizontal) versor to the profile (vertical) plane.
 
@@ -300,7 +299,7 @@ class LinearProfiler:
 
         return self.vertical_plane().normVersor()
 
-    def left_norm_vers(self) -> Vect:
+    def left_norm_vers(self) -> Vect3D:
         """
         Returns the left horizontal normal versor.
 
@@ -308,9 +307,9 @@ class LinearProfiler:
         :rtype: Vect.
         """
 
-        return Vect(0, 0, 1).cross_product(self.versor()).versor()
+        return Vect3D(0, 0, 1).cross_product(self.versor()).versor()
 
-    def right_norm_vers(self) -> Vect:
+    def right_norm_vers(self) -> Vect3D:
         """
         Returns the right horizontal normal versor.
 
@@ -318,7 +317,7 @@ class LinearProfiler:
         :rtype: Vect.
         """
 
-        return Vect(0, 0, -1).cross_product(self.versor()).versor()
+        return Vect3D(0, 0, -1).cross_product(self.versor()).versor()
 
     def left_offset(self,
         offset: numbers.Real) -> 'LinearProfiler':
@@ -610,7 +609,7 @@ class LinearProfiler:
             return NotImplemented
 
     def get_intersection_slope(self,
-        intersection_vector: Vect
+        intersection_vector: Vect3D
     ) -> Tuple[numbers.Real, str]:
         """
         Calculates the slope (in radians) and the downward sense ('left', 'right' or 'vertical')
@@ -623,7 +622,7 @@ class LinearProfiler:
         :raise: Exception.
         """
 
-        if not isinstance(intersection_vector, Vect):
+        if not isinstance(intersection_vector, Vect3D):
             raise Exception("Input argument should be Vect but is {}".format(type(intersection_vector)))
 
         angle = degrees(acos(self.normal_versor().cosine_of_angle(intersection_vector)))
@@ -674,7 +673,7 @@ class LinearProfiler:
     def calculate_intersection_versor(
             self,
             attitude_plane: Plane,
-            attitude_pt: Point3D) -> Optional[Vect]:
+            attitude_pt: Point3D) -> Optional[Vect3D]:
         """
         Calculate the intersection versor between the plane profiler and
         a geological plane with location defined by a Point.

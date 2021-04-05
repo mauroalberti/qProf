@@ -4,20 +4,17 @@ import numbers
 import affine
 import numpy as np
 
-from qygsf.mathematics.arrays import array_bilin_interp
+from ..geometries.grids.fields import *
+from ..geometries.grids.geotransform import *
 
-from qygsf.orientations.orientations import *
+from ..geometries.shapes.space2d import *
+from ..geometries.shapes.space3d import *
+from ..geometries.grids.interpolations import *
 
-from qygsf.geometries.rasters.fields import *
-from qygsf.geometries.rasters.geotransform import *
-
-from qygsf.geometries.shapes.space2d import *
-from qygsf.geometries.shapes.space3d import *
-
-from qygsf.georeferenced.crs import *
+from .crs import *
 
 
-class GeoArray():
+class GeoArray:
     """
     GeoArray class.
     Stores and process georeferenced raster data.
@@ -425,7 +422,11 @@ class GeoArray():
             num_rows, num_cols = res
             return gtToxyCellCenters(self._gt, num_rows, num_cols)
 
-    def interpolate_bilinear(self, x: numbers.Real, y: numbers.Real, level_ndx=0) -> Optional[numbers.Real]:
+    def interpolate_bilinear(self,
+         x: numbers.Real,
+         y: numbers.Real,
+         level_ndx=0
+    ) -> Optional[numbers.Real]:
         """
         Interpolate the z value at a point, given its geographic coordinates.
         Interpolation method: bilinear.
@@ -865,19 +866,19 @@ def plane_dem_intersection(
         :rtype: numbers.Real.
         """
 
-        start_point = Point2D(*ijarr2xyz(
+        start_point = Point3D(*ijarr2xyz(
             ijarr2xy_func=arrij2xy_func,
             xy2z_func=xy2z_func,
             i=i_start,
             j=j_start))
 
-        end_point = Point2D(*ijarr2xyz(
+        end_point = Point3D(*ijarr2xyz(
             ijarr2xy_func=arrij2xy_func,
             xy2z_func=xy2z_func,
             i=i,
             j=j))
 
-        return Segment2D(start_point, end_point).ratio_delta_zs()
+        return Segment3D(start_point, end_point).ratio_delta_zs()
 
     def segment_intersections_array(
             m_arr1: np.ndarray,

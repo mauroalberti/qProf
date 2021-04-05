@@ -1,20 +1,14 @@
 
-from typing import List, Callable
-
 import random
 from math import *
 
-import numpy as np
 
-from qygsf.defaults import *
+from ..defaults import *
 
-from qygsf.mathematics.scalars import *
-from qygsf.mathematics.vectors import *
-from qygsf.mathematics.scalars import *
-from qygsf.mathematics.quaternions import *
-from qygsf.mathematics.utils import *
+from ..mathematics.quaternions import *
+from ..mathematics.utils import *
 
-from qygsf.orientations.direct_utils import *
+from .direct_utils import *
 
 
 class Azim(object):
@@ -532,7 +526,7 @@ class Direct:
 
     @classmethod
     def fromVect(cls,
-                 vect: Vect
+                 vect: Vect3D
     ) -> [None, 'Direct', 'Axis']:
         """
         Calculate the polar direction parallel to the Vect instance.
@@ -541,23 +535,23 @@ class Direct:
         geological axes and positive values for downward-pointing axes.
 
         Examples:
-          >>> Direct.fromVect(Vect(1, 1, 1))
+          >>> Direct.fromVect(Vect3D(1, 1, 1))
           Direct(az: 45.00°, pl: -35.26°)
-          >>> Direct.fromVect(Vect(0, 1, 1))
+          >>> Direct.fromVect(Vect3D(0, 1, 1))
           Direct(az: 0.00°, pl: -45.00°)
-          >>> Direct.fromVect(Vect(1, 0, 1))
+          >>> Direct.fromVect(Vect3D(1, 0, 1))
           Direct(az: 90.00°, pl: -45.00°)
-          >>> Direct.fromVect(Vect(0, 0, 1))
+          >>> Direct.fromVect(Vect3D(0, 0, 1))
           Direct(az: 0.00°, pl: -90.00°)
-          >>> Direct.fromVect(Vect(0, 0, -1))
+          >>> Direct.fromVect(Vect3D(0, 0, -1))
           Direct(az: 0.00°, pl: 90.00°)
-          >>> Direct.fromVect(Vect(-1, 0, 0))
+          >>> Direct.fromVect(Vect3D(-1, 0, 0))
           Direct(az: 270.00°, pl: -0.00°)
-          >>> Direct.fromVect(Vect(0, -1, 0))
+          >>> Direct.fromVect(Vect3D(0, -1, 0))
           Direct(az: 180.00°, pl: -0.00°)
-          >>> Direct.fromVect(Vect(-1, -1, 0))
+          >>> Direct.fromVect(Vect3D(-1, -1, 0))
           Direct(az: 225.00°, pl: -0.00°)
-          >>> Direct.fromVect(Vect(0, 0, 0))
+          >>> Direct.fromVect(Vect3D(0, 0, 0))
           Traceback (most recent call last):
           ...
           Exception: Input components have near-zero values
@@ -691,17 +685,17 @@ class Direct:
 
         return plng2colatBottom(self.pl.d)
 
-    def as_versor(self) -> Vect:
+    def as_versor(self) -> Vect3D:
         """
         Return the unit vector corresponding to the Direct instance.
 
         Examples:
           >>> Direct(0, 90).as_versor()
-          Vect(0.0000, 0.0000, -1.0000)
+          Vect3D(0.0000, 0.0000, -1.0000)
           >>> Direct(0, -90).as_versor()
-          Vect(0.0000, 0.0000, 1.0000)
+          Vect3D(0.0000, 0.0000, 1.0000)
           >>> Direct(90, 90).as_versor()
-          Vect(0.0000, 0.0000, -1.0000)
+          Vect3D(0.0000, 0.0000, -1.0000)
         """
 
         az, pl = self.r
@@ -711,7 +705,7 @@ class Direct:
         east_coord = cos_pl * sin_az
         down_coord = sin_pl
 
-        return Vect(
+        return Vect3D(
             x=east_coord,
             y=north_coord,
             z=-down_coord
@@ -992,17 +986,17 @@ class Direct:
 
     def normal_versor(self,
                       another: 'Direct'
-                      ) -> Optional[Vect]:
+                      ) -> Optional[Vect3D]:
         """
         Calculate the versor (Vect) defined by the vector product of two Direct instances.
 
         Examples:
           >>> Direct(0, 0).normal_versor(Direct(90, 0))
-          Vect(0.0000, 0.0000, -1.0000)
+          Vect3D(0.0000, 0.0000, -1.0000)
           >>> Direct(45, 0).normal_versor(Direct(310, 0))
-          Vect(0.0000, 0.0000, 1.0000)
+          Vect3D(0.0000, 0.0000, 1.0000)
           >>> Direct(0, 0).normal_versor(Direct(90, 90))
-          Vect(-1.0000, 0.0000, -0.0000)
+          Vect3D(-1.0000, 0.0000, -0.0000)
           >>> Direct(315, 45).normal_versor(Direct(315, 44.5)) is None
           True
         """
@@ -1279,9 +1273,9 @@ class RotationAxis(object):
 
     @classmethod
     def fromVect(cls,
-                 vector: Vect,
+                 vector: Vect3D,
                  angle: numbers.Real
-    ):
+                 ):
         """
         Class constructor from a Vect instance and an angle value.
 
@@ -1290,11 +1284,11 @@ class RotationAxis(object):
         :return: RotationAxis instance
 
         Example:
-          >>> RotationAxis.fromVect(Vect(0, 1, 0), 30)
+          >>> RotationAxis.fromVect(Vect3D(0, 1, 0), 30)
           RotationAxis(0.0000, -0.0000, 30.0000)
-          >>> RotationAxis.fromVect(Vect(1, 0, 0), 30)
+          >>> RotationAxis.fromVect(Vect3D(1, 0, 0), 30)
           RotationAxis(90.0000, -0.0000, 30.0000)
-          >>> RotationAxis.fromVect(Vect(0, 0, -1), 30)
+          >>> RotationAxis.fromVect(Vect3D(0, 0, -1), 30)
           RotationAxis(0.0000, 90.0000, 30.0000)
         """
 
@@ -1339,7 +1333,7 @@ class RotationAxis(object):
         return self.dr
 
     @property
-    def versor(self) -> Vect:
+    def versor(self) -> Vect3D:
         """
         Return the versor equivalent to the Rotation geological asVect.
 
@@ -1521,9 +1515,9 @@ def sortRotations(
 
 
 def rotVectByAxis(
-    v: Vect,
+    v: Vect3D,
     rot_axis: RotationAxis
-) -> Vect:
+) -> Vect3D:
     """
     Rotates a vector.
 
@@ -1538,48 +1532,48 @@ def rotVectByAxis(
     Sensors. 15 (3): 7016–7039. doi:10.3390/s150307016. PMC 4435132. PMID 25806874.
 
     :param v: the vector to rotate
-    :type v: Vect
+    :type v: Vect3D
     :param rot_axis: the rotation axis
     :type rot_axis: RotationAxis
     :return: the rotated vector
-    :rtype: Vect
+    :rtype: Vect3D
 
     Examples:
-      >>> v = Vect(1,0,1)
+      >>> v = Vect3D(1,0,1)
       >>> rotation = RotationAxis(0, -90, 90)
       >>> rotVectByAxis(v, rotation)
-      Vect(0.0000, 1.0000, 1.0000)
+      Vect3D(0.0000, 1.0000, 1.0000)
       >>> rotation = RotationAxis(0, 90, 90)
       >>> rotVectByAxis(v, rotation)
-      Vect(0.0000, -1.0000, 1.0000)
+      Vect3D(0.0000, -1.0000, 1.0000)
       >>> rotation = RotationAxis(0, -90, 180)
       >>> rotVectByAxis(v, rotation)
-      Vect(-1.0000, 0.0000, 1.0000)
+      Vect3D(-1.0000, 0.0000, 1.0000)
       >>> rotation = RotationAxis(0, -90, 270)
       >>> rotVectByAxis(v, rotation)
-      Vect(-0.0000, -1.0000, 1.0000)
+      Vect3D(-0.0000, -1.0000, 1.0000)
       >>> rotation = RotationAxis(90, 0, 90)
       >>> rotVectByAxis(v, rotation)
-      Vect(1.0000, -1.0000, 0.0000)
+      Vect3D(1.0000, -1.0000, 0.0000)
       >>> rotation = RotationAxis(90, 0, 180)
       >>> rotVectByAxis(v, rotation)
-      Vect(1.0000, 0.0000, -1.0000)
+      Vect3D(1.0000, 0.0000, -1.0000)
       >>> rotation = RotationAxis(90, 0, 270)
       >>> rotVectByAxis(v, rotation)
-      Vect(1.0000, 1.0000, -0.0000)
+      Vect3D(1.0000, 1.0000, -0.0000)
       >>> rotation = RotationAxis(90, 0, 360)
       >>> rotVectByAxis(v, rotation)
-      Vect(1.0000, 0.0000, 1.0000)
+      Vect3D(1.0000, 0.0000, 1.0000)
       >>> rotation = RotationAxis(0, -90, 90)
-      >>> v = Vect(0,0,3)
+      >>> v = Vect3D(0,0,3)
       >>> rotVectByAxis(v, rotation)
-      Vect(0.0000, 0.0000, 3.0000)
+      Vect3D(0.0000, 0.0000, 3.0000)
       >>> rotation = RotationAxis(90, -45, 180)
       >>> rotVectByAxis(v, rotation)
-      Vect(3.0000, -0.0000, -0.0000)
-      >>> v = Vect(0,0,3)
+      Vect3D(3.0000, -0.0000, -0.0000)
+      >>> v = Vect3D(0,0,3)
       >>> rotVectByAxis(v, rotation)
-      Vect(3.0000, -0.0000, -0.0000)
+      Vect3D(3.0000, -0.0000, -0.0000)
     """
 
     rot_quat = rot_axis.toRotQuater()
@@ -1593,8 +1587,8 @@ def rotVectByAxis(
 
 def rotVectByQuater(
         quat: Quaternion,
-        vect: Vect
-) -> Vect:
+        vect: Vect3D
+) -> Vect3D:
     """
     Calculates a rotated solution of a Vect instance given a normalized quaternion.
     Original formula in Ref. [1].
@@ -1606,16 +1600,16 @@ def rotVectByQuater(
 
     Example:
       >>> q = Quaternion.i()  # rotation of 180° around the x axis
-      >>> rotVectByQuater(q, Vect(0, 1, 0))
-      Vect(0.0000, -1.0000, 0.0000)
-      >>> rotVectByQuater(q, Vect(0, 1, 1))
-      Vect(0.0000, -1.0000, -1.0000)
+      >>> rotVectByQuater(q, Vect3D(0, 1, 0))
+      Vect3D(0.0000, -1.0000, 0.0000)
+      >>> rotVectByQuater(q, Vect3D(0, 1, 1))
+      Vect3D(0.0000, -1.0000, -1.0000)
       >>> q = Quaternion.k()  # rotation of 180° around the z axis
-      >>> rotVectByQuater(q, Vect(0, 1, 1))
-      Vect(0.0000, -1.0000, 1.0000)
+      >>> rotVectByQuater(q, Vect3D(0, 1, 1))
+      Vect3D(0.0000, -1.0000, 1.0000)
       >>> q = Quaternion.j()  # rotation of 180° around the y axis
-      >>> rotVectByQuater(q, Vect(1, 0, 1))
-      Vect(-1.0000, 0.0000, -1.0000)
+      >>> rotVectByQuater(q, Vect3D(1, 0, 1))
+      Vect3D(-1.0000, 0.0000, -1.0000)
     """
 
     q = quat.normalize()

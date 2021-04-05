@@ -1,6 +1,9 @@
 from qgis.PyQt import uic
 
 from qygsf.geometries.rasters.statistics import *
+
+from qygsf.io.profiles import try_extract_track_from_gpxfile, try_prepare_single_topo_profiles, TrackSource, \
+    GPXElevationUsage
 from .qygsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
 from .qygsf.utils.string_utils.utils_string import *
 from .qygsf.utils.qgis_utils.canvas import *
@@ -329,7 +332,7 @@ class ActionWidget(QWidget):
     def check_pre_profile(self):
 
         for geoprofile in self.input_geoprofiles_set.geoprofiles:
-            if not geoprofile.named_lines.statistics_calculated:
+            if not geoprofile.named_topoprofiles.statistics_calculated:
                 wrn(self,
                      self.plugin_name,
                      "Profile statistics not yet calculated")
@@ -346,9 +349,9 @@ class ActionWidget(QWidget):
         for geoprofile in geoprofiles:
 
             print(f"DEBUG: geoprofile: {geoprofile}")
-            print(f"DEBUG: geoprofile.topo_profiles: {geoprofile.named_lines}")
+            print(f"DEBUG: geoprofile.topo_profiles: {geoprofile.named_topoprofiles}")
 
-            for name, line3d in geoprofile.named_lines:
+            for name, line3d in geoprofile.named_topoprofiles:
 
                 print(f"DEBUG: name: {name}, line3d: {line3d}")
 
@@ -628,15 +631,15 @@ class ActionWidget(QWidget):
         profiles_lengths = []
 
         print(f"DEBUG: geoprofile: {geoprofile}")
-        print(f"DEBUG: geoprofile.named_lines: {geoprofile.named_lines}")
-        print(f"DEBUG: geoprofile.named_lines[0]: {geoprofile.named_lines[0]}")
+        print(f"DEBUG: geoprofile.named_lines: {geoprofile.named_topoprofiles}")
+        print(f"DEBUG: geoprofile.named_lines[0]: {geoprofile.named_topoprofiles[0]}")
 
-        for _, line3d in geoprofile.named_lines:
+        for _, line3d in geoprofile.named_topoprofiles:
             profiles_min_elevs.append(line3d.z_min)
             profiles_max_elevs.append(line3d.z_max)
             profiles_lengths.append(line3d.length_2d)
 
-        surface_names = [name for name, _ in geoprofile.named_lines]
+        surface_names = [name for name, _ in geoprofile.named_topoprofiles]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -2323,7 +2326,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx).named_lines
+            profile_elevations = geoprofile_set.geoprofile(ndx).named_topoprofiles
 
             profiles_stats = list(
                 zip(
@@ -2347,7 +2350,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            topo_profiles = geoprofile_set.geoprofile(ndx).named_lines
+            topo_profiles = geoprofile_set.geoprofile(ndx).named_topoprofiles
             resampled_line_xs = topo_profiles.x_array
             resampled_line_ys = topo_profiles.y_array
 

@@ -1,9 +1,16 @@
 
 import functools
+import itertools
 
+from typing import Optional, Union
+
+import abc
 import numbers
+import random
+from array import array
 
-from qygsf.geometries.shapes.space3d import *
+from ...mathematics.vectors3d import *
+from ...utils.types import *
 
 
 class Shape2D(object, metaclass=abc.ABCMeta):
@@ -817,12 +824,12 @@ class Segment2D(Shape2D):
             self.start_pt,
             end_pt)
 
-    def as_vector(self) -> Vect:
+    def as_vector(self) -> Vect3D:
         """
         Convert a segment to a vector.
         """
 
-        return Vect(
+        return Vect3D(
             x=self.delta_x(),
             y=self.delta_y()
         )
@@ -1165,6 +1172,7 @@ class Segment2D(Shape2D):
             end_pt=Point2D.random(lower_boundary, upper_boundary)
         )
 
+    '''
     def vertical_plane(self) -> Optional[CPlane3D]:
         """
         Returns the vertical Cartesian plane containing the segment.
@@ -1200,10 +1208,11 @@ class Segment2D(Shape2D):
 
     def vector(self) -> Vect:
 
-        return Vect(self.delta_x(),
+        return Vect3D(self.delta_x(),
                     self.delta_y(),
                     0
         )
+    '''
 
 class Line2D(Shape2D):
     """
@@ -1294,7 +1303,9 @@ class Line2D(Shape2D):
 
         return cls(pts)
 
-    def pt(self, pt_ndx: numbers.Integral) -> Point2D:
+    def pt(self,
+           pt_ndx: numbers.Integral
+           ) -> Point2D:
         """
         Extract the point at index pt_ndx.
 
@@ -1693,6 +1704,134 @@ class Line2D(Shape2D):
 
         return line
 
+    def intersectSegment(self,
+        segment: Segment2D
+    ) -> Optional[PointSegmentCollection2D]:
+        """
+        Calculates the possible intersection between the line and a provided segment.
+
+        :param segment: the input segment
+        :return: the optional intersections, points or segments
+        :raise: Exception
+        """
+
+        if self.num_pts() <= 1:
+            return
+
+        check_type(segment, "Input segment", Segment3D)
+
+        intersections = [intersect_segments(curr_segment, segment) for curr_segment in self if curr_segment is not None]
+        intersections = list(filter(lambda val: val is not None, intersections))
+        intersections = PointSegmentCollection2D(intersections)
+
+        return intersections
+
+
+class MultiLine2D(object):
+    """
+    MultiLine is a list of Line objects
+    """
+
+    def __init__(self, lines_list=None):
+
+        if lines_list is None:
+            lines_list = []
+        self._lines = lines_list
+
+    @property
+    def lines(self):
+
+        return self._lines
+
+    def add(self, line):
+
+        return MultiLine2D(self.lines + [line])
+
+    def clone(self):
+
+        return MultiLine2D(self.lines)
+
+    @property
+    def num_parts(self):
+
+        return len(self.lines)
+
+    @property
+    def num_points(self):
+
+        num_points = 0
+        for line in self.lines:
+            num_points += line.num_pts
+
+        return num_points
+
+    @property
+    def x_min(self):
+
+        return np.nanmin([line.x_min for line in self.lines])
+
+    @property
+    def x_max(self):
+
+        return np.nanmax([line.x_max for line in self.lines])
+
+    @property
+    def y_min(self):
+
+        return np.nanmin([line.y_min for line in self.lines])
+
+    @property
+    def y_max(self):
+
+        return np.nanmax([line.y_max for line in self.lines])
+
+    def is_continuous(self):
+
+        for line_ndx in range(len(self._lines) - 1):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
+               not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
+                return False
+
+        return True
+
+    def is_unidirectional(self):
+
+        for line_ndx in range(len(self.lines) - 1):
+            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]):
+                return False
+
+        return True
+
+    def to_line(self):
+
+        return Line2D([point for line in self.lines for point in line.pts])
+
+    '''
+    def crs_project(self, srcCrs, destCrs):
+
+        lines = []
+        for line in self.lines:
+            lines.append(line.crs_project(srcCrs, destCrs))
+
+        return MultiLine4D(lines)
+    '''
+
+    def densify_2d_multiline(self, sample_distance):
+
+        lDensifiedLines = []
+        for line in self.lines:
+            lDensifiedLines.append(line.densify_2d_line(sample_distance))
+
+        return MultiLine2D(lDensifiedLines)
+
+    def remove_coincident_points(self):
+
+        cleaned_lines = []
+        for line in self.lines:
+            cleaned_lines.append(line.remove_coincident_points())
+
+        return MultiLine2D(cleaned_lines)
+
 
 class Ellipse2D(Shape2D):
 
@@ -1787,6 +1926,80 @@ class Triangle2D(Polygon2D):
         """Return numer of sides"""
 
         return 3
+
+
+class PointSegmentCollection2D(list):
+    """
+    Collection of point or segment elements.
+
+    """
+
+    def __init__(
+            self,
+            geoms: Optional[List[Union[Point2D, Segment2D]]] = None,
+            # epsg_code: Optional[numbers.Integral] = None
+    ):
+
+        if geoms is not None:
+
+            for geom in geoms:
+                check_type(geom, "Spatial element", (Point2D, Segment2D))
+
+        """
+        if epsg_code is not None:
+            check_type(
+                var=epsg_code,
+                name="EPSG code",
+                expected_types=numbers.Integral
+            )
+
+        if geoms is not None and epsg_code is not None:
+
+            for geom in geoms:
+                check_epsg(
+                    spatial_element=geom,
+                    epsg_code=epsg_code
+                )
+
+        elif geoms is not None and len(geoms) > 0:
+
+            epsg_code = geoms[0].epsg_code()
+        """
+
+        if geoms is not None and len(geoms) > 0:
+
+            super(PointSegmentCollection2D, self).__init__(geoms)
+
+        else:
+
+            super(PointSegmentCollection2D, self).__init__()
+
+        # self.epsg_code = epsg_code
+
+    def append(self,
+               spatial_element: Union[Point2D, Segment2D]
+               ) -> None:
+
+        check_type(
+            var=spatial_element,
+            name="Spatial element",
+            expected_types=(Point2D, Segment2D)
+        )
+
+        """
+        if self.epsg_code is not None:
+
+            check_epsg(
+                spatial_element=spatial_element,
+                epsg_code=self.epsg_code
+            )
+
+        else:
+
+            self.epsg_code = spatial_element.epsg_code()
+        """
+
+        self.append(spatial_element)
 
 
 class Quadrilateral2D(Polygon2D, metaclass=abc.ABCMeta):
@@ -1886,7 +2099,78 @@ def _(
     )
 
 
+def xytuple_list_to_Line(
+        xy_list: Tuple[numbers.Real, numbers.Real]
+) -> Line2D:
+
+    return Line2D([Point2D(x, y) for (x, y) in xy_list])
+
+
+def xytuple_l2_to_MultiLine(
+        xytuple_list2
+) -> MultiLine2D:
+
+    # input is a list of list of (x,y) values
+
+    assert len(xytuple_list2) > 0
+    lines_list = []
+    for xy_list in xytuple_list2:
+        assert len(xy_list) > 0
+        lines_list.append(xytuple_list_to_Line(xy_list))
+
+    return MultiLine2D(lines_list)
+
+
 if __name__ == "__main__":
 
     import doctest
     doctest.testmod()
+
+
+def merge_line(line):
+    """
+    line: a list of (x,y) tuples for line
+    """
+
+    line_type, line_geometry = line
+
+    if line_type == 'multiline':
+        path_line = xytuple_l2_to_MultiLine(line_geometry).to_line()
+    elif line_type == 'line':
+        path_line = xytuple_list_to_Line(line_geometry)
+    else:
+        raise Exception("unknown line type")
+
+    # transformed into a single Line
+
+    return MultiLine2D([path_line]).to_line().remove_coincident_points()
+
+
+def merge_lines(
+        lines: List[Line2D],
+        progress_ids
+):
+    """
+    lines: a list of list of (x,y,z) tuples for multilines
+    """
+
+    sorted_line_list = [line for (_, line) in sorted(zip(progress_ids, lines))]
+
+    line_list = []
+    for line in sorted_line_list:
+
+        line_type, line_geometry = line
+
+        if line_type == 'multiline':
+            path_line = xytuple_l2_to_MultiLine(line_geometry).to_line()
+        elif line_type == 'line':
+            path_line = xytuple_list_to_Line(line_geometry)
+        else:
+            continue
+        line_list.append(path_line)  # now a list of Lines
+
+    # now the list of Lines is transformed into a single Line with coincident points removed
+
+    line = MultiLine2D(line_list).to_line().remove_coincident_points()
+
+    return line

@@ -3,7 +3,7 @@ import numbers
 
 import affine
 
-from qygsf.mathematics.arrays import *
+from ...mathematics.arrays import *
 
 
 class GeoTransform(np.ndarray):

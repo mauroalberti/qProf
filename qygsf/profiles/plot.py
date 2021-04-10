@@ -328,7 +328,7 @@ def _(
         plot_z_max = geoprofiles.z_max() + z_padding * z_range
 
     if np.isnan(plot_z_min) or np.isnan(plot_z_max):
-        return
+        return []
 
     num_profiles = geoprofiles.num_profiles()
 

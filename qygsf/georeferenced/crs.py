@@ -19,7 +19,7 @@ class Crs(object):
         self._epsg = int(epsg_cd)
 
     @property
-    def epsg_code(self) -> numbers.Integral:
+    def epsg_code(self) -> int:
 
         return self._epsg
 

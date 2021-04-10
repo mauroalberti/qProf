@@ -33,10 +33,6 @@ class Azim(object):
           Azim(10.00°)
           >>> Azim(pi/2, unit='r')
           Azim(90.00°)
-          >>> Azim("10")
-          Traceback (most recent call last):
-          ...
-          Exception: Input azimuth value must be int/float but type <class 'str'> got
           >>> Azim(np.nan)
           Traceback (most recent call last):
           ...
@@ -115,10 +111,6 @@ class Azim(object):
           Traceback (most recent call last):
           ...
           Exception: Input x and y values must be finite
-          >>> Azim.fromXY("10", np.nan)
-          Traceback (most recent call last):
-          ...
-          Exception: Input x and y values must be integer or float
         """
 
         # input vals checks
@@ -177,10 +169,6 @@ class Plunge(object):
         Examples:
           >>> Plunge(10)
           Plunge(10.00°)
-          >>> Plunge("10")
-          Traceback (most recent call last):
-          ...
-          Exception: Input plunge value must be int/float
           >>> Plunge(np.nan)
           Traceback (most recent call last):
           ...
@@ -1651,10 +1639,6 @@ class Plane:
           Plane(090.00, +90.00)
           >>> Plane(0, 90, True)
           Plane(090.00, +90.00)
-          >>> Plane(0, "90", True)
-          Traceback (most recent call last):
-          ...
-          Exception: Source dip angle must be number
           >>> Plane(0, 900)
           Traceback (most recent call last):
           ...

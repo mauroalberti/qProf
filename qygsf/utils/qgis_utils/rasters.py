@@ -1,10 +1,17 @@
+
 import numbers
+
 from collections import namedtuple
 
-from math import ceil
-from typing import List
+from typing import Union, List
 
-from .points import *
+from math import floor, ceil
+
+import numpy as np
+
+from .points import distance_projected_pts
+from .project import *
+from ...geometries.shapes.space2d import Point2D
 
 
 raster_parameters_fields = [

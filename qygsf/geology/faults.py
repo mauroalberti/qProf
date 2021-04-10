@@ -34,10 +34,6 @@ class Slick(object):
           Slick(az: 90.00°, pl: 10.00°, known_dir: True, time: 0.0)
           >>> Slick(90, 10, known=False)
           Slick(az: 90.00°, pl: 10.00°, known_dir: False, time: 0.0)
-          >>> Slick("90", 10, False)
-          Traceback (most recent call last):
-          ...
-          Exception: Trend must be a number
         """
 
         if not isinstance(trend, numbers.Real):
@@ -240,7 +236,7 @@ class Fault(object):
 
         return self._slicks
 
-    def slick(self, ndx: numbers.Integral = 0) -> Slick:
+    def slick(self, ndx: int = 0) -> Slick:
         """
         Return the slickenline with the given index associated with the fault.
 
@@ -265,7 +261,7 @@ class Fault(object):
         else:
             return self._slicks[ndx]
 
-    def slickGeom(self, ndx: numbers.Integral=0) -> Optional[Direct]:
+    def slickGeom(self, ndx: int = 0) -> Optional[Direct]:
         """
         Return the geometric object (Direct or Axis) associated with slickenline.
 

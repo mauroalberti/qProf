@@ -28,7 +28,11 @@ def n_phi(phi_rad: numbers.Real) -> numbers.Real:
     return a / sqrt(1.0 - e_squared * sin(phi_rad) ** 2)
 
 
-def geodetic2ecef(lat: numbers.Real, lon: numbers.Real, height: numbers.Real) -> Tuple[numbers.Real, numbers.Real, numbers.Real]:
+def geodetic2ecef(
+        lat: numbers.Real,
+        lon: numbers.Real,
+        height: numbers.Real
+) -> Tuple[numbers.Real, numbers.Real, numbers.Real]:
     """
     Converts from geodetic (lat-long-height) to Cartesian ECEF reference system.
     See: https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_geodetic_to_ECEF_coordinates

@@ -1,3 +1,13 @@
+
+from qgis.core import QgsPointXY
+
+from .lines import line_geoms_attrs
+from .points import project_qgs_point
+from .rasters import interpolate_z
+from ...geometries.shapes.space2d import Point2D, xytuple_l2_to_MultiLine
+from ...geometries.shapes.space3d import Point3D
+
+
 def intersect_with_dem(
         demLayer,
         demParams,
@@ -18,7 +28,7 @@ def intersect_with_dem(
         lQgsPoints = [QgsPointXY(pt.x, pt.y) for pt in lIntersPts]
         lDemCrsIntersQgsPoints = [project_qgs_point(qgsPt, project_crs, demParams.crs) for qgsPt in
                                                lQgsPoints]
-        lDemCrsIntersPts = [Point4D(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
+        lDemCrsIntersPts = [Point2D(qgispt.x(), qgispt.y()) for qgispt in lDemCrsIntersQgsPoints]
     else:
         lDemCrsIntersPts = lIntersPts
 
@@ -27,7 +37,7 @@ def intersect_with_dem(
 
     lXYZVals = [(pt2d.x, pt2d.y, z) for pt2d, z in zip(lIntersPts, lZVals)]
 
-    return [Point4D(x, y, z) for x, y, z in lXYZVals]
+    return [Point3D(x, y, z) for x, y, z in lXYZVals]
 
 
 def profile_polygon_intersection(

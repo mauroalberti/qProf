@@ -183,7 +183,7 @@ def try_write_esrigrid(
 
     arr = geoarray.level(level_ndx)
     if arr is None:
-        return False, "Array with index {} does not exist".format((level_ndx))
+        return False, f"Array with index {level_ndx} does not exist"
 
     num_rows, num_cols = arr.shape
     llc_x, llc_y = geoarray.level_llc(level_ndx)

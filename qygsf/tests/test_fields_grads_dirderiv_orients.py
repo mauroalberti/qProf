@@ -3,8 +3,9 @@ from math import pi
 
 import unittest
 
+import numpy as np
 
-from qygsf.geometries.rasters.fields import *
+from qygsf.geometries.grids.fields import *
 
 
 class TestDivergence(unittest.TestCase):

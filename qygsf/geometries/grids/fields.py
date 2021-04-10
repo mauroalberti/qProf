@@ -43,7 +43,7 @@ def ij_transfer_func(
     return z_transfer_func(*ijPixToxyGeogr(geotransform, i + i_shift, j + j_shift))
 
 
-def array_from_function(
+def array_from_geotransform_function(
         row_num: numbers.Integral,
         col_num: numbers.Integral,
         geotransform: GeoTransform,
@@ -98,7 +98,11 @@ def grad_j(
     Examples:
     """
 
-    return np.gradient(fld, edge_order=edge_order, axis=1) / cell_size_j
+    return np.gradient(
+        fld,
+        edge_order=edge_order,
+        axis=1
+    ) / cell_size_j
 
 
 def grad_i(

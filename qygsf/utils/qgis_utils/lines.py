@@ -1,9 +1,8 @@
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
+from qgis.core import QgsPointXY
 
-from qygsf.geology.profiles.geoprofiles import *
-from qygsf.geometries.shapes.space4d import *
+from ..qgis_utils.points import *
+from ...geometries.shapes.space2d import *
 
 
 def polyline_to_xytuple_list(
@@ -59,7 +58,7 @@ def try_load_line_layer(
     project_crs,
     line_order_fld_ndx: Optional[numbers.Integral],
     invert_direction: bool
-) -> Tuple[bool, Union[str, List[Line4D]]]:
+) -> Tuple[bool, Union[str, List[Line2D]]]:
 
     try:
 
@@ -81,12 +80,12 @@ def try_load_line_layer(
 
         if areLinesToReorder:
 
-            processed_lines.append(merge_lines(profile_orig_lines, order_values))
+            processed_lines.append(merge_lines2d(profile_orig_lines, order_values))
 
         else:
 
             for orig_line in profile_orig_lines:
-                processed_lines.append(merge_line(orig_line))
+                processed_lines.append(merge_line2d(orig_line))
 
         # process input line layer
 

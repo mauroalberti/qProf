@@ -6,6 +6,8 @@ from typing import Optional, Union
 
 import abc
 import numbers
+
+from math import fabs
 import random
 from array import array
 
@@ -1214,6 +1216,413 @@ class Segment2D(Shape2D):
         )
     '''
 
+
+class PointSegmentCollection2D(list):
+    """
+    Collection of point or segment elements.
+
+    """
+
+    def __init__(
+            self,
+            geoms: Optional[List[Union[Point2D, Segment2D]]] = None,
+            # epsg_code: Optional[numbers.Integral] = None
+    ):
+
+        if geoms is not None:
+
+            for geom in geoms:
+                check_type(geom, "Spatial element", (Point2D, Segment2D))
+
+        """
+        if epsg_code is not None:
+            check_type(
+                var=epsg_code,
+                name="EPSG code",
+                expected_types=numbers.Integral
+            )
+
+        if geoms is not None and epsg_code is not None:
+
+            for geom in geoms:
+                check_epsg(
+                    spatial_element=geom,
+                    epsg_code=epsg_code
+                )
+
+        elif geoms is not None and len(geoms) > 0:
+
+            epsg_code = geoms[0].epsg_code()
+        """
+
+        if geoms is not None and len(geoms) > 0:
+
+            super(PointSegmentCollection2D, self).__init__(geoms)
+
+        else:
+
+            super(PointSegmentCollection2D, self).__init__()
+
+        # self.epsg_code = epsg_code
+
+    def append(self,
+               spatial_element: Union[Point2D, Segment2D]
+               ) -> None:
+
+        check_type(
+            var=spatial_element,
+            name="Spatial element",
+            expected_types=(Point2D, Segment2D)
+        )
+
+        """
+        if self.epsg_code is not None:
+
+            check_epsg(
+                spatial_element=spatial_element,
+                epsg_code=self.epsg_code
+            )
+
+        else:
+
+            self.epsg_code = spatial_element.epsg_code()
+        """
+
+        self.append(spatial_element)
+
+
+def point_or_segment2d(
+        point1: Point2D,
+        point2: Point2D,
+        tol: numbers.Real = PRACTICAL_MIN_DIST
+) -> Union[Point2D, Segment2D]:
+    """
+    Creates a point or segment based on the points distance.
+
+    :param point1: first input point.
+    :type point1: Point.
+    :param point2: second input point.
+    :type point2: Point.
+    :param tol: distance tolerance between the two points.
+    :type tol: numbers.Real.
+    :return: point or segment based on their distance.
+    :rtype: PointOrSegment.
+    :raise: Exception.
+    """
+
+    check_type(point1, "First point", Point2D)
+    check_type(point2, "Second point", Point2D)
+
+    if point1.distance(point2) <= tol:
+        return Point2D(
+            x=(point1.x + point2.x) / 2,
+            y=(point1.y + point2.y) / 2
+        )
+    else:
+        return Segment2D(
+            start_pt=point1,
+            end_pt=point2
+        )
+
+
+def shortest_segment_or_point2d(
+    first_segment: Segment2D,
+    second_segment: Segment2D,
+    tol: numbers.Real = PRACTICAL_MIN_DIST
+) -> Optional[Union[Segment2D, Point2D]]:
+    """
+    TODO: check correct implementation for 2D case, since it derives from 3D implementation.
+
+    Calculates the optional shortest segment - or the intersection point - between two lines represented by two segments.
+
+    Adapted from:
+        http://paulbourke.net/geometry/pointlineplane/
+
+    C code from:
+        http://paulbourke.net/geometry/pointlineplane/lineline.c
+[
+    typedef struct {
+    double x,y,z;
+    } XYZ;
+
+    /*
+    Calculate the line segment PaPb that is the shortest route between
+    two lines P1P2 and P3P4. Calculate also the values of mua and mub where
+      Pa = P1 + mua (P2 - P1)
+      Pb = P3 + mub (P4 - P3)
+    Return FALSE if no solution exists.
+    */
+    int LineLineIntersect(
+    XYZ p1,XYZ p2,XYZ p3,XYZ p4,XYZ *pa,XYZ *pb,
+    double *mua, double *mub)
+    {
+    XYZ p13,p43,p21;
+    double d1343,d4321,d1321,d4343,d2121;
+    double numer,denom;
+
+    p13.x = p1.x - p3.x;
+    p13.y = p1.y - p3.y;
+    p13.z = p1.z - p3.z;
+    p43.x = p4.x - p3.x;
+    p43.y = p4.y - p3.y;
+    p43.z = p4.z - p3.z;
+    if (ABS(p43.x) < EPS && ABS(p43.y) < EPS && ABS(p43.z) < EPS)
+      return(FALSE);
+    p21.x = p2.x - p1.x;
+    p21.y = p2.y - p1.y;
+    p21.z = p2.z - p1.z;
+    if (ABS(p21.x) < EPS && ABS(p21.y) < EPS && ABS(p21.z) < EPS)
+      return(FALSE);
+
+    d1343 = p13.x * p43.x + p13.y * p43.y + p13.z * p43.z;
+    d4321 = p43.x * p21.x + p43.y * p21.y + p43.z * p21.z;
+    d1321 = p13.x * p21.x + p13.y * p21.y + p13.z * p21.z;
+    d4343 = p43.x * p43.x + p43.y * p43.y + p43.z * p43.z;
+    d2121 = p21.x * p21.x + p21.y * p21.y + p21.z * p21.z;
+
+    denom = d2121 * d4343 - d4321 * d4321;
+    if (ABS(denom) < EPS)
+      return(FALSE);
+    numer = d1343 * d4321 - d1321 * d4343;
+
+    *mua = numer / denom;
+    *mub = (d1343 + d4321 * (*mua)) / d4343;
+
+    pa->x = p1.x + *mua * p21.x;
+    pa->y = p1.y + *mua * p21.y;
+    pa->z = p1.z + *mua * p21.z;
+    pb->x = p3.x + *mub * p43.x;
+    pb->y = p3.y + *mub * p43.y;
+    pb->z = p3.z + *mub * p43.z;
+
+    return(TRUE);
+    }
+
+    :param first_segment: the first segment
+    :param second_segment: the second segment
+    :param tol: tolerance value for collapsing a segment into the midpoint.
+    :return: the optional shortest segment or an intersection point.
+    """
+
+    check_type(second_segment, "Second Cartesian line", Segment2D)
+
+    p1 = first_segment.start_pt
+    p2 = first_segment.end_pt
+
+    p3 = second_segment.start_pt
+    p4 = second_segment.end_pt
+
+    p13 = Point2D(
+        x=p1.x - p3.x,
+        y=p1.y - p3.y
+    )
+
+    p43 = Point2D(
+        x=p4.x - p3.x,
+        y=p4.y - p3.y
+    )
+
+    if p43.is_coincident(Point2D(0, 0)):
+        return None
+
+    p21 = Point2D(
+        x=p2.x - p1.x,
+        y=p2.y - p1.y
+    )
+
+    if p21.is_coincident(Point2D(0, 0)):
+        return None
+
+    d1343 = p13.x * p43.x + p13.y * p43.y
+    d4321 = p43.x * p21.x + p43.y * p21.y
+    d1321 = p13.x * p21.x + p13.y * p21.y
+    d4343 = p43.x * p43.x + p43.y * p43.y
+    d2121 = p21.x * p21.x + p21.y * p21.y
+
+    denom = d2121 * d4343 - d4321 * d4321
+
+    if fabs(denom) < MIN_SCALAR_VALUE:
+        return None
+
+    numer = d1343 * d4321 - d1321 * d4343
+
+    mua = numer / denom
+    mub = (d1343 + d4321 * mua) / d4343
+
+    pa = Point2D(
+        x=p1.x + mua * p21.x,
+        y=p1.y + mua * p21.y
+    )
+
+    pb = Point2D(
+        x=p3.x + mub * p43.x,
+        y=p3.y + mub * p43.y
+    )
+
+    intersection = point_or_segment2d(
+        point1=pa,
+        point2=pb,
+        tol=tol
+    )
+
+    return intersection
+
+
+def intersect_segments2d(
+    segment1: Segment2D,
+    segment2: Segment2D,
+    tol: numbers.Real = PRACTICAL_MIN_DIST
+) -> Optional[Union[Point2D, Segment2D]]:
+    """
+    Determines the optional point or segment intersection between the segment pair.
+
+    :param segment1: the first segment
+    :param segment2: the second segment
+    :param tol: the distance tolerance for collapsing a intersection segment into a point
+    :return: the optional point or segment intersection between the segment pair.
+
+    Examples:
+      >>> s2 = Segment2D(Point2D(0,0), Point2D(1,0))
+      >>> s1 = Segment2D(Point2D(0,0), Point2D(1,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(-2,0), Point2D(-1,0))
+      >>> intersect_segments2d(s1, s2) is None
+      True
+      >>> s1 = Segment2D(Point2D(-2,0), Point2D(0,0))
+      >>> intersect_segments2d(s1, s2)
+      Point2D(0.0000, 0.0000, 0.0000)
+      >>> s1 = Segment2D(Point2D(-2,0), Point2D(0.5,0.0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(0.5000, 0.0000))
+      >>> s1 = Segment2D(Point2D(-2,0), Point2D(1,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(-2,0), Point2D(2,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(0,0), Point2D(0.5,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(0.5000, 0.0000))
+      >>> s1 = Segment2D(Point2D(0.25,0), Point2D(0.75,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.2500, 0.0000), end_pt=Point2D(0.7500, 0.0000))
+      >>> s1 = Segment2D(Point2D(0.25,0), Point2D(1,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.2500, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(0.25,0), Point2D(1.25,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.2500, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(0,0), Point2D(1.25,0))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(1.0000, 0.0000))
+      >>> s1 = Segment2D(Point2D(1,0), Point2D(1.25,0))
+      >>> intersect_segments2d(s1, s2)
+      Point2D(1.0000, 0.0000)
+      >>> s2 = Segment2D(Point2D(0,0), Point2D(1,1))
+      >>> s1 = Segment2D(Point2D(0.25,0.25), Point2D(0.75,0.75))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.2500, 0.2500), end_pt=Point2D(0.7500, 0.7500))
+      >>> s1 = Segment2D(Point2D(0.25,0.25), Point2D(1.75,1.75))
+      >>> intersect_segments2d(s1, s2)
+      Segment2D(start_pt=Point2D(0.2500, 0.2500), end_pt=Point2D(1.0000, 1.0000))
+      >>> s1 = Segment2D(Point2D(0.25,0.25), Point2D(1.75,0))
+      >>> intersect_segments2d(s1, s2)
+      Point2D(0.2500, 0.2500)
+      >>> s1 = Segment2D(Point2D(0.25,1), Point2D(0.75,0.75))
+      >>> intersect_segments2d(s1, s2)
+      Point2D(0.7500, 0.7500)
+      >>> s2 = Segment2D(Point2D(-1,-1), Point2D(1,1))
+      >>> s1 = Segment2D(Point2D(-1,1), Point2D(1,-1))
+      >>> intersect_segments2d(s1, s2)
+      Point2D(0.0000, 0.0000)
+    """
+
+    check_type(segment1, "First segment", Segment2D)
+    check_type(segment2, "Second segment", Segment2D)
+
+    #check_crs(segment1, segment2)
+
+    s1_startpt_inside = segment1.segment_start_in(segment2)
+    s2_startpt_inside = segment2.segment_start_in(segment1)
+
+    s1_endpt_inside = segment1.segment_end_in(segment2)
+    s2_endpt_inside = segment2.segment_end_in(segment1)
+
+    elements = [s1_startpt_inside, s2_startpt_inside, s1_endpt_inside, s2_endpt_inside]
+
+    if all(elements):
+        return segment1.clone()
+
+    if s1_startpt_inside and s1_endpt_inside:
+        return segment1.clone()
+
+    if s2_startpt_inside and s2_endpt_inside:
+        return segment2.clone()
+
+    if s1_startpt_inside and s2_startpt_inside:
+        return point_or_segment2d(
+            segment1.start_pt,
+            segment2.start_pt,
+            tol=tol
+        )
+
+    if s1_startpt_inside and s2_endpt_inside:
+        return point_or_segment2d(
+            segment1.start_pt,
+            segment2.end_pt,
+            tol=tol
+        )
+
+    if s1_endpt_inside and s2_startpt_inside:
+        return point_or_segment2d(
+            segment2.start_pt,
+            segment1.end_pt,
+            tol=tol
+        )
+
+    if s1_endpt_inside and s2_endpt_inside:
+        return point_or_segment2d(
+            segment1.end_pt,
+            segment2.end_pt,
+            tol=tol
+        )
+
+    if s1_startpt_inside:
+        return segment1.start_pt.clone()
+
+    if s1_endpt_inside:
+        return segment1.end_pt.clone()
+
+    if s2_startpt_inside:
+        return segment2.start_pt.clone()
+
+    if s2_endpt_inside:
+        return segment2.end_pt.clone()
+
+    shortest_segm_or_pt = shortest_segment_or_point2d(
+        segment1,
+        segment2,
+        tol=tol
+    )
+
+    if not shortest_segm_or_pt:
+        return None
+
+    if not isinstance(shortest_segm_or_pt, Point2D):
+        return None
+
+    inters_pt = shortest_segm_or_pt
+
+    if not segment1.contains_pt(inters_pt):
+        return None
+
+    if not segment2.contains_pt(inters_pt):
+        return None
+
+    return inters_pt
+
+
 class Line2D(Shape2D):
     """
     A list of Point objects.
@@ -1718,9 +2127,9 @@ class Line2D(Shape2D):
         if self.num_pts() <= 1:
             return
 
-        check_type(segment, "Input segment", Segment3D)
+        check_type(segment, "Input segment", Segment2D)
 
-        intersections = [intersect_segments(curr_segment, segment) for curr_segment in self if curr_segment is not None]
+        intersections = [intersect_segments2d(curr_segment, segment) for curr_segment in self if curr_segment is not None]
         intersections = list(filter(lambda val: val is not None, intersections))
         intersections = PointSegmentCollection2D(intersections)
 
@@ -1928,80 +2337,6 @@ class Triangle2D(Polygon2D):
         return 3
 
 
-class PointSegmentCollection2D(list):
-    """
-    Collection of point or segment elements.
-
-    """
-
-    def __init__(
-            self,
-            geoms: Optional[List[Union[Point2D, Segment2D]]] = None,
-            # epsg_code: Optional[numbers.Integral] = None
-    ):
-
-        if geoms is not None:
-
-            for geom in geoms:
-                check_type(geom, "Spatial element", (Point2D, Segment2D))
-
-        """
-        if epsg_code is not None:
-            check_type(
-                var=epsg_code,
-                name="EPSG code",
-                expected_types=numbers.Integral
-            )
-
-        if geoms is not None and epsg_code is not None:
-
-            for geom in geoms:
-                check_epsg(
-                    spatial_element=geom,
-                    epsg_code=epsg_code
-                )
-
-        elif geoms is not None and len(geoms) > 0:
-
-            epsg_code = geoms[0].epsg_code()
-        """
-
-        if geoms is not None and len(geoms) > 0:
-
-            super(PointSegmentCollection2D, self).__init__(geoms)
-
-        else:
-
-            super(PointSegmentCollection2D, self).__init__()
-
-        # self.epsg_code = epsg_code
-
-    def append(self,
-               spatial_element: Union[Point2D, Segment2D]
-               ) -> None:
-
-        check_type(
-            var=spatial_element,
-            name="Spatial element",
-            expected_types=(Point2D, Segment2D)
-        )
-
-        """
-        if self.epsg_code is not None:
-
-            check_epsg(
-                spatial_element=spatial_element,
-                epsg_code=self.epsg_code
-            )
-
-        else:
-
-            self.epsg_code = spatial_element.epsg_code()
-        """
-
-        self.append(spatial_element)
-
-
 class Quadrilateral2D(Polygon2D, metaclass=abc.ABCMeta):
 
     def area(self):
@@ -2127,7 +2462,7 @@ if __name__ == "__main__":
     doctest.testmod()
 
 
-def merge_line(line):
+def merge_line2d(line):
     """
     line: a list of (x,y) tuples for line
     """
@@ -2146,7 +2481,7 @@ def merge_line(line):
     return MultiLine2D([path_line]).to_line().remove_coincident_points()
 
 
-def merge_lines(
+def merge_lines2d(
         lines: List[Line2D],
         progress_ids
 ):

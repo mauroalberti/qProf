@@ -827,3 +827,4 @@ class GeoPointSegmentCollections3D(list):
             check_type(spat_element, "Point-segment collection", GeoPointSegmentCollection3D)
 
         super(GeoPointSegmentCollections3D, self).__init__(atts)
+

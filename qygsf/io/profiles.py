@@ -3,10 +3,17 @@ from enum import Enum, auto
 from math import degrees, asin, cos, radians, ceil
 from typing import Tuple, Union, List
 
+import numpy as np
+
 from qygsf.profiles.geoprofiles import ProfileElevations, GeoProfile
-from qygsf.geometries.shapes.space3d import Line3D
+from ..geometries.shapes.space2d import Line2D
+from qygsf.geometries.shapes.space3d import Point3D, Line3D
+from ..geometries.shapes.space4d import Line4D
 from qygsf.utils.qgis_utils.rasters import get_min_dem_resolution
 from qygsf.utils.time import standard_gpstime_to_datetime
+from ..utils.qgis_utils.project import projectCrs
+from ..utils.qgis_utils.rasters import interpolate_z
+from ..utils.qgis_utils.points import TrackPointGPX
 
 
 def topoline_from_dem(
@@ -24,10 +31,10 @@ def topoline_from_dem(
     else:
         trace2d_in_dem_crs = resampled_trace2d
 
-    ln3dtProfile = Line4D()
+    ln3dtProfile = Line3D()
     for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
         fInterpolatedZVal = interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-        pt3dtPoint = Point4D(trace_pt2d_project_crs.x,
+        pt3dtPoint = Point3D(trace_pt2d_project_crs.x,
                              trace_pt2d_project_crs.y,
                              fInterpolatedZVal)
         ln3dtProfile.add_pt(pt3dtPoint)
@@ -224,7 +231,7 @@ class GPXElevationUsage(Enum):
 
 
 def try_prepare_single_topo_profiles(
-    profile_line: Line2D,
+    profile_line: Union[Line2D, Line3D],
     track_source: TrackSource,
     gpx_elevation_usage: GPXElevationUsage,
     selected_dems: List,

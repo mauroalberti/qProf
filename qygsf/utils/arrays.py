@@ -50,9 +50,9 @@ class ArrayList:
 
 def to_float(
         curr_iterable
-) -> Tuple[numbers.Real]:
+) -> Tuple[float]:
 
-    return (float(item) for item in curr_iterable)
+    return tuple([float(item) for item in curr_iterable])
 
 
 def almost_zero(val):
@@ -102,22 +102,6 @@ def is_number(s):
     try:
         float(s)
     except:
-        return False
-    else:
-        return True
-
-
-def to_float(
-        curr_iterable
-) -> Tuple[numbers.Real]:
-
-    return (float(item) for item in curr_iterable)
-
-
-def almost_zero(val):
-
-    tolerance = 1e-10
-    if abs(val) > tolerance:
         return False
     else:
         return True

@@ -66,7 +66,7 @@ class TestRKFInterpolation(unittest.TestCase):
 
         # vector field x-component
 
-        fx1 = array_from_function(
+        fx1 = array_from_geotransform_function(
             row_num=rows,
             col_num=cols,
             geotransform=gt1,
@@ -74,7 +74,7 @@ class TestRKFInterpolation(unittest.TestCase):
 
         # vector field y-component
 
-        fy1 = array_from_function(
+        fy1 = array_from_geotransform_function(
             row_num=rows,
             col_num=cols,
             geotransform=gt1,

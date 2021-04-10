@@ -24,7 +24,7 @@ class TestSegmentIntersections(unittest.TestCase):
                 center_point=center_point
             )
 
-            intersection_pt = intersect_segments(random_segment, rotated_segment)
+            intersection_pt = intersect_segments3d(random_segment, rotated_segment)
 
             if not intersection_pt or not intersection_pt.is_coincident(center_point, tolerance=1e-2):
                 print(n)

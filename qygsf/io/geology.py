@@ -1,9 +1,9 @@
-from typing import Optional, Tuple, Union, List
 
 from geopandas import GeoDataFrame
 
 from qygsf.geology.base import GeorefAttitude
 from qygsf.orientations.orientations import Plane
+from ..geometries.shapes.space2d import *
 
 
 def try_extract_flat_georeferenced_attitudes(

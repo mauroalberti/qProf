@@ -65,7 +65,7 @@ def simple_shear_vert_matrix(
 
 def deformation_matrices(deform_params):
 
-    deformation_matrices = []
+    def_matrices = []
 
     for deform_param in deform_params:
         if deform_param['type'] == 'displacement':
@@ -111,9 +111,9 @@ def deformation_matrices(deform_params):
         else:
             continue
 
-        deformation_matrices.append(deformation)
+        def_matrices.append(deformation)
 
-    return deformation_matrices
+    return def_matrices
 
 
 def rotation_matrix(

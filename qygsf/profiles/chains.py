@@ -185,14 +185,12 @@ class TopographicProfile:
 
     def z_for_s(self,
                 s_val: numbers.Real
-                ) -> Optional[numbers.Integral]:
+                ) -> Optional[numbers.Real]:
         """
         Returns the optional interpolated z value in the z array of the provided s value.
 
         :param s_val: the value to search the index for in the s array
-        :type s_val: numbers.Real
-        :return: the optional index in the s array of the provided value
-        :rtype: Optional[numbers.Integral]
+        :return: the optional interpolated z value
 
         Examples:
           >>> p = TopographicProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))

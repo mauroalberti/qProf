@@ -709,3 +709,61 @@ def line2d_to_shapely(
     """
 
     return LineString(src_line.xy_zipped())
+
+
+class GeoPointSegmentCollection2D(list):
+    """
+    Collection of point or segment elements.
+
+    """
+
+    def __init__(
+            self,
+            geoms: Optional[List[Union[Point2D, Segment2D]]] = None,
+            epsg_code: Optional[numbers.Integral] = None
+    ):
+
+        if geoms is not None:
+            for geom in geoms:
+                check_type(geom, "Spatial element", (Point2D, Segment2D))
+
+        if epsg_code is not None:
+            check_type(
+                var=epsg_code,
+                name="EPSG code",
+                expected_types=numbers.Integral
+            )
+
+        if geoms is not None and len(geoms) > 0:
+
+            super(GeoPointSegmentCollection2D, self).__init__(geoms)
+
+        else:
+
+            super(GeoPointSegmentCollection2D, self).__init__()
+
+        self.epsg_code = epsg_code
+
+    def append(self,
+               spatial_element: Union[Point2D, Segment2D]
+               ) -> None:
+
+        check_type(
+            var=spatial_element,
+            name="Spatial element",
+            expected_types=(Point2D, Segment2D)
+        )
+
+        self.append(spatial_element)
+
+
+class GeoPointSegmentCollections2D(list):
+
+    def __init__(self, atts: List[Tuple[Union[str, numbers.Integral], GeoPointSegmentCollection2D]]):
+        check_type(atts, "Point-segment collections", List)
+        for label, spat_element in atts:
+            check_type(label, "Label", (str, numbers.Integral))
+            check_type(spat_element, "Point-segment collection", GeoPointSegmentCollection2D)
+
+        super(GeoPointSegmentCollections2D, self).__init__(atts)
+

@@ -1408,9 +1408,10 @@ class GeoSegment4D:
             end_pt=GeoPoint4D.random(lower_boundary, upper_boundary)
         )
 
-    def densify_as_line3d(self,
+    '''
+    def densify_as_line4d(self,
                           densify_distance
-                          ) -> Line3D:
+                          ) -> Line4D:
         """
         Densify a segment by adding additional points
         separated a distance equal to densify_distance.
@@ -1444,13 +1445,17 @@ class GeoSegment4D:
         interpolated_line.add_pt(self.end_pt)
 
         return interpolated_line
+    '''
 
+    '''
     def densify_as_pts3d(self,
                          densify_distance
                          ) -> List[GeoPoint4D]:
 
         return self.densify_as_line3d(densify_distance=densify_distance).pts()
+    '''
 
+    '''
     def densify_as_steps3d(self,
                            densify_distance: numbers.Real
                            ) -> array:
@@ -1486,3 +1491,4 @@ class GeoSegment4D:
         s_list.append(segment_length)
 
         return array('d', s_list)
+    '''

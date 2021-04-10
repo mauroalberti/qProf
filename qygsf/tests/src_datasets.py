@@ -1,5 +1,4 @@
 
-from qygsf.orientations.orientations import *
 from qygsf.geology.ptbaxes import *
 
 

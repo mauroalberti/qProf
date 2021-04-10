@@ -12,6 +12,7 @@ from copy import copy
 import numbers
 from array import array
 
+from .space2d import Segment2D
 from ...orientations.orientations import *
 from ...mathematics.statistics import *
 from ...mathematics.quaternions import *
@@ -768,6 +769,29 @@ class Segment3D:
             end_pt=end_pt
         )
 
+    @classmethod
+    def from2D(cls,
+        segment: Segment2D):
+
+        check_type(segment, "Input segment", Segment2D)
+
+        start_pt = Point3D(
+            x=segment.start_pt.x,
+            y=segment.start_pt.y,
+            z=0.0
+        )
+
+        end_pt = Point3D(
+            x=segment.end_pt.x,
+            y=segment.end_pt.y,
+            z=0.0
+        )
+
+        return cls(
+            start_pt=start_pt,
+            end_pt=end_pt
+        )
+
     def __repr__(self) -> str:
         """
         Represents a Segment instance.
@@ -1472,7 +1496,7 @@ class Segment3D:
         return array('d', s_list)
 
 
-def point_or_segment(
+def point_or_segment3d(
         point1: Point3D,
         point2: Point3D,
         tol: numbers.Real = PRACTICAL_MIN_DIST
@@ -1507,7 +1531,7 @@ def point_or_segment(
         )
 
 
-def intersect_segments(
+def intersect_segments3d(
     segment1: Segment3D,
     segment2: Segment3D,
     tol: numbers.Real = PRACTICAL_MIN_DIST
@@ -1523,57 +1547,57 @@ def intersect_segments(
     Examples:
       >>> s2 = Segment3D(Point3D(0,0,0), Point3D(1,0,0))
       >>> s1 = Segment3D(Point3D(0,0,0), Point3D(1,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(-2,0,0), Point3D(-1,0,0))
-      >>> intersect_segments(s1, s2) is None
+      >>> intersect_segments3d(s1, s2) is None
       True
       >>> s1 = Segment3D(Point3D(-2,0,0), Point3D(0,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Point3D(0.0000, 0.0000, 0.0000)
       >>> s1 = Segment3D(Point3D(-2,0,0), Point3D(0.5,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(0.5000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(-2,0,0), Point3D(1,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(-2,0,0), Point3D(2,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(0,0,0), Point3D(0.5,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(0.5000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(0.25,0,0), Point3D(0.75,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.2500, 0.0000, 0.0000), end_pt=Point3D(0.7500, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(0.25,0,0), Point3D(1,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.2500, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(0.25,0,0), Point3D(1.25,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.2500, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(0,0,0), Point3D(1.25,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.0000, 0.0000, 0.0000), end_pt=Point3D(1.0000, 0.0000, 0.0000))
       >>> s1 = Segment3D(Point3D(1,0,0), Point3D(1.25,0,0))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Point3D(1.0000, 0.0000, 0.0000)
       >>> s2 = Segment3D(Point3D(0,0,0), Point3D(1,1,1))
       >>> s1 = Segment3D(Point3D(0.25,0.25,0.25), Point3D(0.75,0.75,0.75))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.2500, 0.2500, 0.2500), end_pt=Point3D(0.7500, 0.7500, 0.7500))
       >>> s1 = Segment3D(Point3D(0.25,0.25,0.25), Point3D(1.75,1.75,1.75))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Segment3D(start_pt=Point3D(0.2500, 0.2500, 0.2500), end_pt=Point3D(1.0000, 1.0000, 1.0000))
       >>> s1 = Segment3D(Point3D(0.25,0.25,0.25), Point3D(1.75,0,1.75))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Point3D(0.2500, 0.2500, 0.2500)
       >>> s1 = Segment3D(Point3D(0.25,1,0.25), Point3D(0.75,0.75,0.75))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Point3D(0.7500, 0.7500, 0.7500)
       >>> s2 = Segment3D(Point3D(-1,-1,-1), Point3D(1,1,1))
       >>> s1 = Segment3D(Point3D(-1,1,1), Point3D(1,-1,-1))
-      >>> intersect_segments(s1, s2)
+      >>> intersect_segments3d(s1, s2)
       Point3D(0.0000, 0.0000, 0.0000)
     """
 
@@ -1600,28 +1624,28 @@ def intersect_segments(
         return segment2.clone()
 
     if s1_startpt_inside and s2_startpt_inside:
-        return point_or_segment(
+        return point_or_segment3d(
             segment1.start_pt,
             segment2.start_pt,
             tol=tol
         )
 
     if s1_startpt_inside and s2_endpt_inside:
-        return point_or_segment(
+        return point_or_segment3d(
             segment1.start_pt,
             segment2.end_pt,
             tol=tol
         )
 
     if s1_endpt_inside and s2_startpt_inside:
-        return point_or_segment(
+        return point_or_segment3d(
             segment2.start_pt,
             segment1.end_pt,
             tol=tol
         )
 
     if s1_endpt_inside and s2_endpt_inside:
-        return point_or_segment(
+        return point_or_segment3d(
             segment1.end_pt,
             segment2.end_pt,
             tol=tol
@@ -1639,7 +1663,7 @@ def intersect_segments(
     if s2_endpt_inside:
         return segment2.end_pt.clone()
 
-    shortest_segm_or_pt = shortest_segment_or_point(
+    shortest_segm_or_pt = shortest_segment_or_point3d(
         segment1,
         segment2,
         tol=tol
@@ -2196,7 +2220,7 @@ class Line3D:
 
         check_type(segment, "Input segment", Segment3D)
 
-        intersections = [intersect_segments(curr_segment, segment) for curr_segment in self if curr_segment is not None]
+        intersections = [intersect_segments3d(curr_segment, segment) for curr_segment in self if curr_segment is not None]
         intersections = list(filter(lambda val: val is not None, intersections))
         intersections = PointSegmentCollection3D(intersections)
 
@@ -2321,7 +2345,7 @@ class MultiLine3D:
         return MultiLine3D(cleaned_lines)
 
 
-def shortest_segment_or_point(
+def shortest_segment_or_point3d(
     first_segment: Segment3D,
     second_segment: Segment3D,
     tol: numbers.Real = PRACTICAL_MIN_DIST
@@ -2459,7 +2483,7 @@ def shortest_segment_or_point(
         z=p3.z + mub * p43.z
     )
 
-    intersection = point_or_segment(
+    intersection = point_or_segment3d(
         point1=pa,
         point2=pb,
         tol=tol
@@ -2694,7 +2718,7 @@ class CPlane3D:
 
         return "CPlane3D({:.4f}, {:.4f}, {:.4f}, {:.4f})".format(*self.v())
 
-    def normVersor(self) -> Vect3D:
+    def normVersor(self) -> Optional[Vect3D]:
         """
         Return the versor normal to the cartesian plane.
 

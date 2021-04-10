@@ -1,5 +1,5 @@
 
-from typing import Dict, Tuple, Union
+from typing import Tuple, Union
 
 import os
 
@@ -57,12 +57,12 @@ def try_read_as_geodataframe(
         )
         return True, v
     except Exception as e:
-        return False, e
+        return False, str(e)
 
 
 def try_open_shapefile(
         path: str
-) -> Tuple[bool, Union["OGRLayer", str]]:
+) -> Tuple[bool, Union[ogr.OGRLayer, str]]:
 
     dataSource = ogr.Open(path)
 
@@ -151,8 +151,6 @@ def reading_line_shapefile(
             else:
                 del ds
                 return False, "Geometry type is {}, line expected".format(geom_type)
-
-            geolines_3d = GeoLines3D()
 
             if geom_type == "simpleline":
 
@@ -684,7 +682,7 @@ class GDALParameters(object):
 
         @return:  new Point instance.
         """
-        return Point4D(self.topLeftX, self.topLeftY - abs(self.pixSizeNS) * self.rows)
+        return Point2D(self.topLeftX, self.topLeftY - abs(self.pixSizeNS) * self.rows)
 
     def trcorner(self):
         """
@@ -692,7 +690,7 @@ class GDALParameters(object):
 
         @return:  new Point instance.
         """
-        return Point4D(self.topLeftX + abs(self.pixSizeEW) * self.cols, self.topLeftY)
+        return Point2D(self.topLeftX + abs(self.pixSizeEW) * self.cols, self.topLeftY)
 
     def geo_equiv(self, other, tolerance=1.0e-6):
         """
@@ -772,7 +770,7 @@ def read_line_shapefile_via_ogr(line_shp_path):
         for i in range(line_geom.GetPointCount()):
             x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
 
-            line_points.append(Point4D(x, y, z))
+            line_points.append(Point3D(x, y, z))
 
         lines_points.append(line_points)
 

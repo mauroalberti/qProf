@@ -27,6 +27,7 @@ class GeoProfile:
         self.projected_lines_ids = []
         self.line_intersections = []
         self.polygons_intersections = []
+        self.lines_intersections = None
 
     def clear_topo_profile(self):
         """

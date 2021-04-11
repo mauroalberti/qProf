@@ -5,13 +5,13 @@ from typing import Tuple, Union, List
 
 import numpy as np
 
-from qygsf.profiles.geoprofiles import GeoProfile_
+from ..profiles.geoprofiles import GeoProfile_
 from ..profiles.sets import ProfileElevations
 from ..geometries.shapes.space2d import Line2D
-from qygsf.geometries.shapes.space3d import Point3D, Line3D
+from ..geometries.shapes.space3d import Point3D, Line3D
 from ..geometries.shapes.space4d import Line4D
-from qygsf.utils.qgis_utils.rasters import get_min_dem_resolution
-from qygsf.utils.time import standard_gpstime_to_datetime
+from ..utils.qgis_utils.rasters import get_min_dem_resolution
+from ..utils.time import standard_gpstime_to_datetime
 from ..utils.qgis_utils.project import projectCrs
 from ..utils.qgis_utils.rasters import interpolate_z
 from ..utils.qgis_utils.points import TrackPointGPX

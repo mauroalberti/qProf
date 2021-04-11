@@ -4,7 +4,7 @@ from typing import Optional
 from array import array
 
 from .elements import *
-from qygsf.utils.arrays import *
+from ..utils.arrays import *
 
 
 class TopographicProfile:

@@ -4,8 +4,8 @@ import numbers
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
-from qygsf.geometries.shapes.space3d import *
-from qygsf.georeferenced.rasters import *
+from ..geometries.shapes.space3d import *
+from ..georeferenced.rasters import *
 
 
 def plot_grid(

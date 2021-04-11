@@ -8,7 +8,7 @@
 
 import unittest
 
-from qygsf.geometries.grids.fields import *
+from ..geometries.grids.fields import *
 from ..geometries.grids.geotransform import GeoTransform
 
 
@@ -83,7 +83,7 @@ class TestDivergence(unittest.TestCase):
             z_transfer_func=z_func_div
         )
 
-        # Divergence as resulting from qygsf calculation:
+        # Divergence as resulting from .qygsf calculation:
 
         div_pygsf = divergence(fx, fy, 10, 10)
 

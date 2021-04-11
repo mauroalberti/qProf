@@ -1,7 +1,7 @@
 import numpy
 
 from .chains import *
-from qygsf.georeferenced.geoshapes3d import GeoPointSegmentCollections3D
+from ..georeferenced.geoshapes3d import GeoPointSegmentCollections3D
 
 
 class TopographicProfileSet(list):

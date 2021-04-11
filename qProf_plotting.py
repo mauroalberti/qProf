@@ -1,9 +1,9 @@
 
-from typing import Dict
+##from typing import Dict
 
 import matplotlib as mpl
 
-from qygsf.profiles.geoprofiles import *
+from .qygsf.profiles.geoprofiles import *
 from .qygsf.utils.mpl_utils.mpl_widget import *
 from .qygsf.utils.qt_utils.colors import *
 

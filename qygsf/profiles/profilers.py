@@ -2,12 +2,12 @@
 from typing import List, Iterable
 from operator import attrgetter
 
-from qygsf.georeferenced.geoshapes2d import *
-from qygsf.georeferenced.rasters import *
-from qygsf.geology.base import *
+from ..georeferenced.geoshapes2d import *
+from ..georeferenced.rasters import *
+from ..geology.base import *
 
-from qygsf.profiles.sets import *
-from qygsf.orientations.orientations import Axis
+from .sets import *
+from ..orientations.orientations import Axis
 from ..geometries.shapes.space2d import PointSegmentCollection2D
 
 

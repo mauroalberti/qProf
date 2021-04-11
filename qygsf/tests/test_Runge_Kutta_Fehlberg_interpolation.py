@@ -2,7 +2,7 @@
 
 import unittest
 
-from qygsf.georeferenced.rasters import *
+from ..georeferenced.rasters import *
 
 
 class TestRKFInterpolation(unittest.TestCase):

@@ -1,8 +1,8 @@
 
 import unittest
 
-from qygsf.geometries.shapes.space3d import *
-from qygsf.geometries.shapes.space3d import CPlane3D
+from ..geometries.shapes.space3d import *
+from ..geometries.shapes.space3d import CPlane3D
 
 
 class TestOrientations(unittest.TestCase):

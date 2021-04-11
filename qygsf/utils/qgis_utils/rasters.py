@@ -9,9 +9,9 @@ from math import floor, ceil
 
 import numpy as np
 
-from .points import distance_projected_pts
+from .points import *
 from .project import *
-from ...geometries.shapes.space2d import Point2D
+from ...geometries.shapes.space2d import *
 
 
 raster_parameters_fields = [

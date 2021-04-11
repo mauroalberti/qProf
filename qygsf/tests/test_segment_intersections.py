@@ -1,8 +1,8 @@
 
 import unittest
 
-from qygsf.geometries.shapes.space3d import *
-from qygsf.orientations.orientations import *
+from ..geometries.shapes.space3d import *
+from ..orientations.orientations import *
 
 
 class TestSegmentIntersections(unittest.TestCase):

@@ -1,8 +1,8 @@
 
 from geopandas import GeoDataFrame
 
-from qygsf.geology.base import GeorefAttitude
-from qygsf.orientations.orientations import Plane
+from ..geology.base import GeorefAttitude
+from ..orientations.orientations import Plane
 from ..geometries.shapes.space2d import *
 
 

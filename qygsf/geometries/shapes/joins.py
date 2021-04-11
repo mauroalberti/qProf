@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Union, List, Optional
 
-from qygsf.geometries.shapes.space2d import *
-from qygsf.geometries.shapes.space3d import *
+from .space2d import *
+from .space3d import *
 
 
 class JoinTypes(Enum):

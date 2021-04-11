@@ -1,21 +1,13 @@
 
-"""
-
-
-from qgis.core import *
-
-
-from qygsf.geometries.shapes.space4d import *
-from qygsf.georeferenced.geodetic import geodetic2ecef
-from qygsf.utils.time import standard_gpstime_to_seconds
-"""
-
 import datetime
 from copy import deepcopy
 
-from qygsf.geometries.shapes.space2d import Point2D
-from qygsf.geometries.shapes.space3d import *
-from qygsf.geometries.shapes.space4d import *
+from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY
+
+
+from ...geometries.shapes.space2d import Point2D
+from ...geometries.shapes.space3d import *
+from ...geometries.shapes.space4d import *
 from .rasters import *
 from ...georeferenced.geodetic import geodetic2ecef
 from ..time import standard_gpstime_to_seconds

@@ -1,5 +1,5 @@
 
-from qygsf.geology.ptbaxes import *
+from ..geology.ptbaxes import *
 
 
 """

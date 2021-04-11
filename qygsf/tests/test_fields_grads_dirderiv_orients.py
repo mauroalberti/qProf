@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from qygsf.geometries.grids.fields import *
+from ..geometries.grids.fields import *
 
 
 class TestDivergence(unittest.TestCase):

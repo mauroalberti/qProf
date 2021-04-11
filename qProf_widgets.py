@@ -1,9 +1,11 @@
 from qgis.PyQt import uic
+from qgis.core import QgsRasterLayer
 
-from qygsf.geometries.rasters.statistics import *
-
-from qygsf.io.profiles import try_extract_track_from_gpxfile, try_prepare_single_topo_profiles, TrackSource, \
-    GPXElevationUsage
+from .qygsf.utils.qgis_utils.project import *
+from .qygsf.utils.qgis_utils.lines import *
+from .qygsf.geometries.grids.statistics import *
+from .qygsf.geometries.shapes.space4d import *
+from .qygsf.io.profiles import *
 from .qygsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
 from .qygsf.utils.string_utils.utils_string import *
 from .qygsf.utils.qgis_utils.canvas import *

@@ -1,5 +1,6 @@
 
 from .qygsf.utils.qt_utils.actions import *
+from .qygsf.utils.qgis_utils.project import check_project_planar_crs
 
 from .config.params import *
 

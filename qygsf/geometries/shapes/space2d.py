@@ -2235,7 +2235,7 @@ class MultiLine2D(object):
 
     def to_line(self):
 
-        return Line2D([point for line in self.lines for point in line.pts])
+        return Line2D([point for line in self.lines for point in line.pts()])
 
     '''
     def crs_project(self, srcCrs, destCrs):
@@ -2460,7 +2460,11 @@ def xytuple_list_to_Line(
         xy_list: Tuple[numbers.Real, numbers.Real]
 ) -> Line2D:
 
-    return Line2D([Point2D(x, y) for (x, y) in xy_list])
+    print(f"xy_list -> {type(xy_list)} -> {xy_list}")
+    result = Line2D([Point2D(x, y) for (x, y) in xy_list])
+    print(f"result -> {type(result)} -> {result}")
+    print(f"DEBUG: returning from 'xytuple_list_to_Line' {result}")
+    return result
 
 
 def xytuple_l2_to_MultiLine(
@@ -2469,10 +2473,10 @@ def xytuple_l2_to_MultiLine(
 
     # input is a list of list of (x,y) values
 
-    assert len(xytuple_list2) > 0
+    #assert len(xytuple_list2) > 0
     lines_list = []
     for xy_list in xytuple_list2:
-        assert len(xy_list) > 0
+        #assert len(xy_list) > 0
         lines_list.append(xytuple_list_to_Line(xy_list))
 
     return MultiLine2D(lines_list)
@@ -2484,7 +2488,9 @@ if __name__ == "__main__":
     doctest.testmod()
 
 
-def merge_line2d(line):
+def merge_line2d(
+        line
+) -> Line2D:
     """
     line: a list of (x,y) tuples for line
     """
@@ -2500,7 +2506,9 @@ def merge_line2d(line):
 
     # transformed into a single Line
 
-    return MultiLine2D([path_line]).to_line().remove_coincident_points()
+    result = path_line.remove_coincident_points()
+
+    return result
 
 
 def merge_lines2d(

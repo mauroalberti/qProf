@@ -53,6 +53,16 @@ class TopographicProfile:
 
         return self._z
 
+    def __repr__(self) -> str:
+        """
+        Representation of a topographic profile instance.
+
+        :return: the textual representation of the instance.
+        :rtype: str.
+        """
+
+        return f"TopographicProfile with {len(self.s_arr())} points\ns = {self.s_arr()},\nz = {self.z_arr()}"
+
     def z(self,
         ndx: numbers.Integral
     ) -> numbers.Real:
@@ -374,7 +384,7 @@ class TopographicProfile:
         return array('d', map(self.z_for_s, s_subset))
 
 
-class ProfileAttitudes(list):
+class AttitudesProfile(list):
 
     def __init__(self, atts: List[ProfileAttitude]):
 
@@ -382,10 +392,14 @@ class ProfileAttitudes(list):
         for el in atts:
             check_type(el, "Attitude projection", ProfileAttitude)
 
-        super(ProfileAttitudes, self).__init__(atts)
+        super(AttitudesProfile, self).__init__(atts)
 
 
-class ProfilesIntersections(list):
+class IntersectionsProfile(list):
+    """
+    A list of intersections (as arrays with ids).
+
+    """
 
     def __init__(self, intersections: List[ArrayList]):
 
@@ -393,6 +407,6 @@ class ProfilesIntersections(list):
         for el in intersections:
             check_type(el, "Profile intersections", ArrayList)
 
-        super(ProfilesIntersections, self).__init__(intersections)
+        super(IntersectionsProfile, self).__init__(intersections)
 
 

@@ -5,7 +5,7 @@ from .sets import *
 z_padding = 0.2
 
 
-class GeoProfile:
+class GeoProfile_:
     """
     Class representing the topographic and geological elements
     representing a single geological profile.
@@ -168,7 +168,7 @@ class GeoProfile:
         self.projected_lines_ids.append(lIds)
 
 
-class GeoProfilesSet:
+class GeoProfilesSet_:
     """
     Represents a set of ProfileElements instances,
     stored as a list
@@ -230,48 +230,48 @@ class GeoProfilesSet:
         _ = self._geoprofiles.pop(ndx)
 
 
-class GeoProfilePygsf:
+class GeoProfile:
     """
     Class representing the topographic and geological elements
     representing a single geological profile.
     """
 
     def __init__(self,
-                 unnamed_topoprofiles: Optional[TopographicProfile] = None,
-                 profile_attitudes: Optional[ProfileAttitudes] = None,
-                 lines_intersections: Optional[ProfilesIntersections] = None,
-                 polygons_intersections: Optional[ProfilesIntersections] = None
+                 topo_profiles: Optional[TopographicProfile] = None,
+                 profile_attitudes: Optional[AttitudesProfile] = None,
+                 lines_intersections: Optional[IntersectionsProfile] = None,
+                 polygons_intersections: Optional[IntersectionsProfile] = None
                  ):
 
-        if unnamed_topoprofiles:
-            check_type(unnamed_topoprofiles, "Topographic profile", TopographicProfile)
+        if topo_profiles:
+            check_type(topo_profiles, "Topographic profile", TopographicProfile)
 
         if profile_attitudes:
-            check_type(profile_attitudes, "Attitudes", ProfileAttitudes)
+            check_type(profile_attitudes, "Attitudes", AttitudesProfile)
 
         if lines_intersections:
-            check_type(lines_intersections, "Line intersections", ProfilesIntersections)
+            check_type(lines_intersections, "Line intersections", IntersectionsProfile)
 
         if polygons_intersections:
-            check_type(polygons_intersections, "Polygon intersections", ProfilesIntersections)
+            check_type(polygons_intersections, "Polygon intersections", IntersectionsProfile)
 
-        self._topo_profile = unnamed_topoprofiles
+        self._topo_profiles = topo_profiles
         self._profile_attitudes = profile_attitudes
         self._lines_intersections = lines_intersections
         self._polygons_intersections = polygons_intersections
 
     @property
-    def topoprofiles(self):
+    def topo_profiles(self):
         """
 
         :return:
         """
 
-        return self._topo_profile
+        return self._topo_profiles
 
-    @topoprofiles.setter
-    def topoprofiles(self,
-                     scalars_inters: TopographicProfile):
+    @topo_profiles.setter
+    def topo_profiles(self,
+                      scalars_inters: TopographicProfile):
         """
 
         :param scalars_inters: the scalar values profiles.
@@ -281,7 +281,7 @@ class GeoProfilePygsf:
         """
 
         check_type(scalars_inters, "Topographic profile", TopographicProfile)
-        self._topo_profile = scalars_inters
+        self._topo_profiles = scalars_inters
 
     def clear_topo_profile(self):
         """
@@ -289,7 +289,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        self._topo_profile = None
+        self._topo_profiles = None
 
     @property
     def profile_attitudes(self):
@@ -302,7 +302,7 @@ class GeoProfilePygsf:
 
     @profile_attitudes.setter
     def profile_attitudes(self,
-                          prj_attitudes: ProfileAttitudes):
+                          prj_attitudes: AttitudesProfile):
         """
         Set the projected _attitudes content.
 
@@ -335,7 +335,7 @@ class GeoProfilePygsf:
 
     @lines_intersections.setter
     def lines_intersections(self,
-                            lines_intersections: ProfilesIntersections):
+                            lines_intersections: IntersectionsProfile):
         """
         Set the line intersections content.
 
@@ -344,7 +344,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        check_type(lines_intersections, "Lines intersections", ProfilesIntersections)
+        check_type(lines_intersections, "Lines intersections", IntersectionsProfile)
 
         self._lines_intersections = lines_intersections
 
@@ -368,7 +368,7 @@ class GeoProfilePygsf:
 
     @polygons_intersections.setter
     def polygons_intersections(self,
-        polygons_intersections: ProfilesIntersections):
+                               polygons_intersections: IntersectionsProfile):
         """
         Set the polygons intersections content.
 
@@ -376,7 +376,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        check_type(polygons_intersections, "Polygons intersections", ProfilesIntersections)
+        check_type(polygons_intersections, "Polygons intersections", IntersectionsProfile)
 
         self._polygons_intersections = polygons_intersections
 
@@ -471,7 +471,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        return self.topoprofiles.s_min()
+        return self.topo_profiles.s_min()
 
     def s_max(self):
         """
@@ -479,7 +479,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        return self.topoprofiles.s_max()
+        return self.topo_profiles.s_max()
 
     def z_min(self):
         """
@@ -487,7 +487,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        return self.topoprofiles.z_min()
+        return self.topo_profiles.z_min()
 
     def z_max(self):
         """
@@ -495,7 +495,7 @@ class GeoProfilePygsf:
         :return:
         """
 
-        return self.topoprofiles.z_max()
+        return self.topo_profiles.z_max()
 
     '''
     def add_intersections_pts(self, intersection_list):
@@ -527,10 +527,10 @@ class GeoProfilePygsf:
         :rtype: numbers.Real.
         """
 
-        return self._topo_profile.profile_length()
+        return self._topo_profiles.profile_length()
 
 
-class GeoProfileSetPygsf:
+class GeoProfileSet:
     """
     Represents a set of Geoprofile elements,
     stored as a list
@@ -681,7 +681,7 @@ class GeoProfileSetPygsf:
     def extract_geoprofile(
             self,
             ndx: numbers.Integral
-    ) -> GeoProfile:
+    ) -> GeoProfile_:
         """
         Returns a geoprofile referencing slices of stored data.
 
@@ -799,61 +799,6 @@ class GeoProfileSetPygsf:
         """
 
         self._attitudes_set.append(plane_attitudes)
-
-
-class ProfileElevations:
-
-    def __init__(self):
-
-        #self.line_source = None
-        self.dem_params = []
-        self.gpx_params = None
-
-        self.x_array = None
-        self.y_array = None
-        self.times = None
-        self.incr_len_2d = None
-
-        self.surface_names = []
-
-        self.incr_len_3d = []
-        self.z_array = []
-        self.dir_slopes = []
-
-        self.inverted = None
-
-        self.statistics_calculated = False
-        self.profile_created = False
-
-    def max_s(self):
-
-        return self.incr_len_2d[-1]
-
-    def min_z(self):
-
-        return min(list(map(np.nanmin, self.z_array)))
-
-    def max_z(self):
-
-        return max(list(map(np.nanmax, self.z_array)))
-
-    @property
-    def absolute_slopes(self):
-
-        return list(map(np.fabs, self.dir_slopes))
-
-
-class PlaneAttitude(object):
-
-    def __init__(self, rec_id, source_point_3d, source_geol_plane, point_3d, slope_rad, dwnwrd_sense, sign_hor_dist):
-
-        self.id = rec_id
-        self.src_pt_3d = source_point_3d
-        self.src_geol_plane = source_geol_plane
-        self.pt_3d = point_3d
-        self.slope_rad = slope_rad
-        self.dwnwrd_sense = dwnwrd_sense
-        self.sign_hor_dist = sign_hor_dist
 
 
 def calculate_profile_lines_intersection(

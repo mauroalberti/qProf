@@ -228,7 +228,7 @@ class LinearProfiler:
 
         return self.segment().length()
 
-    def vector(self) -> Vect3D:
+    def vector(self) -> Vect2D:
         """
         Returns the horizontal vector representing the profile.
 
@@ -236,13 +236,12 @@ class LinearProfiler:
         :rtype: Vect.
         """
 
-        return Vect3D(
+        return Vect2D(
             x=self.segment().delta_x(),
-            y=self.segment().delta_y(),
-            z=0.0
+            y=self.segment().delta_y()
         )
 
-    def versor(self) -> Vect3D:
+    def versor(self) -> Vect2D:
         """
         Returns the horizontal versor (unit vector) representing the profile.
 
@@ -299,26 +298,32 @@ class LinearProfiler:
 
         return self.vertical_plane().normVersor()
 
-    def left_norm_vers(self) -> Vect3D:
+    def left_norm_vers(self) -> Vect2D:
         """
         Returns the left horizontal normal versor.
 
         :return: the left horizontal normal versor.
         """
 
-        return Vect3D(0, 0, 1).cross_product(self.versor()).versor()
+        return Vect2D(
+            x= - self.versor().y,
+            y= self.versor().x
+        )
 
-    def right_norm_vers(self) -> Vect3D:
+    def right_norm_vers(self) -> Vect2D:
         """
         Returns the right horizontal normal versor.
 
         :return: the right horizontal normal versor.
         """
 
-        return Vect3D(0, 0, -1).cross_product(self.versor()).versor()
+        return Vect2D(
+            x= self.versor().y,
+            y= - self.versor().x
+        )
 
     def vector_offset(self,
-                      vect: Vect3D
+                      vect: Vect2D
                       ) -> 'LinearProfiler':
         """
         Returns a new LinearProfiler instance, horizontally offset by the
@@ -366,18 +371,16 @@ class LinearProfiler:
 
         return self.vector_offset(vect=self.left_norm_vers().scale(offset))
 
-    def point_in_profile(self, pt: Point3D) -> bool:
+    def point_in_profile(self, pt: Point2D) -> bool:
         """
         Checks whether a point lies in the profiler plane.
 
         :param pt: the point to check.
-        :type pt: Point.
         :return: whether the point lie in the profiler plane.
-        :rtype: bool.
         :raise; Exception.
         """
 
-        check_type(pt, 'Point3D', Point3D)
+        check_type(pt, 'Point2D', Point2D)
         return self.vertical_plane().isPointInPlane(pt)
 
     def point_distance(self, pt: Point3D) -> numbers.Real:
@@ -546,7 +549,7 @@ class LinearProfiler:
 
     def point_along_profile_signed_s(
             self,
-            pt: Point3D) -> numbers.Real:
+            pt: Point2D) -> Optional[numbers.Real]:
         """
         Calculates the point along-profile signed distance (positive in the segment direction, negative otherwise)
         from the profile start.
@@ -557,33 +560,18 @@ class LinearProfiler:
         by using the triangle law of sines.
 
         :param pt: the point on the section.
-        :type pt: Point.
-        :return: the signed distance on the profile.
-        :rtype: numbers.Real.
-        :raise: Exception.
+        :return: the signed distance along the profile or None if outside the segment.
         """
-
-        if not isinstance(pt, Point3D):
-            raise Exception(f"Projected point should be Point3D but is {type(pt)}")
 
         if not self.point_in_profile(pt):
             raise Exception(f"Projected point should lie in the profile plane but there is a distance of {self.point_distance(pt)} units")
 
-        pt2d = Point2D(
-            pt.x,
-            pt.y
-        )
-
-        if pt2d.is_coincident(self.start_pt()):
+        if pt.is_coincident(self.start_pt()):
             return 0.0
 
         # the vector starting at the profile start and ending at the given point
-        start_pt_3d = Point3D(
-            x=self.start_pt().x,
-            y=self.start_pt().y,
-            z=0.0
-        )
-        projected_vector = Segment3D(start_pt_3d, pt).vector()
+
+        projected_vector = Segment2D(self.start_pt(), pt).vector()
 
         # the angle between the profile vector and the previous vector
         cos_alpha = self.vector().cosine_of_angle(projected_vector)
@@ -593,11 +581,11 @@ class LinearProfiler:
         return signed_distance
 
     def segment_along_profile_signed_s_tuple(self,
-        segment: Segment3D
-        ) -> Tuple[numbers.Real, numbers.Real]:
+                                             segment: Segment2D
+                                             ) -> Tuple[Optional[numbers.Real], Optional[numbers.Real]]:
         """
-        Calculates the segment signed distances from the profiles start.
-        The segment must already lay in the profile vertical plane, otherwise an exception is raised.
+        Calculates the segment distances from the profiles start.
+        The segment must already lay in the profile vertical plane, otherwise None is returned.
 
         :param segment: the analysed segment
         :return: the segment vertices distances from the profile start
@@ -609,8 +597,8 @@ class LinearProfiler:
         return segment_start_distance, segment_end_distance
 
     def pt_segm_along_profile_signed_s(self,
-       geom: Union[Point3D, Segment3D]
-       ) -> array:
+                                       geom: Union[Point2D, Segment2D]
+                                       ) -> array:
         """
         Calculates the point or segment signed distances from the profiles start.
 
@@ -618,9 +606,9 @@ class LinearProfiler:
         :return: the distance(s) from the profile start
         """
 
-        if isinstance(geom, Point3D):
+        if isinstance(geom, Point2D):
             return array('d', [self.point_along_profile_signed_s(geom)])
-        elif isinstance(geom, Segment3D):
+        elif isinstance(geom, Segment2D):
             return array('d', [*self.segment_along_profile_signed_s_tuple(geom)])
         else:
             return NotImplemented
@@ -824,7 +812,7 @@ class LinearProfiler:
 
         # horizontal spat_distance between projected structural point and profile start
 
-        signed_distance_from_section_start = self.point_along_profile_signed_s(intersection_point_3d)
+        signed_distance_from_section_start = self.point_along_profile_signed_s(intersection_point_3d.to2d())
 
         # solution for current structural point
 
@@ -895,18 +883,17 @@ class LinearProfiler:
         if len(results) == 0:
             return None
 
-        return ProfileAttitudes(sorted(results, key=attrgetter('s')))
+        return AttitudesProfile(sorted(results, key=attrgetter('s')))
 
-    def parse_intersections_for_profile(
+    def parse_profile_intersections(
             self,
-            intersections: GeoPointSegmentCollections3D
-    ) -> ProfilesIntersections:
+            intersections: GeoPointSegmentCollections2D
+    ) -> IntersectionsProfile:
         """
         Parse the profile intersections for incorporation
         as elements in a geoprofile.
 
         :param intersections: the intersections
-        :type intersections: qygsf.spatial.vectorial.geometries.PointSegmentCollections
         :return:
         """
 
@@ -918,7 +905,7 @@ class LinearProfiler:
 
             parsed_intersections.append(ArrayList(line_id, intersections_arrays))
 
-        return ProfilesIntersections(parsed_intersections)
+        return IntersectionsProfile(parsed_intersections)
 
 
 class ParallelProfiler(list):

@@ -62,7 +62,7 @@ def try_read_as_geodataframe(
 
 def try_open_shapefile(
         path: str
-) -> Tuple[bool, Union[ogr.OGRLayer, str]]:
+) -> Tuple[bool, Union[ogr.Layer, str]]:
 
     dataSource = ogr.Open(path)
 
@@ -76,7 +76,8 @@ def try_open_shapefile(
 
 def reading_line_shapefile(
         shp_path: str,
-        flds: Optional[List[str]] = None
+        flds: Optional[List[str]] = None,
+        read_z: bool = False
     ) -> Tuple[bool, Union[str, List[Tuple[list, tuple]]]]:
     """
     Read results geometries from a line shapefile using ogr.
@@ -88,6 +89,13 @@ def reading_line_shapefile(
     """
 
     try:
+
+        if read_z:
+            Point = Point3D
+            Line = Line3D
+        else:
+            Point = Point2D
+            Line = Line2D
 
         # check input path
 
@@ -154,11 +162,16 @@ def reading_line_shapefile(
 
             if geom_type == "simpleline":
 
-                line = Line3D()
+                line = Line()
 
                 for i in range(curr_geom.GetPointCount()):
-                    x, y, z = curr_geom.GetX(i), curr_geom.GetY(i), curr_geom.GetZ(i)
-                    line.add_pt(Point3D(x, y, z))
+                    x, y = curr_geom.GetX(i), curr_geom.GetY(i)
+                    coords = [x, y]
+                    if read_z:
+                        z = curr_geom.GetZ(i)
+                        coords.append(z)
+
+                    line.add_pt(Point(*coords))
 
                 feat_geometries = line
 
@@ -166,11 +179,15 @@ def reading_line_shapefile(
 
                 for line_geom in curr_geom:
 
-                    line = Line3D()
+                    line = Line()
 
                     for i in range(line_geom.GetPointCount()):
-                        x, y, z = line_geom.GetX(i), line_geom.GetY(i), line_geom.GetZ(i)
-                        line.add_pt(Point3D(x, y, z))
+                        x, y = line_geom.GetX(i), line_geom.GetY(i)
+                        coords = [x, y]
+                        if read_z:
+                            z = curr_geom.GetZ(i)
+                            coords.append(z)
+                        line.add_pt(Point(*coords))
 
                     feat_geometries.append(line)
 

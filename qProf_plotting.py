@@ -186,7 +186,7 @@ def plot_topo_profile_lines(
 
 
 def plot_geoprofile(
-    geoprofile: GeoProfile,
+    geoprofile: GeoProfile_,
     plot_params,
     plot_addit_params: Dict,
     slope_padding=0.2
@@ -312,7 +312,7 @@ def plot_geoprofile(
 
 
 def plot_geoprofiles(
-        input_geoprofiles_set: GeoProfilesSet,
+        input_geoprofiles_set: GeoProfilesSet_,
         plot_addit_params,
         slope_padding=0.2
 ):

@@ -35,7 +35,7 @@ class ActionWidget(QWidget):
 
         self.profile_name = None
         self.profile_line_list = None  # list of Lines, in the project CRS, undensified
-        self.input_geoprofiles_set = GeoProfilesSet()  # main instance for the geoprofiles
+        self.input_geoprofiles_set = GeoProfilesSet_()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
         self.selected_dems = None
         self.selected_dem_parameters = None

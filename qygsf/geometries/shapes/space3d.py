@@ -12,7 +12,7 @@ from copy import copy
 import numbers
 from array import array
 
-from .space2d import Segment2D
+from .space2d import Point2D, Segment2D
 from ...orientations.orientations import *
 from ...mathematics.statistics import *
 from ...mathematics.quaternions import *
@@ -307,6 +307,20 @@ class Point3D:
         """
 
         return np.asarray(self.toXYZ())
+
+    def to2d(self) -> Point2D:
+        """
+        Projection on the x-y plane as a 2D point.
+
+        Examples:
+          >>> Point3D(2, 3, 4).to2d()
+          Point2D(2.0000, 3.0000)
+        """
+
+        return Point2D(
+            x=self.x,
+            y=self.y
+        )
 
     def pXY(self) -> 'Point3D':
         """
@@ -1783,6 +1797,28 @@ class Line3D:
 
             self._pts = []
 
+    def __repr__(self) -> str:
+        """
+        Represents a Line instance as a shortened text.
+
+        :return: a textual shortened representation of a Line instance.
+        :rtype: str.
+        """
+
+        num_points = self.num_pts()
+
+        if num_points == 0:
+            txt = "Empty Line3D"
+        else:
+            x1, y1, z1 = self.start_pt()
+            if num_points == 1:
+                txt = f"Line3D with unique point: {x1:.4f}, {y1:.4f}, {z1:.4f}"
+            else:
+                x2, y2, z2 = self.end_pt()
+                txt = f"Line3D with {self.num_pts()} points: ({x1:.4f}, {y1:.4f}, {z1:.4f}) ... ({x2:.4f}, {y2:.4f}, {z2:.4f})"
+
+        return txt
+
     def pts(self):
         return self._pts
 
@@ -2865,7 +2901,7 @@ class CPlane3D:
         return self.a() * pt.x + self.b() * pt.y + self.c() * pt.z + self.d()
 
     def isPointInPlane(self,
-        pt: Point3D
+        pt: Union[Point3D, Point2D]
     ) -> bool:
         """
         Check whether a point lies in the current plane.
@@ -2885,8 +2921,14 @@ class CPlane3D:
           True
         """
 
-        check_type(pt, "Input point", Point3D)
+        check_type(pt, "Input point", (Point2D, Point3D))
 
+        if isinstance(pt, Point2D):
+            pt = Point3D(
+                pt.x,
+                pt.y,
+                0.0
+            )
         if abs(self.pointDistance(pt)) < MIN_SEPARATION_THRESHOLD:
             return True
         else:

@@ -5,7 +5,8 @@ from typing import Tuple, Union, List
 
 import numpy as np
 
-from qygsf.profiles.geoprofiles import ProfileElevations, GeoProfile
+from qygsf.profiles.geoprofiles import GeoProfile_
+from ..profiles.sets import ProfileElevations
 from ..geometries.shapes.space2d import Line2D
 from qygsf.geometries.shapes.space3d import Point3D, Line3D
 from ..geometries.shapes.space4d import Line4D
@@ -237,7 +238,7 @@ def try_prepare_single_topo_profiles(
     selected_dems: List,
     selected_dem_parameters: List,
     gpx_track_name: str
-    ) -> Tuple[bool, Union[str, GeoProfile]]:
+    ) -> Tuple[bool, Union[str, GeoProfile_]]:
 
     pt_num_threshold = 1e4
 
@@ -306,7 +307,7 @@ def try_prepare_single_topo_profiles(
         if named_3dlines is None:
             return False, "Unable to create profiles"
 
-        geoprofile = GeoProfile()
+        geoprofile = GeoProfile_()
         geoprofile.original_line = profile_line
         geoprofile.set_topo_profiles(named_3dlines)
 

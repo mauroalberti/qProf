@@ -1,4 +1,4 @@
-
+import numpy
 
 from .chains import *
 from qygsf.georeferenced.geoshapes3d import GeoPointSegmentCollections3D
@@ -182,3 +182,44 @@ class PointSegmentCollectionsSet(list):
 
         super(PointSegmentCollectionsSet, self).__init__(ptsegm_collects_set)
 
+
+class ProfileElevations:
+
+    def __init__(self):
+
+        #self.line_source = None
+        self.dem_params = []
+        self.gpx_params = None
+
+        self.x_array = None
+        self.y_array = None
+        self.times = None
+        self.incr_len_2d = None
+
+        self.surface_names = []
+
+        self.incr_len_3d = []
+        self.z_array = []
+        self.dir_slopes = []
+
+        self.inverted = None
+
+        self.statistics_calculated = False
+        self.profile_created = False
+
+    def max_s(self):
+
+        return self.incr_len_2d[-1]
+
+    def min_z(self):
+
+        return min(list(map(np.nanmin, self.z_array)))
+
+    def max_z(self):
+
+        return max(list(map(np.nanmax, self.z_array)))
+
+    @property
+    def absolute_slopes(self):
+
+        return list(map(np.fabs, self.dir_slopes))

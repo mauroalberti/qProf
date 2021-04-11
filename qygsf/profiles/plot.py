@@ -9,7 +9,6 @@ from matplotlib import gridspec
 from .geoprofiles import *
 
 
-
 colors_addit = [
     "blue",
     "darkseagreen",
@@ -76,7 +75,7 @@ def _(
     Plot a single geological profile.
 
     :param geoprofile: the geoprofile to plot
-    :type geoprofile: GeoProfile
+    :type geoprofile: GeoProfile_
     :return: the figure.
     :rtype: Figure
     """
@@ -98,6 +97,7 @@ def _(
 
     if plot_z_min is None or plot_z_max is None:
 
+        print(f"geoprofile.z_max() {geoprofile.z_max()} geoprofile.z_min() {geoprofile.z_min()}")
         z_range = geoprofile.z_max() - geoprofile.z_min()
         plot_z_min = geoprofile.z_min() - z_padding * z_range
         plot_z_max = geoprofile.z_max() + z_padding * z_range
@@ -124,7 +124,7 @@ def _(
     ax.set_aspect(aspect)
     ax.set_ylim([plot_z_min, plot_z_max])
 
-    if geoprofile.topo_profile:
+    if geoprofile.topo_profiles:
 
         print("Creating topography profile")
 
@@ -134,8 +134,8 @@ def _(
             topo_color = colors_addit[-1]
 
         ax.plot(
-            geoprofile.topo_profile.s_arr(),
-            geoprofile.topo_profile.z_arr(),
+            geoprofile.topo_profiles.s_arr(),
+            geoprofile.topo_profiles.z_arr(),
             color=topo_color
         )
 
@@ -209,7 +209,7 @@ def _(
 
     if geoprofile.lines_intersections:
 
-        if not geoprofile.topo_profile:
+        if not geoprofile.topo_profiles:
 
             warn('Topographic profile is not defined, so intersections cannot be plotted')
 
@@ -226,12 +226,12 @@ def _(
                     s_end = s_range[1] if len(s_range) > 1 else None
                     plot_symbol = '-o' if len(s_range) > 1 else 'o'
 
-                    s_vals = geoprofile.topo_profile.s_subset(
+                    s_vals = geoprofile.topo_profiles.s_subset(
                         s_start,
                         s_end
                     )
 
-                    z_vals = geoprofile.topo_profile.zs_from_s_range(
+                    z_vals = geoprofile.topo_profiles.zs_from_s_range(
                         s_start,
                         s_end
                     )
@@ -251,7 +251,7 @@ def _(
 
     if geoprofile.polygons_intersections:
 
-        if not geoprofile.topo_profile:
+        if not geoprofile.topo_profiles:
 
             warn('Topographic profile is not defined, so intersections cannot be plotted')
 
@@ -268,12 +268,12 @@ def _(
                     s_end = s_range[1] if len(s_range) > 1 else None
                     plot_symbol = '-' if len(s_range) > 1 else 'o'
 
-                    s_vals = geoprofile.topo_profile.s_subset(
+                    s_vals = geoprofile.topo_profiles.s_subset(
                         s_start,
                         s_end
                     )
 
-                    z_vals = geoprofile.topo_profile.zs_from_s_range(
+                    z_vals = geoprofile.topo_profiles.zs_from_s_range(
                         s_start,
                         s_end
                     )

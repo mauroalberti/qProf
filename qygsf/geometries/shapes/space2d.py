@@ -12,6 +12,7 @@ import random
 from array import array
 
 from ...mathematics.vectors3d import *
+from ...mathematics.vectors2d import *
 from ...utils.types import *
 
 
@@ -794,13 +795,28 @@ class Segment2D(Shape2D):
         Returns None if the point is not contained in the segment.
 
         :param point: the point to calculate the optional distance in the segment.
-        :type point: Point2D
         :return: the the optional distance of the point along the segment.
         """
 
         check_type(point, "Input point", Point2D)
 
-        # check_crs(self, point)
+        if not self.contains_pt(point):
+            return None
+
+        return self.start_pt.distance(point)
+
+    def point_signed_s(self,
+               point: Point2D
+               ) -> numbers.Real:
+        """
+        Calculates the signed distance of the point along the segment.
+        A zero value is for a point coinciding with the start point.
+
+        :param point: the point to calculate the optional distance in the segment.
+        :return: the the optional distance of the point along the segment.
+        """
+
+        check_type(point, "Input point", Point2D)
 
         if not self.contains_pt(point):
             return None
@@ -1215,6 +1231,12 @@ class Segment2D(Shape2D):
                     0
         )
     '''
+
+    def vector(self) -> Vect2D:
+
+        return Vect2D(self.delta_x(),
+                      self.delta_y()
+                      )
 
 
 class PointSegmentCollection2D(list):
@@ -1820,10 +1842,10 @@ class Line2D(Shape2D):
         else:
             x1, y1 = self.start_pt()
             if num_points == 1:
-                txt = "Line with unique point: {.4f}, {.4f}".format(x1, y1)
+                txt = "Line2D with unique point: {.4f}, {.4f}".format(x1, y1)
             else:
                 x2, y2 = self.end_pt()
-                txt = "Line with {} points: ({:.4f}, {:.4f}) ... ({:.4f}, {:.4f})".format(num_points, x1, y1, x2, y2)
+                txt = "Line2D with {} points: ({:.4f}, {:.4f}) ... ({:.4f}, {:.4f})".format(num_points, x1, y1, x2, y2)
 
         return txt
 

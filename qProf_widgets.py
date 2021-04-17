@@ -1,10 +1,12 @@
 from qgis.PyQt import uic
-from qgis.core import QgsRasterLayer
+#from qgis.core import QgsRasterLayer
+from qgis.utils import iface
 
-from .qygsf.utils.qgis_utils.project import *
+#from .qygsf.utils.qgis_utils.project import *
 from .qygsf.utils.qgis_utils.lines import *
+from .qygsf.utils.qgis_utils.rasters import *
 from .qygsf.geometries.grids.statistics import *
-from .qygsf.geometries.shapes.space4d import *
+#from .qygsf.geometries.shapes.space4d import *
 from .qygsf.io.profiles import *
 from .qygsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
 from .qygsf.utils.string_utils.utils_string import *
@@ -28,21 +30,6 @@ class ActionWidget(QWidget):
         self.plugin_name = plugin_name
         self.canvas = canvas
 
-        self.profile_track_source = TrackSource.UNDEFINED
-        self.invert_line_profile = False
-        self.line_from_points_list = None
-        self.input_gpx_file_path = None
-        self.gpx_choice = GPXElevationUsage.NOT_USED
-        self.gpx_track_name = None
-
-        self.profile_name = None
-        self.profile_line_list = None  # list of Lines, in the project CRS, undensified
-        self.input_geoprofiles_set = GeoProfilesSet_()  # main instance for the geoprofiles
-        self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
-        self.selected_dems = None
-        self.selected_dem_parameters = None
-        self.gpx_name = ''
-
         self.current_directory = current_directory
         uic.loadUi(f"{self.current_directory}/ui/choices_treewidget.ui", self)
 
@@ -64,6 +51,37 @@ class ActionWidget(QWidget):
         }
 
         self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
+
+        self.init_parameters()
+
+        QgsProject.instance().crsChanged.connect(self.init_parameters)
+        QgsProject.instance().crsChanged.connect(self.warn_of_reset)
+
+    def warn_of_reset(self):
+
+        iface.messageBar().pushMessage(
+            "qProf plugin",
+            "Project CRS has been changed. Please redefine parameters",
+            level=Qgis.Warning,
+            duration=6
+        )
+
+    def init_parameters(self):
+
+        self.profile_track_source = TrackSource.UNDEFINED
+        self.invert_line_profile = False
+        self.line_from_points_list = None
+        self.input_gpx_file_path = None
+        self.gpx_choice = GPXElevationUsage.NOT_USED
+        self.gpx_track_name = None
+
+        self.profile_name = None
+        self.profile_line_list = None  # list of Lines, in the project CRS, undensified
+        self.input_geoprofiles_set = GeoProfilesSet_()  # main instance for the geoprofiles
+        self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
+        self.selected_dems = None
+        self.selected_dem_parameters = None
+        self.gpx_name = ''
 
     def activate_action_window(self):
 
@@ -118,19 +136,28 @@ class ActionWidget(QWidget):
 
         if not success:
             msg = result
-            wrn(
-                self,
-                self.plugin_name,
-                msg
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                f"Line layer not read: {msg}",
+                level=Qgis.Warning,
+                duration=6
             )
+            return
 
         self.profile_name = line_qgsvectorlayer.sourceName()
         self.profile_line_list = result
         self.profile_track_source = TrackSource.LINE_LAYER
 
+        iface.messageBar().pushMessage(
+            "qProf plugin",
+            "Line layer read",
+            level=Qgis.Success,
+            duration=2
+        )
+
     def try_get_point_list(self,
                            dialog
-                           ) -> Tuple[bool, Union[str, Line4D]]:
+                           ) -> Tuple[bool, Union[str, Line2D]]:
 
         try:
 
@@ -223,11 +250,13 @@ class ActionWidget(QWidget):
 
             name, line3dt = results
 
+            '''
             print(
                 f"DEBUG: gpx-derived line3dt z min/max: {line3dt.z_min}, {line3dt.z_max}")
 
             print(
                 f"DEBUG: gpx-derived line3dt num. points: {line3dt.num_pts}")
+            '''
 
             self.profile_name = os.path.basename(self.input_gpx_file_path)
             self.profile_line_list = [line3dt]
@@ -272,9 +301,12 @@ class ActionWidget(QWidget):
 
         current_raster_layers = loaded_monoband_raster_layers()
         if len(current_raster_layers) == 0:
-            wrn(self,
-                 self.plugin_name,
-                 "No loaded DEM")
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                "No loaded DEM",
+                level=Qgis.Warning,
+                duration=4
+            )
             return
 
         dialog = SourceDEMsDialog(
@@ -285,15 +317,21 @@ class ActionWidget(QWidget):
         if dialog.exec_():
             selected_dems = self.get_selected_dems_params(dialog)
         else:
-            wrn(self,
-                 self.plugin_name,
-                 "No chosen DEM")
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                "No chosen DEM",
+                level=Qgis.Warning,
+                duration=4
+            )
             return
 
         if len(selected_dems) == 0:
-            wrn(self,
-                 self.plugin_name,
-                 "No selected DEM")
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                "No selected DEM",
+                level=Qgis.Warning,
+                duration=4
+            )
             return
         else:
             self.selected_dems = selected_dems
@@ -301,6 +339,13 @@ class ActionWidget(QWidget):
         # get geodata
 
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
+
+        iface.messageBar().pushMessage(
+            "qProf plugin",
+            "DEMs read" if len(selected_dems) >= 1 else "DEM read",
+            level=Qgis.Success,
+            duration=2
+        )
 
     def elevations_from_gpx(self):
 
@@ -597,16 +642,17 @@ class ActionWidget(QWidget):
     def plot_single_profile(self):
 
         if self.profile_track_source == TrackSource.UNDEFINED:
-            wrn(
-                self,
-                self.plugin_name,
-                "No profile track source defined"
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                "No profile track source defined",
+                level=Qgis.Warning,
+                duration=6
             )
             return
 
-        print(f"DEBUG: self.profile_lines: {type(self.profile_line_list)}")
-        print(f"DEBUG: self.profile_lines[0]: {type(self.profile_line_list[0])}")
-        print(f"DEBUG: self.profile_lines[0] z min/max: {self.profile_line_list[0].z_min}, {self.profile_line_list[0].z_max}")
+        #print(f"DEBUG: self.profile_lines: {type(self.profile_line_list)}")
+        #print(f"DEBUG: self.profile_lines[0]: {type(self.profile_line_list[0])}")
+        #print(f"DEBUG: self.profile_lines[0] z min/max: {self.profile_line_list[0].z_min}, {self.profile_line_list[0].z_max}")
 
         success, result = try_prepare_single_topo_profiles(
             profile_line=self.profile_line_list[0],
@@ -623,6 +669,12 @@ class ActionWidget(QWidget):
                 self,
                 self.plugin_name,
                 msg
+            )
+            iface.messageBar().pushMessage(
+                "qProf plugin",
+                msg,
+                level=Qgis.Critical,
+                duration=8
             )
             return
 
@@ -662,6 +714,8 @@ class ActionWidget(QWidget):
             )
             return
 
+        print(f"natural_elev_min: {type(natural_elev_min)} -> {natural_elev_min}")
+        print(f"natural_elev_max: {type(natural_elev_max)} -> {natural_elev_max}")
         if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
             err(
                 self,
@@ -773,8 +827,8 @@ class ActionWidget(QWidget):
             )
             return
 
-        raw_line = Line4D(
-            [Point4D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+        raw_line = Line2D(
+            [Point2D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
 
         if raw_line.num_pts <= 1:
             wrn(
@@ -2493,8 +2547,8 @@ class DigitizeLineDialog(QDialog):
 
         self.digitized_profile_line2dt = None
         if len(self.profile_canvas_points) > 1:
-            raw_line = Line4D(
-                [Point4D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
+            raw_line = Line2D(
+                [Point2D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
             if raw_line.num_pts > 1:
                 self.digitized_profile_line2dt = raw_line
 

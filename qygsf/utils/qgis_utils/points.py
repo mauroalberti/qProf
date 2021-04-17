@@ -1,17 +1,12 @@
 
 import datetime
-from copy import deepcopy
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY
+from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsCoordinateTransform, QgsProject
 
-
-from ...geometries.shapes.space2d import Point2D
 from ...geometries.shapes.space3d import *
-from ...geometries.shapes.space4d import *
-from .rasters import *
+from ...geometries.shapes.space4d import Point4D
 from ...georeferenced.geodetic import geodetic2ecef
 from ..time import standard_gpstime_to_seconds
-from .project import projectCrs
 
 
 def distance_projected_pts(
@@ -115,38 +110,6 @@ def calculate_pts_in_projection(pts_in_orig_crs, srcCrs, destCrs):
     return pts_in_prj_crs
 
 
-def calculate_projected_3d_pts(
-    struct_pts,
-    structural_pts_crs,
-    demObj
-):
-
-    demCrs = demObj.params.crs
-
-    # check if on-the-fly-projection is set on
-    project_crs = projectCrs()
-
-    # set points in the project crs
-    if structural_pts_crs != project_crs:
-        struct_pts_in_prj_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, project_crs)
-    else:
-        struct_pts_in_prj_crs = deepcopy(struct_pts)
-
-        # project the source points from point layer crs to DEM crs
-    # if the two crs are different
-    if structural_pts_crs != demCrs:
-        struct_pts_in_dem_crs = calculate_pts_in_projection(struct_pts, structural_pts_crs, demCrs)
-    else:
-        struct_pts_in_dem_crs = deepcopy(struct_pts)
-
-        # - 3D structural points, with x, y, and z extracted from the current DEM
-    struct_pts_z = get_zs_from_dem(struct_pts_in_dem_crs, demObj)
-
-    assert len(struct_pts_in_prj_crs) == len(struct_pts_z)
-
-    return [Point3D(pt.x, pt.y, z) for (pt, z) in zip(struct_pts_in_prj_crs, struct_pts_z)]
-
-
 class TrackPointGPX(object):
 
     def __init__(self,
@@ -160,7 +123,7 @@ class TrackPointGPX(object):
         self.elev = float(elev)
         self.time = time
 
-    def as_pt3dt(self):
+    def as_pt4d(self):
 
         x, y, _ = geodetic2ecef(self.lat, self.lon, self.elev)
         t = standard_gpstime_to_seconds(self.time)
@@ -168,7 +131,8 @@ class TrackPointGPX(object):
         return Point4D(x, y, self.elev, t)
 
     def project(self,
-                dest_crs: QgsCoordinateReferenceSystem):
+                dest_crs: QgsCoordinateReferenceSystem
+                ) -> Point4D:
 
         pt = Point2D(
             x=self.lon,

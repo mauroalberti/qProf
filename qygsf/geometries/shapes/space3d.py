@@ -1969,14 +1969,13 @@ class Line3D:
             length += self.pt(ndx).distance(self.pt(ndx + 1))
         return length
 
-    '''
+    @property
     def length_2d(self) -> numbers.Real:
 
         length = 0.0
         for ndx in range(self.num_pts() - 1):
-            length += self.pt(ndx).dist2DWith(self.pt(ndx + 1))
+            length += self.pt(ndx).to2d().distance(self.pt(ndx + 1).to2d())
         return length
-    '''
 
     def step_delta_z(self) -> List[numbers.Real]:
         """

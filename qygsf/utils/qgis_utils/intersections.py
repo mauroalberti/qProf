@@ -87,7 +87,7 @@ def profile_polygon_intersection(
 
     return True, intersection_polyline_polygon_crs_list
 
-
+'''
 def extract_multiline2d_list(
         structural_line_layer,
         project_crs
@@ -108,3 +108,4 @@ def extract_multiline2d_list(
                                           multiline2d in line_orig_crs_clean_MultiLine2D_list]
 
     return line_proj_crs_MultiLine2D_list
+'''

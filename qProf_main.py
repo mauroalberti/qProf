@@ -40,7 +40,7 @@ class qProf_main(object):
 
         if not correct:
 
-            warn(
+            wrn(
                 None,
                 self.plugin_name,
                 msg

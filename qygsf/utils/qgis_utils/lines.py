@@ -1,7 +1,7 @@
 
-from qgis.core import QgsPointXY
+from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem,QgsPointXY
 
-from ..qgis_utils.points import *
+from ..qgis_utils.points import project_point, project_qgs_point
 from ...geometries.shapes.space2d import *
 
 
@@ -44,13 +44,23 @@ def try_get_line_traces(
         return False, str(e)
 
 
-def create_line_in_project_crs(
-    profile_processed_line,
-    line_layer_crs,
-    project_crs
-):
+def project_line2d(
+    src_line2d: Line2D,
+    src_crs: QgsCoordinateReferenceSystem,
+    dest_crs: QgsCoordinateReferenceSystem
+) -> Line2D:
 
-    return profile_processed_line.crs_project(line_layer_crs, project_crs)
+    projected_pts = []
+
+    for pt in src_line2d.pts():
+        projected_pt = project_point(
+            pt=pt,
+            srcCrs=src_crs,
+            destCrs=dest_crs
+        )
+        projected_pts.append(projected_pt)
+
+    return Line2D(pts=projected_pts)
 
 
 def try_load_line_layer(
@@ -97,7 +107,7 @@ def try_load_line_layer(
         for ndx, processed_line in enumerate(processed_lines):
 
             projected_lines.append(
-                create_line_in_project_crs(
+                project_line2d(
                     processed_line,
                     line_layer.crs(),
                     project_crs

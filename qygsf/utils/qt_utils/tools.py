@@ -11,7 +11,11 @@ def info(parent, header, msg):
     )
 
 
-def warn(parent, header, msg):
+def warn(
+        parent,
+        header,
+        msg
+):
 
     QMessageBox.warning(
         parent,

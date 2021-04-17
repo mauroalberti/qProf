@@ -291,7 +291,7 @@ class Vect2D(object):
 
         Example:
           >>> Vect2D(1., 1.) - Vect2D(1., 1.)
-          Vect2D(0.0000, 0.0000, 0.0000)
+          Vect2D(0.0000, 0.0000)
           >>> Vect2D(1., 1.) - Vect2D(1., 1.)
           Vect2D(0.0000, 0.0000)
         """
@@ -445,6 +445,7 @@ class Vect2D(object):
 
         return self.scalar_projection(another) / self.length
 
+    '''
     def angle_as_degrees(self,
                          another: 'Vect2D',
                          unit='d'
@@ -473,7 +474,9 @@ class Vect2D(object):
             return angle_rad
         else:
             return None
+    '''
 
+    '''
     def cross_product(self,
                       another: 'Vect2D'
         ) -> Optional['Vect2D']:
@@ -494,7 +497,9 @@ class Vect2D(object):
 
         x, y = arrToTuple(np.cross(self.a, another.a))
         return Vect2D(x, y)
+    '''
 
+    '''
     @property
     def azimuth_degr(self
         ) -> Optional[numbers.Real]:
@@ -537,7 +542,7 @@ class Vect2D(object):
             return angle
         else:
             return 360.0 - angle
-
+    '''
 
 if __name__ == "__main__":
 

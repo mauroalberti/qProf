@@ -1,46 +1,63 @@
+import numbers
 import xml.dom
 from enum import Enum, auto
 from math import degrees, asin, cos, radians, ceil
 from typing import Tuple, Union, List
 
+from qgis.core import QgsRasterLayer
+
 import numpy as np
 
 from ..profiles.geoprofiles import GeoProfile_
 from ..profiles.sets import ProfileElevations
+
 from ..geometries.shapes.space2d import Line2D
 from ..geometries.shapes.space3d import Point3D, Line3D
 from ..geometries.shapes.space4d import Line4D
-from ..utils.qgis_utils.rasters import get_min_dem_resolution
+
+from ..utils.qgis_utils.rasters import get_min_dem_resolution, QGisRasterParameters
+from ..utils.qgis_utils.lines import project_line2d
 from ..utils.time import standard_gpstime_to_datetime
 from ..utils.qgis_utils.project import projectCrs
 from ..utils.qgis_utils.rasters import interpolate_z
 from ..utils.qgis_utils.points import TrackPointGPX
 
 
-def topoline_from_dem(
-    resampled_trace2d,
-    dem,
-    dem_params
-):
+def line3d_from_dem(
+    src_line2d: Line2D,
+    qgs_raster_layer: QgsRasterLayer,
+    qgis_raster_parameters: QGisRasterParameters
+) -> Line3D:
 
     project_crs = projectCrs()
-    if dem.crs() != projectCrs():
-        trace2d_in_dem_crs = resampled_trace2d.crs_project(
-            project_crs,
-            dem.crs()
+    if qgs_raster_layer.crs() != projectCrs():
+        line2d_in_dem_crs = project_line2d(
+            src_line2d=src_line2d,
+            src_crs=project_crs,
+            dest_crs=qgs_raster_layer.crs()
         )
     else:
-        trace2d_in_dem_crs = resampled_trace2d
+        line2d_in_dem_crs = src_line2d
 
-    ln3dtProfile = Line3D()
-    for trace_pt2d_dem_crs, trace_pt2d_project_crs in zip(trace2d_in_dem_crs.pts, resampled_trace2d.pts):
-        fInterpolatedZVal = interpolate_z(dem, dem_params, trace_pt2d_dem_crs)
-        pt3dtPoint = Point3D(trace_pt2d_project_crs.x,
-                             trace_pt2d_project_crs.y,
-                             fInterpolatedZVal)
-        ln3dtProfile.add_pt(pt3dtPoint)
+    line_3d = Line3D()
 
-    return ln3dtProfile
+    for point2d_dem_crs, point2d_project_crs in zip(line2d_in_dem_crs.pts(), src_line2d.pts()):
+
+        interpolated_z = interpolate_z(
+            qgs_raster_layer=qgs_raster_layer,
+            qgis_raster_parameters=qgis_raster_parameters,
+            point2d=point2d_dem_crs
+        )
+
+        pt3d = Point3D(
+            x=point2d_project_crs.x,
+            y=point2d_project_crs.y,
+            z=interpolated_z
+        )
+
+        line_3d.add_pt(pt3d)
+
+    return line_3d
 
 
 def topoprofiles_from_gpxfile(
@@ -88,7 +105,7 @@ def topoprofiles_from_gpxfile(
         delta_elev_values.append(track_points[ndx].elev - track_points[ndx - 1].elev)
 
     # convert original values into ECEF values (x, y, z in ECEF global coordinate system)
-    trk_ECEFpoints = [trck.as_pt3dt() for trck in track_points]
+    trk_ECEFpoints = [trck.as_pt4d() for trck in track_points]
 
     # calculate 3D distances between consecutive points
     dist_3D_values = [np.nan]
@@ -258,7 +275,7 @@ def try_prepare_single_topo_profiles(
 
             estimated_total_num_pts = 0
 
-            profile_length = profile_line.length_2d
+            profile_length = profile_line.length_2d()
             profile_num_pts = profile_length / sample_distance
             estimated_total_num_pts += profile_num_pts
 
@@ -319,12 +336,15 @@ def try_prepare_single_topo_profiles(
 
 
 def topo_lines_from_dems(
-        source_profile_line,
-        sample_distance,
-        selected_dems,
+        source_profile_line: Line2D,
+        sample_distance: numbers.Real,
+        selected_dems: List,
         selected_dem_parameters
 ) -> List[Tuple[str, Line3D]]:
 
+    print(type(selected_dems))
+    print(type(selected_dems[0]))
+    print(type(selected_dem_parameters))
     resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs
@@ -333,7 +353,7 @@ def topo_lines_from_dems(
 
     for dem, dem_params in zip(selected_dems, selected_dem_parameters):
 
-        line3d = topoline_from_dem(
+        line3d = line3d_from_dem(
             resampled_line,
             dem,
             dem_params

@@ -1513,7 +1513,7 @@ def intersect_segments2d(
       True
       >>> s1 = Segment2D(Point2D(-2,0), Point2D(0,0))
       >>> intersect_segments2d(s1, s2)
-      Point2D(0.0000, 0.0000, 0.0000)
+      Point2D(0.0000, 0.0000)
       >>> s1 = Segment2D(Point2D(-2,0), Point2D(0.5,0.0))
       >>> intersect_segments2d(s1, s2)
       Segment2D(start_pt=Point2D(0.0000, 0.0000), end_pt=Point2D(0.5000, 0.0000))
@@ -1686,9 +1686,9 @@ class Line2D(Shape2D):
 
         Example:
           >>> Line2D.fromArrays(xs=array('d',[1,2,3]), ys=array('d', [3,4,5]))
-          Line with 3 points: (1.0000, 3.0000) ... (3.0000, 5.0000)
+          Line2D with 3 points: (1.0000, 3.0000) ... (3.0000, 5.0000)
           >>> Line2D.fromArrays(xs=array('d',[1,2,3]), ys=array('d', [3,4,5]))
-          Line with 3 points: (1.0000, 3.0000) ... (3.0000, 5.0000)
+          Line2D with 3 points: (1.0000, 3.0000) ... (3.0000, 5.0000)
         """
 
         if not isinstance(xs, array):
@@ -1717,7 +1717,7 @@ class Line2D(Shape2D):
 
         Example:
           >>> Line2D.fromPointList([[0, 0], [1, 0], [0, 1]])
-          Line with 3 points: (0.0000, 0.0000) ... (0.0000, 1.0000)
+          Line2D with 3 points: (0.0000, 0.0000) ... (0.0000, 1.0000)
         """
 
         pts = []
@@ -1796,7 +1796,7 @@ class Line2D(Shape2D):
                 end_pt=self.pt(ndx + 1)
             )
 
-    def num_pts(self):
+    def num_pts(self) -> numbers.Integral:
 
         return len(self._x)
 

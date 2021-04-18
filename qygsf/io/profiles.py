@@ -309,8 +309,8 @@ def try_prepare_single_topo_profiles(
 
             gpx_named_3dlines = None
 
-        print(f"DEBUG: profile line: {profile_line}")
-        print(f"DEBUG: profile line num points: {profile_line.num_pts}")
+        #print(f"DEBUG: profile line: {profile_line}")
+        #print(f"DEBUG: profile line num points: {profile_line.num_pts}")
 
         if dem_named_3dlines is None and gpx_named_3dlines is None:
             named_3dlines = None
@@ -342,9 +342,9 @@ def topo_lines_from_dems(
         selected_dem_parameters
 ) -> List[Tuple[str, Line3D]]:
 
-    print(type(selected_dems))
-    print(type(selected_dems[0]))
-    print(type(selected_dem_parameters))
+    #print(type(selected_dems))
+    #print(type(selected_dems[0]))
+    #print(type(selected_dem_parameters))
     resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs

@@ -97,7 +97,7 @@ def _(
 
     if plot_z_min is None or plot_z_max is None:
 
-        print(f"geoprofile.z_max() {geoprofile.z_max()} geoprofile.z_min() {geoprofile.z_min()}")
+        #print(f"geoprofile.z_max() {geoprofile.z_max()} geoprofile.z_min() {geoprofile.z_min()}")
         z_range = geoprofile.z_max() - geoprofile.z_min()
         plot_z_min = geoprofile.z_min() - z_padding * z_range
         plot_z_max = geoprofile.z_max() + z_padding * z_range
@@ -126,7 +126,7 @@ def _(
 
     if geoprofile.topo_profiles:
 
-        print("Creating topography profile")
+        #print("Creating topography profile")
 
         if superposed:
             topo_color = colors_addit[ndx % len(colors_addit)]
@@ -139,10 +139,10 @@ def _(
             color=topo_color
         )
 
-    print(f"Profile attitudes: {geoprofile.profile_attitudes}")
+    #print(f"Profile attitudes: {geoprofile.profile_attitudes}")
     if geoprofile.profile_attitudes:
 
-        print("Making attitudes")
+        #print("Making attitudes")
 
         attits = geoprofile.profile_attitudes
 

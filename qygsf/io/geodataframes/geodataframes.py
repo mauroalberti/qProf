@@ -121,16 +121,16 @@ def get_epsg(
     """
 
     crs_dict = geodataframe.crs
-    print("Source georeferenced: {}".format(crs_dict))
+    #print("Source georeferenced: {}".format(crs_dict))
     epsg = -1
     try:
         val = crs_dict["init"]
         if val.lower().startswith("epsg"):
             epsg = int(val.split(":", 1)[1])
     except Exception as e:
-        print("Crs parsing error: {}".format(e))
+        pass
 
-    print("Extracted EPSG code: {}".format(epsg))
+    #print("Extracted EPSG code: {}".format(epsg))
     return epsg
 
 

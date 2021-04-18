@@ -4,7 +4,7 @@ from qgis.core import QgsPointXY
 from .lines import line_geoms_attrs
 from .points import project_qgs_point
 from .rasters import interpolate_z
-from ...geometries.shapes.space2d import Point2D, xytuple_l2_to_MultiLine
+from ...geometries.shapes.space2d import Point2D, xytuple_l2_to_multiline2d
 from ...geometries.shapes.space3d import Point3D
 
 

@@ -216,13 +216,12 @@ class Point4D(object):
                        self.z + displ_vect.z,
                        self.t)
 
-    @property
     def vector(self):
         """
         Create a vector based on the point coordinates
 
         Example:
-          >>> Point4D(1, 1, 0).vector
+          >>> Point4D(1, 1, 0).vector()
           Vect3D(1.0000, 1.0000, 0.0000)
         """
 
@@ -264,15 +263,13 @@ class Line4D(object):
         self._pts = pts
         self._name = name
 
-    @property
     def pts(self):
 
         return self._pts
 
-    @property
     def num_pts(self):
 
-        return len(self.pts)
+        return len(self.pts())
 
     @property
     def name(self):
@@ -281,7 +278,7 @@ class Line4D(object):
     def clone(self):
 
         return Line4D(
-            pts=[pt.clone() for pt in self.pts],
+            pts=[pt.clone() for pt in self.pts()],
             name=self.name
         )
 
@@ -294,7 +291,7 @@ class Line4D(object):
         :return: self
         """
 
-        self.pts.append(pt)
+        self.pts().append(pt)
 
     def add_pts(self, pt_list):
         """
@@ -307,69 +304,57 @@ class Line4D(object):
 
         self._pts += pt_list
 
-    @property
     def x_array(self):
 
-        return np.asarray([pt.x for pt in self.pts])
+        return np.asarray([pt.x for pt in self.pts()])
 
-    @property
     def y_array(self):
 
-        return np.asarray([pt.y for pt in self.pts])
+        return np.asarray([pt.y for pt in self.pts()])
 
-    @property
     def z_array(self):
 
-        return np.asarray([pt.z for pt in self.pts])
+        return np.asarray([pt.z for pt in self.pts()])
 
     def xy_arrays(self):
 
         return self.x_array, self.y_array
 
-    @property
     def x_min(self):
 
-        return np.nanmin(self.x_array)
+        return np.nanmin(self.x_array())
 
-    @property
     def x_max(self):
 
-        return np.nanmax(self.x_array)
+        return np.nanmax(self.x_array())
 
-    @property
     def y_min(self):
 
-        return np.nanmin(self.y_array)
+        return np.nanmin(self.y_array())
 
-    @property
     def y_max(self):
 
-        return np.nanmax(self.y_array)
+        return np.nanmax(self.y_array())
 
-    @property
     def z_min(self):
 
-        return np.nanmin(self.z_array)
+        return np.nanmin(self.z_array())
 
-    @property
     def z_max(self):
 
-        return np.nanmax(self.z_array)
+        return np.nanmax(self.z_array())
 
-    @property
     def z_mean(self):
 
-        return np.nanmean(self.z_array)
+        return np.nanmean(self.z_array())
 
-    @property
     def z_var(self):
 
-        return np.nanvar(self.z_array)
+        return np.nanvar(self.z_array())
 
-    @property
     def z_std(self):
 
-        return np.nanstd(self.z_array)
+        return np.nanstd(self.z_array())
 
     def remove_coincident_points(self):
         """
@@ -378,12 +363,12 @@ class Line4D(object):
         :return: Line instance
         """
 
-        assert self.num_pts >= 2
+        assert self.num_pts() >= 2
 
-        new_line = Line4D(self.pts[:1])
-        for ndx in range(1, self.num_pts):
-            if not self.pts[ndx].coincident(new_line.pts[-1]):
-                new_line.add_pt(self.pts[ndx])
+        new_line = Line4D(self.pts()[:1])
+        for ndx in range(1, self.num_pts()):
+            if not self.pts()[ndx].coincident(new_line.pts()[-1]):
+                new_line.add_pt(self.pts()[ndx])
 
         return new_line
 
@@ -394,7 +379,7 @@ class Line4D(object):
         :return: list of Segment objects
         """
 
-        pts_pairs = list(zip(self.pts[:-1], self.pts[1:]))
+        pts_pairs = list(zip(self.pts()[:-1], self.pts()[1:]))
 
         segments = [Segment4D(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
 
@@ -435,44 +420,40 @@ class Line4D(object):
         and orientation mismatches between the two original lines
         """
 
-        return Line4D(self.pts + another.pts)
+        return Line4D(self.pts() + another.pts())
 
-    @property
     def length_3d(self):
 
         length = 0.0
-        for ndx in range(self.num_pts - 1):
-            length += self.pts[ndx].distance(self.pts[ndx + 1])
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].distance(self.pts()[ndx + 1])
         return length
 
-    @property
     def length_2d(self):
 
         length = 0.0
-        for ndx in range(self.num_pts - 1):
-            length += self.pts[ndx].dist_2d(self.pts[ndx + 1])
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].dist_2d(self.pts()[ndx + 1])
         return length
 
-    @property
-    def incr_len_3d(self):
+    def incremental_length_3d(self):
 
         incremental_length_list = []
         length = 0.0
         incremental_length_list.append(length)
-        for ndx in range(self.num_pts - 1):
-            length += self.pts[ndx].distance(self.pts[ndx + 1])
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].distance(self.pts()[ndx + 1])
             incremental_length_list.append(length)
 
         return np.asarray(incremental_length_list)
 
-    @property
-    def incr_len_2d(self):
+    def incremental_length_2d(self):
 
         lIncrementalLengths = []
         length = 0.0
         lIncrementalLengths.append(length)
-        for ndx in range(self.num_pts - 1):
-            length += self.pts[ndx].dist_2d(self.pts[ndx + 1])
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].dist_2d(self.pts()[ndx + 1])
             lIncrementalLengths.append(length)
 
         return np.asarray(lIncrementalLengths)
@@ -480,31 +461,29 @@ class Line4D(object):
     def invert_direction(self):
 
         new_line = self.clone()
-        new_line.pts.reverse()  # in-place operation on new_line
+        new_line.pts().reverse()  # in-place operation on new_line
 
         return new_line
 
-    @property
     def dir_slopes(self) -> np.ndarray:
 
         lSlopes = []
-        for ndx in range(self.num_pts - 1):
-            vector = Segment4D(self.pts[ndx], self.pts[ndx + 1]).vector()
-            lSlopes.append(-vector.slope_degr())  # minus because vector convetion is positive downward
+        for ndx in range(self.num_pts() - 1):
+            vector = Segment4D(self.pts()[ndx], self.pts()[ndx + 1]).vector()
+            lSlopes.append(-vector.slope_degr())  # minus because vector convention is positive downward
         lSlopes.append(np.nan)  # slope value for last point is unknown
 
         return np.asarray(lSlopes)
 
-    @property
     def absolute_slopes(self) -> np.ndarray:
 
-        return np.asarray(list(map(abs, self.dir_slopes)))
+        return np.asarray(list(map(abs, self.dir_slopes())))
 
     '''
     def crs_project(self, srcCrs, destCrs):
 
         points = []
-        for point in self.pts:
+        for point in self.pts():
             destCrs_point = project_point(point, srcCrs, destCrs)
             points.append(destCrs_point)
 
@@ -720,6 +699,7 @@ class Segment4D(object):
         return interpolated_line
     '''
 
+
 class MultiLine4D(object):
     """
     MultiLine4D is a list of Line4D objects
@@ -754,7 +734,7 @@ class MultiLine4D(object):
 
         num_points = 0
         for line in self.lines:
-            num_points += line.num_pts
+            num_points += line.num_pts()
 
         return num_points
 
@@ -791,8 +771,8 @@ class MultiLine4D(object):
     def is_continuous(self):
 
         for line_ndx in range(len(self._lines) - 1):
-            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]) or \
-               not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[-1]):
+            if not self.lines[line_ndx].pts()[-1].coincident(self.lines[line_ndx + 1].pts()[0]) or \
+               not self.lines[line_ndx].pts()[-1].coincident(self.lines[line_ndx + 1].pts()[-1]):
                 return False
 
         return True
@@ -800,14 +780,14 @@ class MultiLine4D(object):
     def is_unidirectional(self):
 
         for line_ndx in range(len(self.lines) - 1):
-            if not self.lines[line_ndx].pts[-1].coincident(self.lines[line_ndx + 1].pts[0]):
+            if not self.lines[line_ndx].pts()[-1].coincident(self.lines[line_ndx + 1].pts()[0]):
                 return False
 
         return True
 
     def to_line(self):
 
-        return Line4D([point for line in self.lines for point in line.pts])
+        return Line4D([point for line in self.lines for point in line.pts()])
 
     '''
     def crs_project(self, srcCrs, destCrs):

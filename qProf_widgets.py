@@ -1,17 +1,14 @@
-from qgis.PyQt import uic
-#from qgis.core import QgsRasterLayer
-from qgis.utils import iface
 
-#from .qygsf.utils.qgis_utils.project import *
-from .qygsf.utils.qgis_utils.lines import *
-from .qygsf.utils.qgis_utils.rasters import *
+from qgis.PyQt import uic
+
 from .qygsf.geometries.grids.statistics import *
-#from .qygsf.geometries.shapes.space4d import *
 from .qygsf.io.profiles import *
-from .qygsf.utils.qt_utils.tools import error as err, info as infos, warn as wrn
 from .qygsf.utils.string_utils.utils_string import *
 from .qygsf.utils.qgis_utils.canvas import *
 from .qygsf.utils.qt_utils.filesystem import *
+from .qygsf.utils.qgis_utils.lines import *
+from .qygsf.utils.qgis_utils.messages import *
+from .qygsf.utils.qgis_utils.rasters import *
 
 from .qProf_plotting import *
 from .qProf_export import *
@@ -59,11 +56,9 @@ class ActionWidget(QWidget):
 
     def warn_of_reset(self):
 
-        iface.messageBar().pushMessage(
-            "qProf plugin",
-            "Project CRS has been changed. Please redefine parameters",
-            level=Qgis.Warning,
-            duration=6
+        warn(
+            self.plugin_name,
+            "Project CRS has been changed. Please redefine parameters"
         )
 
     def init_parameters(self):
@@ -90,7 +85,6 @@ class ActionWidget(QWidget):
         operation = self.profile_operations.get(current_item_text)
 
         if operation is not None:
-            print(f"DEBUG: operation -> {operation}")
             operation()
 
     def define_profile_lines_from_line_layer(self
@@ -107,9 +101,10 @@ class ActionWidget(QWidget):
         current_line_layers = loaded_line_layers()
 
         if len(current_line_layers) == 0:
-            wrn(self,
-                 self.plugin_name,
-                 "No available line layers")
+            warn(
+                self.plugin_name,
+                "No available line layers"
+            )
             return
 
         dialog = SourceLineLayerDialog(
@@ -120,9 +115,10 @@ class ActionWidget(QWidget):
         if dialog.exec_():
             line_qgsvectorlayer, invert_profile, order_field_ndx = self.line_layer_params(dialog)
         else:
-            wrn(self,
-                 self.plugin_name,
-                 "No defined line source")
+            warn(
+                self.plugin_name,
+                "No defined line source"
+            )
             return
 
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
@@ -136,11 +132,9 @@ class ActionWidget(QWidget):
 
         if not success:
             msg = result
-            iface.messageBar().pushMessage(
-                "qProf plugin",
-                f"Line layer not read: {msg}",
-                level=Qgis.Warning,
-                duration=6
+            warn(
+                self.plugin_name,
+                f"Line layer not read: {msg}"
             )
             return
 
@@ -148,11 +142,9 @@ class ActionWidget(QWidget):
         self.profile_line_list = result
         self.profile_track_source = TrackSource.LINE_LAYER
 
-        iface.messageBar().pushMessage(
-            "qProf plugin",
-            "Line layer read",
-            level=Qgis.Success,
-            duration=2
+        ok(
+            self.plugin_name,
+            "Line layer read"
         )
 
     def try_get_point_list(self,
@@ -167,7 +159,7 @@ class ActionWidget(QWidget):
             data_list = [rp for rp in raw_point_list if rp != ""]
 
             point_list = [to_float(xy_pair.split(",")) for xy_pair in data_list]
-            line_2d = xytuple_list_to_Line(point_list)
+            line_2d = xytuple_list_to_line2d(point_list)
 
             return True, line_2d
 
@@ -188,31 +180,35 @@ class ActionWidget(QWidget):
             success, result = self.try_get_point_list(dialog)
             if not success:
                 msg = result
-                wrn(self,
-                     self.plugin_name,
-                     msg)
+                warn(
+                    self.plugin_name,
+                    msg
+                )
                 return
             line2d = result
         else:
-            wrn(self,
-                 self.plugin_name,
-                 "No defined line source")
+            warn(
+                self.plugin_name,
+                "No defined line source"
+            )
             return
 
         try:
 
-            npts = line2d.num_pts
+            npts = line2d.num_pts()
             if npts < 2:
-                wrn(self,
-                     self.plugin_name,
-                     "Defined line source with less than two points")
+                warn(
+                    self.plugin_name,
+                    "Defined line source with less than two points"
+                )
                 return
 
         except:
 
-            wrn(self,
-                 self.plugin_name,
-                 "No defined line source")
+            warn(
+                self.plugin_name,
+                "No defined line source"
+            )
             return
 
         self.profile_name = "Text input"
@@ -241,22 +237,13 @@ class ActionWidget(QWidget):
 
             if not success:
                 msg = results
-                wrn(
-                    self,
+                warn(
                     self.plugin_name,
                     msg
                 )
                 return
 
             name, line3dt = results
-
-            '''
-            print(
-                f"DEBUG: gpx-derived line3dt z min/max: {line3dt.z_min}, {line3dt.z_max}")
-
-            print(
-                f"DEBUG: gpx-derived line3dt num. points: {line3dt.num_pts}")
-            '''
 
             self.profile_name = os.path.basename(self.input_gpx_file_path)
             self.profile_line_list = [line3dt]
@@ -274,8 +261,7 @@ class ActionWidget(QWidget):
 
         if not success:
             msg = f"Error with {dem.name()} as source"
-            wrn(
-                self,
+            warn(
                 self.plugin_name,
                 msg
             )
@@ -301,11 +287,9 @@ class ActionWidget(QWidget):
 
         current_raster_layers = loaded_monoband_raster_layers()
         if len(current_raster_layers) == 0:
-            iface.messageBar().pushMessage(
-                "qProf plugin",
-                "No loaded DEM",
-                level=Qgis.Warning,
-                duration=4
+            warn(
+                self.plugin_name,
+                "No loaded DEM"
             )
             return
 
@@ -317,20 +301,16 @@ class ActionWidget(QWidget):
         if dialog.exec_():
             selected_dems = self.get_selected_dems_params(dialog)
         else:
-            iface.messageBar().pushMessage(
-                "qProf plugin",
-                "No chosen DEM",
-                level=Qgis.Warning,
-                duration=4
+            warn(
+                self.plugin_name,
+                "No chosen DEM"
             )
             return
 
         if len(selected_dems) == 0:
-            iface.messageBar().pushMessage(
-                "qProf plugin",
+            warn(
+                self.plugin_name,
                 "No selected DEM",
-                level=Qgis.Warning,
-                duration=4
             )
             return
         else:
@@ -340,11 +320,9 @@ class ActionWidget(QWidget):
 
         self.selected_dem_parameters = [self.get_dem_parameters(dem) for dem in selected_dems]
 
-        iface.messageBar().pushMessage(
-            "qProf plugin",
-            "DEMs read" if len(selected_dems) >= 1 else "DEM read",
-            level=Qgis.Success,
-            duration=2
+        ok(
+            self.plugin_name,
+            "DEMs read" if len(selected_dems) >= 1 else "DEM read"
         )
 
     def elevations_from_gpx(self):
@@ -380,9 +358,10 @@ class ActionWidget(QWidget):
 
         for geoprofile in self.input_geoprofiles_set.geoprofiles:
             if not geoprofile.named_topoprofiles.statistics_calculated:
-                wrn(self,
-                     self.plugin_name,
-                     "Profile statistics not yet calculated")
+                warn(
+                    self.plugin_name,
+                    "Profile statistics not yet calculated"
+                )
                 return False
 
         return True
@@ -391,22 +370,15 @@ class ActionWidget(QWidget):
         geoprofiles
     ):
 
-        print(f"DEBUG: type(geoprofiles): {type(geoprofiles)}")
-
         for geoprofile in geoprofiles:
-
-            print(f"DEBUG: geoprofile: {geoprofile}")
-            print(f"DEBUG: geoprofile.topo_profiles: {geoprofile.named_topoprofiles}")
 
             for name, line3d in geoprofile.named_topoprofiles:
 
-                print(f"DEBUG: name: {name}, line3d: {line3d}")
+                statistics_elev = [get_statistics(p) for p in line3d.z_array()]
+                statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes()]
+                statistics_slopes = [get_statistics(p) for p in np.absolute(line3d.dir_slopes())]
 
-                statistics_elev = [get_statistics(p) for p in line3d.z_array]
-                statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes]
-                statistics_slopes = [get_statistics(p) for p in np.absolute(line3d.dir_slopes)]
-
-                profile_length = line3d.incr_len_2d[-1] - line3d.incr_len_2d[0]
+                profile_length = line3d.incremental_length_2d()[-1] - line3d.incremental_length_2d()[0]
                 natural_elev_range = (
                     np.nanmin(np.array([ds_stats["min"] for ds_stats in statistics_elev])),
                     np.nanmax(np.array([ds_stats["max"] for ds_stats in statistics_elev])))
@@ -625,8 +597,6 @@ class ActionWidget(QWidget):
         profile_params['plot_slope_directional'] = dialog.qrbtPlotDirectionalSlope.isChecked()
         profile_params['invert_xaxis'] = dialog.qcbxInvertXAxisProfile.isChecked()
 
-        #surface_names = self.input_geoprofiles_set.geoprofile(0).named_lines.surface_names
-
         if hasattr(dialog, 'visible_elevation_layers') and dialog.visible_elevation_layers is not None:
             profile_params['visible_elev_lyrs'] = dialog.visible_elevation_layers
         else:
@@ -642,17 +612,11 @@ class ActionWidget(QWidget):
     def plot_single_profile(self):
 
         if self.profile_track_source == TrackSource.UNDEFINED:
-            iface.messageBar().pushMessage(
-                "qProf plugin",
-                "No profile track source defined",
-                level=Qgis.Warning,
-                duration=6
+            warn(
+                self.plugin_name,
+                "No profile track source defined"
             )
             return
-
-        #print(f"DEBUG: self.profile_lines: {type(self.profile_line_list)}")
-        #print(f"DEBUG: self.profile_lines[0]: {type(self.profile_line_list[0])}")
-        #print(f"DEBUG: self.profile_lines[0] z min/max: {self.profile_line_list[0].z_min}, {self.profile_line_list[0].z_max}")
 
         success, result = try_prepare_single_topo_profiles(
             profile_line=self.profile_line_list[0],
@@ -665,16 +629,9 @@ class ActionWidget(QWidget):
 
         if not success:
             msg = result
-            err(
-                self,
+            error(
                 self.plugin_name,
                 msg
-            )
-            iface.messageBar().pushMessage(
-                "qProf plugin",
-                msg,
-                level=Qgis.Critical,
-                duration=8
             )
             return
 
@@ -684,14 +641,10 @@ class ActionWidget(QWidget):
         profiles_max_elevs = []
         profiles_lengths = []
 
-        print(f"DEBUG: geoprofile: {geoprofile}")
-        print(f"DEBUG: geoprofile.named_lines: {geoprofile.named_topoprofiles}")
-        print(f"DEBUG: geoprofile.named_lines[0]: {geoprofile.named_topoprofiles[0]}")
-
         for _, line3d in geoprofile.named_topoprofiles:
-            profiles_min_elevs.append(line3d.z_min)
-            profiles_max_elevs.append(line3d.z_max)
-            profiles_lengths.append(line3d.length_2d)
+            profiles_min_elevs.append(line3d.z_min())
+            profiles_max_elevs.append(line3d.z_max())
+            profiles_lengths.append(line3d.length_2d())
 
         surface_names = [name for name, _ in geoprofile.named_topoprofiles]
 
@@ -707,27 +660,24 @@ class ActionWidget(QWidget):
         natural_elev_max = np.nanmax(profiles_max_elevs)
 
         if np.isnan(profile_length) or profile_length == 0.0:
-            err(
-                self,
+            error(
                 self.plugin_name,
                 f"Max profile length is {profile_length}.\nCheck profile trace."
             )
             return
 
-        print(f"natural_elev_min: {type(natural_elev_min)} -> {natural_elev_min}")
-        print(f"natural_elev_max: {type(natural_elev_max)} -> {natural_elev_max}")
         if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
-            err(
-                self,
+            error(
                 self.plugin_name,
                 f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s)."
             )
             return
 
         if natural_elev_max <= natural_elev_min:
-            wrn(self,
-                 self.plugin_name,
-                 "Error: min elevation larger then max elevation")
+            error(
+                self.plugin_name,
+                "Error: min elevation larger then max elevation"
+            )
             return
 
         dialog = PlotTopoProfileDialog(self.plugin_name,
@@ -779,9 +729,10 @@ class ActionWidget(QWidget):
 
         self.previous_maptool = self.canvas.mapTool()  # Save the standard map tool for restoring it at the end
 
-        infos(self,
-             self.plugin_name,
-             "Now you can digitize the trace on the map.\nLeft click: add point\nRight click: end adding point")
+        info(
+            self.plugin_name,
+            "Now you can digitize the trace on the map.\nLeft click: add point\nRight click: end adding point"
+        )
 
         self.rubberband = QgsRubberBand(self.canvas)
         self.rubberband.setWidth(2)
@@ -802,14 +753,14 @@ class ActionWidget(QWidget):
         """
 
         x, y = xy_from_canvas(self.canvas, position)
-        print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
+        #print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
 
         self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
 
     def profile_add_point(self, position):
 
         x, y = xy_from_canvas(self.canvas, position)
-        print(f"DEBUG: profile_add_point -> {x} {y}")
+        #print(f"DEBUG: profile_add_point -> {x} {y}")
 
         self.profile_canvas_points.append([x, y])
 
@@ -820,8 +771,7 @@ class ActionWidget(QWidget):
         self.line_from_digitation = None
 
         if len(self.profile_canvas_points) <= 1:
-            wrn(
-                self,
+            warn(
                 self.plugin_name,
                 "At least two non-coincident points are required"
             )
@@ -830,9 +780,8 @@ class ActionWidget(QWidget):
         raw_line = Line2D(
             [Point2D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
 
-        if raw_line.num_pts <= 1:
-            wrn(
-                self,
+        if raw_line.num_pts() <= 1:
+            warn(
                 self.plugin_name,
                 "Just one non-coincident point"
             )
@@ -867,11 +816,8 @@ class ActionWidget(QWidget):
         self.line_from_digitation = None
 
         try:
-
             self.rubberband.reset()
-
         except:
-
             pass
 
     def save_rubberband_line(self):
@@ -885,13 +831,16 @@ class ActionWidget(QWidget):
 
             points = [[n, pt2dt.x, pt2dt.y] for n, pt2dt in enumerate(pts2dt)]
             if output_format == "csv":
-                success, msg = write_generic_csv(output_filepath,
-                                                 ['id', 'x', 'y'],
-                                                 points)
+                success, msg = write_generic_csv(
+                    output_filepath,
+                    ['id', 'x', 'y'],
+                    points
+                )
                 if not success:
-                    wrn(self,
-                         self.plugin_name,
-                         msg)
+                    warn(
+                        self.plugin_name,
+                        msg
+                    )
             elif output_format == "shapefile - line":
                 success, msg = write_rubberband_profile_lnshp(
                     output_filepath,
@@ -899,19 +848,22 @@ class ActionWidget(QWidget):
                     points,
                     proj_sr)
                 if not success:
-                    wrn(self,
-                         self.plugin_name,
-                         msg)
+                    warn(
+                        self.plugin_name,
+                        msg
+                    )
             else:
-                err(self,
-                      self.plugin_name,
-                      "Debug: error in export format")
+                error(
+                    self.plugin_name,
+                    "Debug: error in export format"
+                )
                 return
 
             if success:
-                infos(self,
-                     self.plugin_name,
-                     "Line saved")
+                info(
+                    self.plugin_name,
+                    "Line saved"
+                )
 
         def get_format_type():
 
@@ -924,37 +876,42 @@ class ActionWidget(QWidget):
 
         if self.line_from_digitation is None:
 
-            wrn(self,
-                 self.plugin_name,
-                 "No available line to save [1]")
+            warn(
+                self.plugin_name,
+                "No available line to save [1]"
+            )
             return
 
-        elif self.line_from_digitation.num_pts < 2:
+        elif self.line_from_digitation.num_pts() < 2:
 
-            wrn(self,
-                 self.plugin_name,
-                 "No available line to save [2]")
+            warn(
+                self.plugin_name,
+                "No available line to save [2]"
+            )
             return
 
         dialog = LineDataExportDialog(self.plugin_name)
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
-                wrn(self,
-                     self.plugin_name,
-                     "Error in output format")
+                warn(
+                    self.plugin_name,
+                    "Error in output format"
+                )
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                wrn(self,
-                     self.plugin_name,
-                     "Error in output path")
+                warn(
+                    self.plugin_name,
+                    "Error in output path"
+                )
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            wrn(self,
-                 self.plugin_name,
-                 "No export defined")
+            warn(
+                self.plugin_name,
+                "No export defined"
+            )
             return
 
         # get project CRS information
@@ -977,7 +934,10 @@ class ActionWidget(QWidget):
 
             except:
 
-                QMessageBox.critical(self, "Result", "Unable to load layer in project")
+                error(
+                    self.plugin_name,
+                    "Unable to load layer in project"
+                )
                 return
 
     def closeEvent(self, evnt):
@@ -1500,9 +1460,10 @@ class PlotTopoProfileDialog(QDialog):
         z_padding = 0.5
         delta_z = natural_elev_max - natural_elev_min
         if delta_z < 0.0:
-            wrn(self,
-                 self.plugin_name,
-                 "Error: min elevation larger then max elevation")
+            warn(
+                self.plugin_name,
+                "Error: min elevation larger then max elevation"
+            )
             return
         elif delta_z == 0.0:
             plot_z_min = floor(natural_elev_min) - 10
@@ -1588,7 +1549,7 @@ class PlotTopoProfileDialog(QDialog):
             3, 0, 1, 1)
 
         self.qrbtPlotAbsoluteSlope = QRadioButton(self.tr("absolute"))
-        self.qrbtPlotAbsoluteSlope.setChecked(True);
+        self.qrbtPlotAbsoluteSlope.setChecked(True)
         YAxis_qgridlayout.addWidget(
             self.qrbtPlotAbsoluteSlope,
             3, 1, 1, 1)
@@ -1671,8 +1632,7 @@ class PlotTopoProfileDialog(QDialog):
             return layer_visibilities, layer_colors
 
         if len(self.elevation_layer_names) == 0:
-            wrn(
-                self,
+            warn(
                 self.plugin_name,
                 "No loaded elevation layer"
             )
@@ -1690,8 +1650,7 @@ class PlotTopoProfileDialog(QDialog):
             return
 
         if len(visible_elevation_layers) == 0:
-            wrn(
-                self,
+            warn(
                 self.plugin_name,
                 "No visible layer"
             )
@@ -1931,8 +1890,7 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
         with open(output_file_path, "w") as ofile:
             ofile.write(out_configuration_string)
 
-        infos(
-            self,
+        ok(
             self.plugin_name,
             "Graphic parameters saved"
         )
@@ -1966,8 +1924,7 @@ blank height space = %f""" % (float(self.figure_width_inches_QLineEdit.text()),
 
         except:
 
-            wrn(
-                self,
+            error(
                 self.plugin_name,
                 "Error in configuration file"
             )
@@ -2131,10 +2088,9 @@ class TopographicProfileExportDialog(QDialog):
                 "Csv (*.csv)"
             )
         else:
-            wrn(
-                self,
+            error(
                 self.plugin_name,
-                self.tr("Output type definiton error")
+                self.tr("Output type definition error")
             )
             return
 
@@ -2241,10 +2197,9 @@ class PointDataExportDialog(QDialog):
                 "Csv"
             )
         else:
-            wrn(
-                self,
+            error(
                 self.plugin_name,
-                self.tr("Output type definiton error")
+                self.tr("Output type definition error")
             )
             return
 
@@ -2349,10 +2304,9 @@ class LineDataExportDialog(QDialog):
                 "Csv (*.csv)"
             )
         else:
-            wrn(
-                self,
+            error(
                 self.plugin_name,
-                self.tr("Output type definiton error")
+                self.tr("Output type definition error")
             )
             return
 
@@ -2492,7 +2446,6 @@ class DigitizeLineDialog(QDialog):
 
         self.setWindowTitle("Digitize line")
 
-
     '''
     def connect_digitize_maptool(self):
 
@@ -2505,9 +2458,10 @@ class DigitizeLineDialog(QDialog):
 
         self.clear_rubberband()
 
-        infos(self,
-             self.plugin_name,
-             "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point")
+        info(
+            self.plugin_name,
+            "Now you can digitize a line on the map.\nLeft click: add point\nRight click: end adding point"
+        )
 
         self.rubberband = QgsRubberBand(self.canvas)
         self.rubberband.setWidth(2)
@@ -2520,7 +2474,7 @@ class DigitizeLineDialog(QDialog):
         self.digitize_maptool.leftClicked.connect(self.profile_add_point)
         self.digitize_maptool.rightClicked.connect(self.canvas_end_profile_line)
 
-        print(f"DEBUG: exiting digitize_line")
+        #print(f"DEBUG: exiting digitize_line")
 
     def canvas_refresh_profile_line(self, position):
 
@@ -2530,14 +2484,14 @@ class DigitizeLineDialog(QDialog):
         """
 
         x, y = xy_from_canvas(self.canvas, position)
-        print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
+        #print(f"DEBUG: canvas_refresh_profile_line -> {x}, {y}")
 
         self.refresh_rubberband(self.profile_canvas_points + [[x, y]])
 
     def profile_add_point(self, position):
 
         x, y = xy_from_canvas(self.canvas, position)
-        print(f"DEBUG: profile_add_point -> {x} {y}")
+        #print(f"DEBUG: profile_add_point -> {x} {y}")
 
         self.profile_canvas_points.append([x, y])
 
@@ -2549,7 +2503,7 @@ class DigitizeLineDialog(QDialog):
         if len(self.profile_canvas_points) > 1:
             raw_line = Line2D(
                 [Point2D(x, y) for x, y in self.profile_canvas_points]).remove_coincident_points()
-            if raw_line.num_pts > 1:
+            if raw_line.num_pts() > 1:
                 self.digitized_profile_line2dt = raw_line
 
         self.profile_canvas_points = []
@@ -2597,9 +2551,10 @@ class DigitizeLineDialog(QDialog):
                                                  ['id', 'x', 'y'],
                                                  points)
                 if not success:
-                    wrn(self,
-                         self.plugin_name,
-                         msg)
+                    warn(
+                        self.plugin_name,
+                        msg
+                    )
             elif output_format == "shapefile - line":
                 success, msg = write_rubberband_profile_lnshp(
                     output_filepath,
@@ -2607,19 +2562,22 @@ class DigitizeLineDialog(QDialog):
                     points,
                     proj_sr)
                 if not success:
-                    wrn(self,
-                         self.plugin_name,
-                         msg)
+                    warn(
+                        self.plugin_name,
+                        msg
+                    )
             else:
-                err(self,
-                      self.plugin_name,
-                      "Debug: error in export format")
+                error(
+                    self.plugin_name,
+                    "Debug: error in export format"
+                )
                 return
 
             if success:
-                infos(self,
-                     self.plugin_name,
-                     "Line saved")
+                ok(
+                    self.plugin_name,
+                    "Line saved"
+                )
 
         def get_format_type():
 
@@ -2632,37 +2590,42 @@ class DigitizeLineDialog(QDialog):
 
         if self.digitized_profile_line2dt is None:
 
-            wrn(self,
-                 self.plugin_name,
-                 "No available line to save [1]")
+            warn(
+                self.plugin_name,
+                "No available line to save [1]"
+            )
             return
 
-        elif self.digitized_profile_line2dt.num_pts < 2:
+        elif self.digitized_profile_line2dt.num_pts() < 2:
 
-            wrn(self,
-                 self.plugin_name,
-                 "No available line to save [2]")
+            warn(
+                self.plugin_name,
+                "No available line to save [2]"
+            )
             return
 
         dialog = LineDataExportDialog(self.plugin_name)
         if dialog.exec_():
             output_format = get_format_type()
             if output_format == "":
-                wrn(self,
-                     self.plugin_name,
-                     "Error in output format")
+                warn(
+                    self.plugin_name,
+                    "Error in output format"
+                )
                 return
             output_filepath = dialog.outpath_QLineEdit.text()
             if len(output_filepath) == 0:
-                wrn(self,
-                     self.plugin_name,
-                     "Error in output path")
+                warn(
+                    self.plugin_name,
+                    "Error in output path"
+                )
                 return
             add_to_project = dialog.load_output_checkBox.isChecked()
         else:
-            wrn(self,
-                 self.plugin_name,
-                 "No export defined")
+            warn(
+                self.plugin_name,
+                "No export defined"
+            )
             return
 
         # get project CRS information
@@ -2685,9 +2648,8 @@ class DigitizeLineDialog(QDialog):
 
             except:
 
-                QMessageBox.critical(
-                    self,
-                    "Result",
+                error(
+                    self.plugin_name,
                     "Unable to load layer in project"
                 )
                 return
@@ -2752,10 +2714,12 @@ class GpxInputDialog(QDialog):
 
         gpx_last_used_dir = self.settings.value(self.settings_gpxdir_key,
                                                 "")
-        file_name, __ = QFileDialog.getOpenFileName(self,
-                                               self.tr("Open GPX file"),
-                                               gpx_last_used_dir,
-                                               "GPX (*.gpx *.GPX)")
+        file_name, __ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Open GPX file"),
+            gpx_last_used_dir,
+            "GPX (*.gpx *.GPX)"
+        )
         if not file_name:
             return
         else:

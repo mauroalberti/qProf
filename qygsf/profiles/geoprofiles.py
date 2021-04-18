@@ -93,15 +93,15 @@ class GeoProfile_:
 
     def s_max(self):
 
-        return max([line.length_2d for _, line in self.named_topoprofiles])
+        return max([line.length_2d() for _, line in self.named_topoprofiles])
 
     def min_z_topo(self):
 
-        return np.nanmin([line.z_min for _, line in self.named_topoprofiles])
+        return np.nanmin([line.z_min() for _, line in self.named_topoprofiles])
 
     def max_z_topo(self):
 
-        return np.nanmax([line.z_max for _, line in self.named_topoprofiles])
+        return np.nanmax([line.z_max() for _, line in self.named_topoprofiles])
 
     def min_z_plane_attitudes(self):
 
@@ -544,11 +544,11 @@ class GeoProfileSet:
                  ):
 
         if topo_profiles:
-            print("Num. topographic profiles: {}".format(len(topo_profiles)))
+            #print("Num. topographic profiles: {}".format(len(topo_profiles)))
             check_type(topo_profiles, "Topographic profiles set", TopographicProfileSet)
 
         if profile_attitudes:
-            print("Num. attitude profiles: {}".format(len(profile_attitudes)))
+            #print("Num. attitude profiles: {}".format(len(profile_attitudes)))
             check_type(profile_attitudes, "Attitudes set", AttitudesSet)
 
         if lines_intersections_set:

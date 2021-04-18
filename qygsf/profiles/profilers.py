@@ -1092,6 +1092,6 @@ class ParallelProfiler(list):
 
             attitudes_set.append(profile_attitudes)
 
-        print(attitudes_set)
+        #print(attitudes_set)
 
         return attitudes_set

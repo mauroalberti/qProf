@@ -72,7 +72,7 @@ def try_load_line_layer(
 
     try:
 
-        print(f"DEBUG: start of 'try_load_line_layer'")
+        #print(f"DEBUG: start of 'try_load_line_layer'")
 
         areLinesToReorder = False if line_order_fld_ndx is None else True
 
@@ -88,7 +88,7 @@ def try_load_line_layer(
 
         profile_orig_lines, order_values = result
 
-        print(f"profile_orig_lines, order_values: {profile_orig_lines} {order_values}")
+        #print(f"profile_orig_lines, order_values: {profile_orig_lines} {order_values}")
 
         processed_lines = []
 
@@ -119,7 +119,7 @@ def try_load_line_layer(
         if invert_direction:
             profiles = [line.invert_direction() for line in profiles]
 
-        print(f"DEBUG: end of 'try_load_line_layer'")
+        #print(f"DEBUG: end of 'try_load_line_layer'")
 
         return True, profiles
 

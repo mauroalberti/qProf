@@ -1,6 +1,4 @@
 
-##from typing import Dict
-
 import matplotlib as mpl
 
 from .qygsf.profiles.geoprofiles import *
@@ -112,11 +110,12 @@ def create_axes(
     x_min, x_max = plot_x_range
     y_min, y_max = plot_y_range
     axes = profile_window.canvas.fig.add_subplot(grid_spec[ndx_subplot])
+    #print(x_min, x_max)
     axes.set_xlim(x_min, x_max)
     axes.set_ylim(y_min, y_max)
 
     axes.grid(True, color='lightgrey', linestyle='-.', linewidth=0.25, alpha=50)
-    print(f"DOCUMENTATION: axes: {type(axes)}")
+    #print(f"DOCUMENTATION: axes: {type(axes)}")
     return axes
 
 
@@ -147,16 +146,16 @@ def plot_topo_profile_lines(
     if plot_params['invert_xaxis']:
         axes.invert_xaxis()
 
-    s_values_list = [line3d.incr_len_2d for line3d in topo_profiles]
+    s_values_list = [line3d.incremental_length_2d() for line3d in topo_profiles]
 
     if topo_type == 'elevation':
-        z_values_list = [line3d.z_array for line3d in topo_profiles]
+        z_values_list = [line3d.z_array() for line3d in topo_profiles]
         plot_z_filled = plot_z_range[0]
     else:
         if plot_params['plot_slope_absolute']:
-            z_values_list = [line3d.absolute_slopes for line3d in topo_profiles]
+            z_values_list = [line3d.absolute_slopes() for line3d in topo_profiles]
         else:
-            z_values_list = [line3d.dir_slopes for line3d in topo_profiles]
+            z_values_list = [line3d.dir_slopes() for line3d in topo_profiles]
         plot_z_filled = 0.0
 
     for s, z, topoline_color, topoline_visibility in zip(
@@ -217,6 +216,7 @@ def plot_geoprofile(
     ndx_subplot = -1
 
     plot_s_min, plot_s_max = 0, geoprofile.s_max()
+    #print(f"A: plot_s_min, plot_s_max")
 
     # if slopes to be calculated and plotted
     if plot_slope_choice:
@@ -317,7 +317,7 @@ def plot_geoprofiles(
         slope_padding=0.2
 ):
 
-    print(f"DOC: geoprofiles in plot_geoprofiles: {type(input_geoprofiles_set)}")
+    #print(f"DOC: geoprofiles in plot_geoprofiles: {type(input_geoprofiles_set)}")
 
     # extract/define plot parameters
 
@@ -338,9 +338,9 @@ def plot_geoprofiles(
 
     profile_window = MplWidget('Profile')
 
-    print(f"DEBUG: plot_height_choice: {plot_height_choice}")
-    print(f"DEBUG: plot_slope_choice: {plot_slope_choice}")
-    print(f"DEBUG: geoprofiles.geoprofiles_num: {input_geoprofiles_set.geoprofiles_num}")
+    #print(f"DEBUG: plot_height_choice: {plot_height_choice}")
+    #print(f"DEBUG: plot_slope_choice: {plot_slope_choice}")
+    #print(f"DEBUG: geoprofiles.geoprofiles_num: {input_geoprofiles_set.geoprofiles_num}")
 
     num_subplots = (plot_height_choice + plot_slope_choice) * input_geoprofiles_set.geoprofiles_num
     grid_spec = mpl.gridspec.GridSpec(num_subplots, 1)
@@ -349,7 +349,8 @@ def plot_geoprofiles(
     for ndx in range(input_geoprofiles_set.geoprofiles_num):
 
         geoprofile = input_geoprofiles_set.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile.named_topoprofiles.profile_length
+        plot_s_min, plot_s_max = 0, geoprofile.named_topoprofiles.profile_length()
+        #print(f"B: plot_s_min, plot_s_max")
 
         # if slopes to be calculated and plotted
         if plot_slope_choice:

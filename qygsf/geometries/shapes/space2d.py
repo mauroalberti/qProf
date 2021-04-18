@@ -2456,18 +2456,18 @@ def _(
     )
 
 
-def xytuple_list_to_Line(
+def xytuple_list_to_line2d(
         xy_list: Tuple[numbers.Real, numbers.Real]
 ) -> Line2D:
 
-    print(f"xy_list -> {type(xy_list)} -> {xy_list}")
+    #print(f"xy_list -> {type(xy_list)} -> {xy_list}")
     result = Line2D([Point2D(x, y) for (x, y) in xy_list])
-    print(f"result -> {type(result)} -> {result}")
-    print(f"DEBUG: returning from 'xytuple_list_to_Line' {result}")
+    #print(f"result -> {type(result)} -> {result}")
+    #print(f"DEBUG: returning from 'xytuple_list_to_Line' {result}")
     return result
 
 
-def xytuple_l2_to_MultiLine(
+def xytuple_l2_to_multiline2d(
         xytuple_list2
 ) -> MultiLine2D:
 
@@ -2477,7 +2477,7 @@ def xytuple_l2_to_MultiLine(
     lines_list = []
     for xy_list in xytuple_list2:
         #assert len(xy_list) > 0
-        lines_list.append(xytuple_list_to_Line(xy_list))
+        lines_list.append(xytuple_list_to_line2d(xy_list))
 
     return MultiLine2D(lines_list)
 
@@ -2498,9 +2498,9 @@ def merge_line2d(
     line_type, line_geometry = line
 
     if line_type == 'multiline':
-        path_line = xytuple_l2_to_MultiLine(line_geometry).to_line()
+        path_line = xytuple_l2_to_multiline2d(line_geometry).to_line()
     elif line_type == 'line':
-        path_line = xytuple_list_to_Line(line_geometry)
+        path_line = xytuple_list_to_line2d(line_geometry)
     else:
         raise Exception("unknown line type")
 
@@ -2527,9 +2527,9 @@ def merge_lines2d(
         line_type, line_geometry = line
 
         if line_type == 'multiline':
-            path_line = xytuple_l2_to_MultiLine(line_geometry).to_line()
+            path_line = xytuple_l2_to_multiline2d(line_geometry).to_line()
         elif line_type == 'line':
-            path_line = xytuple_list_to_Line(line_geometry)
+            path_line = xytuple_list_to_line2d(line_geometry)
         else:
             continue
         line_list.append(path_line)  # now a list of Lines

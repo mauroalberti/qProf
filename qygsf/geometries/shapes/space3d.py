@@ -436,9 +436,9 @@ class Point3D:
 
         return sqrt((self.x - another.x) ** 2 + (self.y - another.y) ** 2 + (self.z - another.z) ** 2)
 
-    def horizontal_distance(self,
-                            another: 'Point3D'
-                            ) -> numbers.Real:
+    def dist_2d(self,
+                another: 'Point3D'
+                ) -> numbers.Real:
         """
         Calculate horizontal (2D) distance between two points.
         TODO: consider case of polar CRS
@@ -450,7 +450,7 @@ class Point3D:
         :raise: Exception.
 
         Examples:
-          >>> Point3D(1., 1., 1.).horizontal_distance(Point3D(4., 5., 7.))
+          >>> Point3D(1., 1., 1.).dist_2d(Point3D(4., 5., 7.))
           5.0
         """
 
@@ -908,7 +908,7 @@ class Segment3D:
 
     def length_horizontal(self) -> numbers.Real:
 
-        return self.start_pt.horizontal_distance(self.end_pt)
+        return self.start_pt.dist_2d(self.end_pt)
 
     def length(self) -> numbers.Real:
 
@@ -1894,6 +1894,22 @@ class Line3D:
 
         return list(map(lambda pt: pt.y, self._pts))
 
+    def x_array(self):
+
+        return np.asarray([pt.x for pt in self.pts()])
+
+    def y_array(self):
+
+        return np.asarray([pt.y for pt in self.pts()])
+
+    def z_array(self):
+
+        return np.asarray([pt.z for pt in self.pts()])
+
+    def xy_arrays(self):
+
+        return self.x_array, self.y_array
+
     def x_min(self):
         return min(map(lambda pt: pt.x, self._pts))
 
@@ -1961,7 +1977,6 @@ class Line3D:
 
         return Line3D(self.pts() + another.pts())
 
-    @property
     def length(self) -> numbers.Real:
 
         length = 0.0
@@ -1969,7 +1984,6 @@ class Line3D:
             length += self.pt(ndx).distance(self.pt(ndx + 1))
         return length
 
-    @property
     def length_2d(self) -> numbers.Real:
 
         length = 0.0
@@ -2032,6 +2046,17 @@ class Line3D:
 
         return step_length_list
     '''
+
+    def incremental_length_2d(self):
+
+        lIncrementalLengths = []
+        length = 0.0
+        lIncrementalLengths.append(length)
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].dist_2d(self.pts()[ndx + 1])
+            lIncrementalLengths.append(length)
+
+        return np.asarray(lIncrementalLengths)
 
     def incremental_length_3d(self) -> List[numbers.Real]:
         """
@@ -2104,6 +2129,20 @@ class Line3D:
     def abs_slopes_degr(self) -> List[Optional[numbers.Real]]:
 
         return [abs(val) for val in self.slopes_degr()]
+
+    def dir_slopes(self) -> np.ndarray:
+
+        lSlopes = []
+        for ndx in range(self.num_pts() - 1):
+            vector = Segment3D(self.pts()[ndx], self.pts()[ndx + 1]).vector()
+            lSlopes.append(-vector.slope_degr())  # minus because vector convention is positive downward
+        lSlopes.append(np.nan)  # slope value for last point is unknown
+
+        return np.asarray(lSlopes)
+
+    def absolute_slopes(self) -> np.ndarray:
+
+        return np.asarray(list(map(abs, self.dir_slopes())))
 
     def abs_slopes_stats(self) -> Dict:
         """

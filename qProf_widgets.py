@@ -243,10 +243,10 @@ class ActionWidget(QWidget):
                 )
                 return
 
-            name, line3dt = results
+            name, line4d = results
 
             self.profile_name = os.path.basename(self.input_gpx_file_path)
-            self.profile_line_list = [line3dt]
+            self.profile_line_list = [line4d]
             self.gpx_track_name = name
             self.profile_track_source = TrackSource.GPX_FILE
 

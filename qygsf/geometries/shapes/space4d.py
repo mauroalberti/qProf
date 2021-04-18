@@ -3,6 +3,7 @@ from math import sqrt
 import datetime
 
 from ...mathematics.vectors3d import *
+from .space2d import Point2D, Line2D
 
 
 class Point4D(object):
@@ -99,6 +100,40 @@ class Point4D(object):
           None
         """
         return self._t
+
+    def a(self) -> Tuple[numbers.Real, numbers.Real, numbers.Real, datetime.datetime]:
+        """
+        Return the individual values of the point.
+
+        :return: x, y, z and t values
+
+        Examples:
+          >>> Point4D(4, 3, 7, datetime.datetime(2020, 12, 4)).a()
+          (4.0, 3.0, 7.0, datetime.datetime(2020, 12, 4, 0, 0))
+        """
+
+        return self.x, self.y, self.z, self.t
+
+    def __iter__(self):
+        """
+        Return the elements of a Point.
+
+        :return:
+
+        Examples;
+          >>> x, y, z, t = Point4D(4, 3, 7, datetime.datetime(2020, 12, 4))
+          >>> x == 4
+          True
+          >>> y == 3
+          True
+          >>> z == 7
+          True
+          >>> t == datetime.datetime(2020, 12, 4)
+          True
+
+        """
+
+        return (i for i in self.a())
 
     def clone(self):
         """
@@ -384,6 +419,20 @@ class Line4D(object):
         segments = [Segment4D(pt_a, pt_b) for (pt_a, pt_b) in pts_pairs]
 
         return segments
+
+    def as_line2d(self) -> Line2D:
+
+        pts2d = []
+        for pt4d in self.pts():
+            x, y, _, _ = pt4d
+            pts2d.append(
+                Point2D(
+                    x=x,
+                    y=y
+                )
+            )
+
+        return Line2D(pts=pts2d)
 
     '''
     def densify_2d_line(self, sample_distance):

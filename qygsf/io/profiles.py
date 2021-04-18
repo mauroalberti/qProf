@@ -1,5 +1,7 @@
 import numbers
-import xml.dom
+#import xml.dom
+from xml.dom.minidom import parse
+
 from enum import Enum, auto
 from math import degrees, asin, cos, radians, ceil
 from typing import Tuple, Union, List
@@ -65,7 +67,7 @@ def topoprofiles_from_gpxfile(
         invert_profile: bool
 ) -> ProfileElevations:
 
-    doc = xml.dom.minidom.parse(source_gpx_path)
+    doc = parse(source_gpx_path)
 
     # define track name
     try:
@@ -168,7 +170,7 @@ def try_extract_track_from_gpxfile(
 
     try:
 
-        doc = xml.dom.minidom.parse(source_gpx_path)
+        doc = parse(source_gpx_path)
 
         # define track name
         try:
@@ -342,10 +344,14 @@ def topo_lines_from_dems(
         selected_dem_parameters
 ) -> List[Tuple[str, Line3D]]:
 
-    #print(type(selected_dems))
-    #print(type(selected_dems[0]))
-    #print(type(selected_dem_parameters))
-    resampled_line = source_profile_line.densify_2d_line(sample_distance)  # line resampled by sample distance
+    if isinstance(source_profile_line, Line4D):
+        template_line = source_profile_line.as_line2d()
+    elif isinstance(source_profile_line, Line3D):
+        raise Exception("Source profile line is a Line3D instance")
+    else:
+        template_line = source_profile_line
+
+    resampled_line = template_line.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs
 

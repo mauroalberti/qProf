@@ -32,7 +32,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return min([prof.s_min() for prof in self])
+        return np.nanmin([prof.s_min() for prof in self])
 
     def s_max(self) -> Optional[numbers.Real]:
         """
@@ -42,7 +42,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return max([prof.s_max() for prof in self])
+        return np.nanmax([prof.s_max() for prof in self])
 
     def z_min(self) -> Optional[numbers.Real]:
         """
@@ -52,7 +52,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return min([prof.z_min() for prof in self])
+        return np.nanmin([prof.z_min() for prof in self])
 
     def z_max(self) -> Optional[numbers.Real]:
         """
@@ -62,7 +62,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return max([prof.z_max() for prof in self])
+        return np.nanmax([prof.z_max() for prof in self])
 
     def natural_elev_range(self) -> Tuple[numbers.Real, numbers.Real]:
         """
@@ -213,11 +213,11 @@ class ProfileElevations:
 
     def min_z(self):
 
-        return min(list(map(np.nanmin, self.z_array)))
+        return np.nanmin(list(map(np.nanmin, self.z_array)))
 
     def max_z(self):
 
-        return max(list(map(np.nanmax, self.z_array)))
+        return np.nanmax(list(map(np.nanmax, self.z_array)))
 
     @property
     def absolute_slopes(self):

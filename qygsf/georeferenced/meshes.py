@@ -144,7 +144,7 @@ class AnalyticGeosurface(object):
 
         x = (a_min + a_max) / 2.0
         y = (b_min + b_max) / 2.0
-        z = (min(self.Z) + max(self.Z)) / 2.0
+        z = (np.nanmin(self.Z) + np.nanmax(self.Z)) / 2.0
 
         return self.transform_loc(x, y, z)
 

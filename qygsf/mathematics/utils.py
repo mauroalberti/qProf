@@ -28,7 +28,7 @@ def normXYZ(
     if not all(map(lambda val: isinstance(val, numbers.Real), vals)):
         raise Exception("Input values must be integer or float")
     elif not all(map(math.isfinite, vals)):
-        raise Exception("Input values must be finite")
+        raise Exception("Input values must be finite (#01)")
 
     mag = math.sqrt(x*x + y*y + z*z)
 

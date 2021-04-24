@@ -60,11 +60,11 @@ class Point3D:
         :type z: numbers.Real.
         """
 
-        vals = [x, y, z]
+        vals = [x, y]
         if any(map(lambda val: not isinstance(val, numbers.Real), vals)):
-            raise Exception("Input values must be integer or float type")
+            raise Exception("X and y input values must be integer or float type")
         if not all(map(math.isfinite, vals)):
-            raise Exception("Input values must be finite")
+            raise Exception("X and y input values must be finite (#03)")
 
         self._x = float(x)
         self._y = float(y)
@@ -1911,22 +1911,22 @@ class Line3D:
         return self.x_array, self.y_array
 
     def x_min(self):
-        return min(map(lambda pt: pt.x, self._pts))
+        return np.nanmin(list(map(lambda pt: pt.x, self._pts)))
 
     def x_max(self):
-        return max(map(lambda pt: pt.x, self._pts))
+        return np.nanmax(list(map(lambda pt: pt.x, self._pts)))
 
     def y_min(self):
-        return min(map(lambda pt: pt.y, self._pts))
+        return np.nanmin(list(map(lambda pt: pt.y, self._pts)))
 
     def y_max(self):
-        return max(map(lambda pt: pt.y, self._pts))
+        return np.nanmax(list(map(lambda pt: pt.y, self._pts)))
 
     def z_min(self):
-        return min(map(lambda pt: pt.z, self._pts))
+        return np.nanmin(list(map(lambda pt: pt.z, self._pts)))
 
     def z_max(self):
-        return max(map(lambda pt: pt.z, self._pts))
+        return np.nanmax(list(map(lambda pt: pt.z, self._pts)))
 
     def as_segments(self):
         """
@@ -2134,8 +2134,13 @@ class Line3D:
 
         lSlopes = []
         for ndx in range(self.num_pts() - 1):
-            vector = Segment3D(self.pts()[ndx], self.pts()[ndx + 1]).vector()
-            lSlopes.append(-vector.slope_degr())  # minus because vector convention is positive downward
+            segment_start_pt = self.pts()[ndx]
+            segment_end_pt = self.pts()[ndx + 1]
+            if np.isnan(segment_start_pt.z) or np.isnan(segment_end_pt.z):
+                lSlopes.append(np.nan)
+            else:
+                vector = Segment3D(self.pts()[ndx], self.pts()[ndx + 1]).vector()
+                lSlopes.append(-vector.slope_degr())  # minus because vector convention is positive downward
         lSlopes.append(np.nan)  # slope value for last point is unknown
 
         return np.asarray(lSlopes)

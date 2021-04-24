@@ -58,7 +58,7 @@ class Point2D(Shape2D):
             raise Exception("Input values must be integer or float type")
 
         if not all(map(math.isfinite, vals)):
-            raise Exception("Input values must be finite")
+            raise Exception("Input values must be finite (#02)")
 
         self._x = float(x)
         self._y = float(y)
@@ -1912,7 +1912,7 @@ class Line2D(Shape2D):
           0.0
         """
 
-        return min(self._x) if self.num_pts() > 0 else None
+        return np.nanmin(self._x) if self.num_pts() > 0 else None
 
     def x_max(self) -> Optional[numbers.Real]:
         """
@@ -1927,7 +1927,7 @@ class Line2D(Shape2D):
           1.0
         """
 
-        return max(self._x) if self.num_pts() > 0 else None
+        return np.nanmax(self._x) if self.num_pts() > 0 else None
 
     def y_min(self) -> Optional[numbers.Real]:
         """
@@ -1942,7 +1942,7 @@ class Line2D(Shape2D):
           0.0
         """
 
-        return min(self._y) if self.num_pts() > 0 else None
+        return np.nanmin(self._y) if self.num_pts() > 0 else None
 
     def y_max(self) -> Optional[numbers.Real]:
         """
@@ -1957,7 +1957,7 @@ class Line2D(Shape2D):
           1.0
         """
 
-        return max(self._y) if self.num_pts() > 0 else None
+        return np.nanmax(self._y) if self.num_pts() > 0 else None
 
     def remove_coincident_points(self) -> Optional['Line2D']:
         """

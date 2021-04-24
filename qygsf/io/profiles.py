@@ -345,13 +345,13 @@ def topo_lines_from_dems(
 ) -> List[Tuple[str, Line3D]]:
 
     if isinstance(source_profile_line, Line4D):
-        template_line = source_profile_line.as_line2d()
+        template_line2d = source_profile_line.as_line2d()
     elif isinstance(source_profile_line, Line3D):
         raise Exception("Source profile line is a Line3D instance")
     else:
-        template_line = source_profile_line
+        template_line2d = source_profile_line
 
-    resampled_line = template_line.densify_2d_line(sample_distance)  # line resampled by sample distance
+    resampled_line = template_line2d.densify_2d_line(sample_distance)  # line resampled by sample distance
 
     # calculate 3D profiles from DEMs
 

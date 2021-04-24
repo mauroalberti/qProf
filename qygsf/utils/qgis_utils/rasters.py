@@ -345,7 +345,7 @@ def get_min_dem_resolution(
                 projectCrs())
         )
 
-    min_dem_resolution = min(dem_resolutions_prj_crs_list)
+    min_dem_resolution = np.nanmin(dem_resolutions_prj_crs_list)
 
     if min_dem_resolution > 1:
         sample_distance = round(min_dem_resolution)

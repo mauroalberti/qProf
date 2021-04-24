@@ -99,7 +99,7 @@ class TopographicProfile:
         :rtype: numbers.Real.
         """
 
-        return min(self._s)
+        return np.nanmin(self._s)
 
     def s_max(self) -> numbers.Real:
         """
@@ -109,7 +109,7 @@ class TopographicProfile:
         :rtype: numbers.Real.
         """
 
-        return max(self._s)
+        return np.nanmax(self._s)
 
     def z_min(self) -> numbers.Real:
         """
@@ -119,7 +119,7 @@ class TopographicProfile:
         :rtype: numbers.Real.
         """
 
-        return min(self._z)
+        return np.nanmin(self._z)
 
     def z_max(self) -> numbers.Real:
         """
@@ -129,7 +129,7 @@ class TopographicProfile:
         :rtype: numbers.Real.
         """
 
-        return max(self._z)
+        return np.nanmax(self._z)
 
     def num_steps(self) -> int:
         """

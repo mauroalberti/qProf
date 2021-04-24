@@ -93,7 +93,7 @@ class GeoProfile_:
 
     def s_max(self):
 
-        return max([line.length_2d() for _, line in self.named_topoprofiles])
+        return np.nanmax([line.length_2d() for _, line in self.named_topoprofiles])
 
     def min_z_topo(self):
 
@@ -676,7 +676,7 @@ class GeoProfileSet:
         :rtype: numbers.Integral.
         """
 
-        return max(map(lambda lst: len(lst) if lst else 0, self.parameters()))
+        return np.nanmax(map(lambda lst: len(lst) if lst else 0, self.parameters()))
 
     def extract_geoprofile(
             self,
@@ -787,7 +787,7 @@ class GeoProfileSet:
         lengths = self.profiles_lengths_2d()
 
         if lengths:
-            return max(lengths)
+            return np.nanmax(lengths)
         else:
             return None
 

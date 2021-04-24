@@ -659,6 +659,10 @@ class ActionWidget(QWidget):
         natural_elev_min = np.nanmin(profiles_min_elevs)
         natural_elev_max = np.nanmax(profiles_max_elevs)
 
+        print(f"Profiles max length: {profile_length}")
+        print(f"Profiles min elevation: {natural_elev_min}")
+        print(f"Profiles max elevation: {natural_elev_max}")
+
         if np.isnan(profile_length) or profile_length == 0.0:
             error(
                 self.plugin_name,

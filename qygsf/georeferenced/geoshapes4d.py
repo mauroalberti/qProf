@@ -36,7 +36,7 @@ class GeoPoint4D:
         if any(map(lambda val: not isinstance(val, numbers.Real), vals)):
             raise Exception("Input values must be integer or float type")
         if not all(map(math.isfinite, vals)):
-            raise Exception("Input values must be finite")
+            raise Exception("Input values must be finite (#04)")
         if t is not None:
             check_type(
                 var=t,

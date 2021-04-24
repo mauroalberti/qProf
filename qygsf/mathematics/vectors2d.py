@@ -36,7 +36,7 @@ class Vect2D(object):
             raise Exception("Input values must be integer of float")
 
         if not all(map(math.isfinite, vals)):
-            raise Exception("Input values must be finite")
+            raise Exception("Input values must be finite (#05)")
 
         self._a = np.array(vals, dtype=np.float64)
 

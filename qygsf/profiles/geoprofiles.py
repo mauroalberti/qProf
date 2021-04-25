@@ -5,29 +5,16 @@ from .sets import *
 z_padding = 0.2
 
 
-class GeoProfile_:
+class GridsProfile:
     """
-    Class representing the topographic and geological elements
-    representing a single geological profile.
+    Class representing multiple grid profiles
+    derived from a single trace,
+    that may be a straight or a non-straight line.
     """
 
     def __init__(self):
 
-        """
-        self.source_data_type = None
-        self.original_line = None
-        self.sample_distance = None  # max spacing along profile; float
-        self.resampled_line = None
-        """
-
-        self.named_topoprofiles = []  # list of name and Line
-
-        self.profile_attitudes = []
-        self.projected_lines = []
-        self.projected_lines_ids = []
-        self.line_intersections = []
-        self.polygons_intersections = []
-        self.lines_intersections = None
+        self._named_grid_profiles = []  # list of name and Line3/4D
 
     def clear_topo_profile(self):
         """
@@ -35,13 +22,13 @@ class GeoProfile_:
         :return:
         """
 
-        self.named_topoprofiles = None
+        self._named_grid_profiles = None
 
-    def set_topo_profiles(self,
-        topo_profiles
-    ):
+    def set_named_topoprofiles(self,
+                               named_grid_profiles
+                               ):
 
-        self.named_topoprofiles = topo_profiles
+        self._named_grid_profiles = named_grid_profiles
 
     @property
     def topoprofiles(self):
@@ -50,122 +37,23 @@ class GeoProfile_:
         :return:
         """
 
-        return self.named_topoprofiles
+        return self._named_grid_profiles
 
-    def add_topo_profiles(self, topo_profiles):
+    def add_named_grid_profile(self, named_grid_profile):
 
-        self.named_topoprofiles += topo_profiles
-
-    def add_intersections_pts(self, intersection_list):
-
-        self.line_intersections += intersection_list
-
-    def clear_lines_intersections(self):
-        """
-        Clear line intersections content.
-
-        :return:
-        """
-
-        self.lines_intersections = None
-
-    def add_intersections_lines(self,
-        formation_list,
-        intersection_line3d_list,
-        intersection_polygon_s_list2
-    ):
-
-        self.polygons_intersections = list(
-            zip(
-                formation_list,
-                intersection_line3d_list,
-                intersection_polygon_s_list2
-            )
-        )
-
-    def s_min(self):
-        """
-
-        :return:
-        """
-
-        return self.topoprofiles.s_min()
+        self._named_grid_profiles += named_grid_profile
 
     def s_max(self):
 
-        return np.nanmax([line.length_2d() for _, line in self.named_topoprofiles])
-
-    def min_z_topo(self):
-
-        return np.nanmin([line.z_min() for _, line in self.named_topoprofiles])
-
-    def max_z_topo(self):
-
-        return np.nanmax([line.z_max() for _, line in self.named_topoprofiles])
-
-    def min_z_plane_attitudes(self):
-
-        # TODO:  manage case for possible nan p_z values
-        return np.nanmin([plane_attitude.pt_3d.p_z for plane_attitude_set in self.profile_attitudes for plane_attitude in
-                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.s_max()])
-
-    def max_z_plane_attitudes(self):
-
-        # TODO:  manage case for possible nan p_z values
-        return np.nanmax([plane_attitude.pt_3d.p_z for plane_attitude_set in self.profile_attitudes for plane_attitude in
-                    plane_attitude_set if 0.0 <= plane_attitude.sign_hor_dist <= self.s_max()])
-
-    def min_z_curves(self):
-
-        return np.nanmin([pt_2d.p_y for multiline_2d_list in self.projected_lines for multiline_2d in multiline_2d_list for line_2d in
-                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.s_max()])
-
-    def max_z_curves(self):
-
-        return np.nanmax([pt_2d.p_y for multiline_2d_list in self.projected_lines for multiline_2d in multiline_2d_list for line_2d in
-                    multiline_2d.lines for pt_2d in line_2d.pts if 0.0 <= pt_2d.p_x <= self.s_max()])
+        return np.nanmax([line.length_2d() for _, line in self._named_grid_profiles])
 
     def z_min(self):
 
-        min_z = self.min_z_topo()
-
-        if len(self.profile_attitudes) > 0:
-            min_z = np.nanmin([min_z, self.min_z_plane_attitudes()])
-
-        if len(self.projected_lines) > 0:
-            min_z = np.nanmin([min_z, self.min_z_curves()])
-
-        return min_z
+        return np.nanmin([line.z_min() for _, line in self._named_grid_profiles])
 
     def z_max(self):
 
-        max_z = self.max_z_topo()
-
-        if len(self.profile_attitudes) > 0:
-            max_z = np.nanmax([max_z, self.max_z_plane_attitudes()])
-
-        if len(self.projected_lines) > 0:
-            max_z = np.nanmax([max_z, self.max_z_curves()])
-
-        return max_z
-
-    def clear_attitudes(self):
-        """
-        Clear projected _attitudes content.
-
-        :return:
-        """
-
-        self.profile_attitudes = None
-
-    def add_plane_attitudes(self, plane_attitudes):
-
-        self.profile_attitudes.append(plane_attitudes)
-
-    def add_curves(self, lMultilines, lIds):
-
-        self.projected_lines.append(lMultilines)
-        self.projected_lines_ids.append(lIds)
+        return np.nanmax([line.z_max() for _, line in self._named_grid_profiles])
 
 
 class GeoProfilesSet_:
@@ -237,14 +125,14 @@ class GeoProfile:
     """
 
     def __init__(self,
-                 topo_profile: Optional[TopographicProfile] = None,
+                 topoprofile: Optional[TopographicProfile] = None,
                  profile_attitudes: Optional[AttitudesProfile] = None,
                  lines_intersections: Optional[IntersectionsProfile] = None,
                  polygons_intersections: Optional[IntersectionsProfile] = None
                  ):
 
-        if topo_profile:
-            check_type(topo_profile, "Topographic profile", TopographicProfile)
+        if topoprofile:
+            check_type(topoprofile, "Topographic profile", TopographicProfile)
 
         if profile_attitudes:
             check_type(profile_attitudes, "Attitudes", AttitudesProfile)
@@ -255,7 +143,7 @@ class GeoProfile:
         if polygons_intersections:
             check_type(polygons_intersections, "Polygon intersections", IntersectionsProfile)
 
-        self._topo_profile = topo_profile
+        self._topo_profile = topoprofile
         self._profile_attitudes = profile_attitudes
         self._lines_intersections = lines_intersections
         self._polygons_intersections = polygons_intersections
@@ -680,7 +568,7 @@ class GeoProfileSet:
     def extract_geoprofile(
             self,
             ndx: numbers.Integral
-    ) -> GeoProfile_:
+    ) -> GridsProfile:
         """
         Returns a geoprofile referencing slices of stored data.
 
@@ -695,7 +583,7 @@ class GeoProfileSet:
             raise Exception("Geoprofile set range is in 0-{} but {} got".format(self.num_profiles() - 1, ndx))
 
         return GeoProfile(
-            topo_profile=self.topo_profiles_set[ndx] if self.topo_profiles_set and ndx < len(self.topo_profiles_set) else None,
+            topoprofile=self.topo_profiles_set[ndx] if self.topo_profiles_set and ndx < len(self.topo_profiles_set) else None,
             profile_attitudes=self.profile_attitudes[ndx] if self.profile_attitudes and ndx < len(self.profile_attitudes) else None,
             lines_intersections=self.lines_intersections_set[ndx] if self.lines_intersections_set and ndx < len(self.lines_intersections_set) else None,
             polygons_intersections=self.polygons_intersections_set[ndx] if self.polygons_intersections_set and ndx < len(self.polygons_intersections_set) else None

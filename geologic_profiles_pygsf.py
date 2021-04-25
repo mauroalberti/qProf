@@ -49,13 +49,13 @@ plot_line(fig, line)
 
 ### Initializing a geoprofile
 
-from pygsf.geology.profiles.geoprofiles import GeoProfile
+from pygsf.profiles.geoprofiles import GeoProfile
 
 geoprofile = GeoProfile()
 
 ### Creating a linear profiler
 
-from pygsf.geology.profiles.profilers import LinearProfiler
+from pygsf.profiles.profilers import LinearProfiler
 
 profiler = LinearProfiler(
     start_pt=line.start_pt(),
@@ -74,7 +74,7 @@ print("Type of 'topo_profile': {}".format(type(topo_profile)))
 
 geoprofile.topo_profile = topo_profile
 
-from pygsf.geology.profiles.plot import plot
+from pygsf.profiles.plot import plot
 
 fig = plot(geoprofile)
 
@@ -115,7 +115,7 @@ print("Number of attitudes: {}".format(len(attitudes)))
 
 pprint(attitudes)
 
-from pygsf.geology.profiles.profilers import georef_attitudes_3d_from_grid
+from pygsf.profiles.profilers import georef_attitudes_3d_from_grid
 
 attitudes_3d = georef_attitudes_3d_from_grid(
     structural_data=attitudes,
@@ -164,7 +164,7 @@ profiles = read_linestring_geometries(src_profile)
 line = profiles.line()
 plot_line(fig, line)
 
-from pygsf.geology.profiles.geoprofiles import GeoProfileSet
+from pygsf.profiles.geoprofiles import GeoProfileSet
 
 geoprofiles = GeoProfileSet()
 
@@ -179,7 +179,7 @@ base_profiler
 
 base_profiler.num_pts()
 
-from pygsf.geology.profiles.profilers import ParallelProfiler
+from pygsf.profiles.profilers import ParallelProfiler
 
 multiple_profilers = ParallelProfiler.fromBaseProfiler(
     base_profiler=base_profiler,

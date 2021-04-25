@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>293</width>
+    <width>396</width>
     <height>624</height>
    </rect>
   </property>
@@ -25,8 +25,8 @@
     <rect>
      <x>0</x>
      <y>10</y>
-     <width>291</width>
-     <height>591</height>
+     <width>391</width>
+     <height>611</height>
     </rect>
    </property>
    <property name="sizePolicy">
@@ -54,7 +54,7 @@
    </column>
    <item>
     <property name="text">
-     <string>Trace</string>
+     <string>Profile trace definition</string>
     </property>
     <property name="font">
      <font>
@@ -64,7 +64,7 @@
     </property>
     <item>
      <property name="text">
-      <string>Select from line layer</string>
+      <string>Load from line layer</string>
      </property>
     </item>
     <item>
@@ -94,13 +94,13 @@
     </item>
     <item>
      <property name="text">
-      <string>Read from GPX file track</string>
+      <string>Read from GPX file</string>
      </property>
     </item>
    </item>
    <item>
     <property name="text">
-     <string>Elevations</string>
+     <string>Elevations sources</string>
     </property>
     <property name="font">
      <font>
@@ -110,12 +110,12 @@
     </property>
     <item>
      <property name="text">
-      <string>DEM sources</string>
+      <string>From DEMs/grids </string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>GPX source</string>
+      <string>From  GPX file</string>
      </property>
     </item>
    </item>
@@ -131,32 +131,32 @@
     </property>
     <item>
      <property name="text">
-      <string>Single trace  </string>
+      <string>Single source trace  </string>
      </property>
      <item>
       <property name="text">
-       <string>single profile</string>
+       <string>create single profile</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>multiple parallel profiles</string>
+       <string>create multiple parallel profiles</string>
       </property>
       <item>
        <property name="text">
-        <string>parallel profiles parameters</string>
+        <string>define parallel profiles parameters</string>
        </property>
       </item>
       <item>
        <property name="text">
-        <string>profiles plot parameters</string>
+        <string>plot profiles</string>
        </property>
       </item>
      </item>
     </item>
     <item>
      <property name="text">
-      <string>Multiple traces -&gt; multiple profiles</string>
+      <string>Multiple source traces -&gt; create multiple profiles</string>
      </property>
     </item>
    </item>
@@ -172,7 +172,12 @@
     </property>
     <item>
      <property name="text">
-      <string>Geological attitudes projection</string>
+      <string>Line layer intersection</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Polygon layer intersection</string>
      </property>
     </item>
     <item>
@@ -182,12 +187,7 @@
     </item>
     <item>
      <property name="text">
-      <string>Line layer intersection</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Polygon layer intersection</string>
+      <string>Geological attitudes projection</string>
      </property>
     </item>
    </item>

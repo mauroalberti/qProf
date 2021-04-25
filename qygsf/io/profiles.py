@@ -10,7 +10,7 @@ from qgis.core import QgsRasterLayer
 
 import numpy as np
 
-from ..profiles.geoprofiles import GeoProfile_
+from ..profiles.geoprofiles import GridsProfile
 from ..profiles.sets import ProfileElevations
 
 from ..geometries.shapes.space2d import Line2D
@@ -250,14 +250,14 @@ class GPXElevationUsage(Enum):
     ONLY_TO_USE = auto()
 
 
-def try_prepare_single_topo_profiles(
+def try_prepare_grids_profile(
     profile_line: Union[Line2D, Line3D],
     track_source: TrackSource,
     gpx_elevation_usage: GPXElevationUsage,
-    selected_dems: List,
-    selected_dem_parameters: List,
+    selected_grids: List,
+    selected_grids_parameters: List,
     gpx_track_name: str
-    ) -> Tuple[bool, Union[str, GeoProfile_]]:
+    ) -> Tuple[bool, Union[str, GridsProfile]]:
 
     pt_num_threshold = 1e4
 
@@ -269,8 +269,8 @@ def try_prepare_single_topo_profiles(
            gpx_elevation_usage != GPXElevationUsage.ONLY_TO_USE:
 
             sample_distance = get_min_dem_resolution(
-                selected_dems,
-                selected_dem_parameters
+                selected_grids,
+                selected_grids_parameters
             )
 
             # check total number of points in line(s) to create
@@ -289,8 +289,8 @@ def try_prepare_single_topo_profiles(
             dem_named_3dlines = topo_lines_from_dems(
                 source_profile_line=profile_line,
                 sample_distance=sample_distance,
-                selected_dems=selected_dems,
-                selected_dem_parameters=selected_dem_parameters
+                selected_dems=selected_grids,
+                selected_dem_parameters=selected_grids_parameters
             )
 
             if dem_named_3dlines is None:
@@ -326,9 +326,9 @@ def try_prepare_single_topo_profiles(
         if named_3dlines is None:
             return False, "Unable to create profiles"
 
-        geoprofile = GeoProfile_()
+        geoprofile = GridsProfile()
         geoprofile.original_line = profile_line
-        geoprofile.set_topo_profiles(named_3dlines)
+        geoprofile.set_named_topoprofiles(named_3dlines)
 
         return True, geoprofile
 

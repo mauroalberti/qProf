@@ -75,7 +75,7 @@ def _(
     Plot a single geological profile.
 
     :param geoprofile: the geoprofile to plot
-    :type geoprofile: GeoProfile_
+    :type geoprofile: GridsProfile
     :return: the figure.
     :rtype: Figure
     """

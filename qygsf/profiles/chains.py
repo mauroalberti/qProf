@@ -14,12 +14,16 @@ class TopographicProfile:
 
     def __init__(self,
                  s_array: array,
-                 z_array: array
+                 z_array: array,
+                 code: Optional[Union[str, numbers.Integral]] = None
                  ):
 
         check_type(s_array, "Distances array", array)
         if s_array.typecode != 'd':
             raise Exception("s array must be of type double")
+
+        if code is not None:
+            check_type(code, "Profile code", (str, numbers.Integral))
 
         num_steps = len(s_array)
 

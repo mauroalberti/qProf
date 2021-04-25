@@ -131,7 +131,7 @@ def plot_topo_profile_lines(
     filled_choice
 ):
 
-    topo_profiles = [line3d for _, line3d in geoprofile.named_topoprofiles]
+    topo_profiles = [line3d for _, line3d in geoprofile._named_grid_profiles]
     topoline_colors = plot_params['elev_lyr_colors']
     topoline_visibilities = plot_params['visible_elev_lyrs']
 
@@ -184,8 +184,88 @@ def plot_topo_profile_lines(
     return axes
 
 
+def plot_gridsprofile(
+    named_grids_profile: GridsProfile,
+    plot_params
+):
+
+    # extract/define plot parameters
+
+    #plot_params = input_geoprofiles_set.plot_params
+
+    set_vertical_exaggeration = plot_params["set_vertical_exaggeration"]
+    vertical_exaggeration = plot_params['vertical_exaggeration']
+
+    plot_height_choice = plot_params['plot_height_choice']
+    plot_slope_choice = plot_params['plot_slope_choice']
+
+    if plot_height_choice:
+        # defines plot min and max values
+        plot_z_min = plot_params['plot_min_elevation_user']
+        plot_z_max = plot_params['plot_max_elevation_user']
+
+    # populate the plot
+
+    profile_window = MplWidget('Profile')
+
+    num_subplots = plot_height_choice + plot_slope_choice
+    grid_spec = mpl.gridspec.GridSpec(num_subplots, 1)
+
+    ndx_subplot = -1
+
+    plot_s_min, plot_s_max = 0, named_grids_profile.s_max()
+
+    # if slopes to be calculated and plotted
+    if plot_slope_choice:
+        plot_slope_max = 90.0
+        # defines slope value lists and the min and max values
+        if plot_params['plot_slope_absolute']:
+            plot_slope_min = 0.0
+        else:
+            plot_slope_min = -90.0
+
+    # plot topographic profile elevations
+
+    if plot_height_choice:
+        ndx_subplot += 1
+        axes_elevation = plot_topo_profile_lines(
+            named_grids_profile,
+            plot_params,
+            profile_window,
+            grid_spec,
+            ndx_subplot,
+            'elevation',
+            (plot_s_min, plot_s_max),
+            (plot_z_min, plot_z_max),
+            plot_params['filled_height'])
+        if set_vertical_exaggeration:
+            axes_elevation.set_aspect(vertical_exaggeration)
+        axes_elevation.set_anchor('W')  # align left
+
+    # plot topographic profile slopes
+
+    if plot_slope_choice:
+        ndx_subplot += 1
+        axes_slopes = plot_topo_profile_lines(
+            named_grids_profile,
+            plot_params,
+            profile_window,
+            grid_spec,
+            ndx_subplot,
+            'slope',
+            (plot_s_min, plot_s_max),
+            (plot_slope_min, plot_slope_max),
+            plot_params['filled_slope'])
+        axes_slopes.set_anchor('W')  # align left
+
+    profile_window.canvas.fig.tight_layout()
+    profile_window.canvas.draw()
+
+    return profile_window
+
+
 def plot_geoprofile(
-    geoprofile: GeoProfile_,
+    geoprofile: GeoProfile,
     plot_params,
     plot_addit_params: Dict,
     slope_padding=0.2
@@ -349,7 +429,7 @@ def plot_geoprofiles(
     for ndx in range(input_geoprofiles_set.geoprofiles_num):
 
         geoprofile = input_geoprofiles_set.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile.named_topoprofiles.profile_length()
+        plot_s_min, plot_s_max = 0, geoprofile._named_grid_profiles.profile_length()
         #print(f"B: plot_s_min, plot_s_max")
 
         # if slopes to be calculated and plotted

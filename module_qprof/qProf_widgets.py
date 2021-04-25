@@ -15,6 +15,7 @@ from .qProf_export import *
 
 max_parallel_profiles_number = 20
 
+
 class ActionWidget(QWidget):
 
     def __init__(self,
@@ -37,17 +38,17 @@ class ActionWidget(QWidget):
         self.actions_qtreewidget = self.actionsTreeWidget
 
         self.profile_operations = {
-            "Select from line layer": self.define_profile_lines_from_line_layer,
+            "Load from line layer": self.define_profile_lines_from_line_layer,
             "digitize trace": self.digitize_rubberband_line,
             "clear trace": self.clear_rubberband_line,
             "save trace": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
-            "Read from GPX file track": self.define_track_source_from_gpx_file,
-            "DEM sources": self.elevations_from_dems,
-            "GPX source": self.elevations_from_gpx,
-            "single profile": self.plot_single_profile,
-            "parallel profiles parameters": self.define_parallel_profiles,
-            "profiles plot parameters": self.plot_parallel_profiles,
+            "Read from GPX file": self.define_track_source_from_gpx_file,
+            "From DEMs/grids": self.elevations_from_dems,
+            "From GPX file": self.elevations_from_gpx,
+            "create single profile": self.plot_grids_profile,
+            "define parallel profiles parameters": self.define_parallel_profiles,
+            "plot profiles": self.plot_parallel_profiles,
         }
 
         self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
@@ -374,7 +375,7 @@ class ActionWidget(QWidget):
     def check_pre_profile(self):
 
         for geoprofile in self.input_geoprofiles_set.geoprofiles:
-            if not geoprofile.named_topoprofiles.statistics_calculated:
+            if not geoprofile._named_grid_profiles.statistics_calculated:
                 warn(
                     self.plugin_name,
                     "Profile statistics not yet calculated"
@@ -389,7 +390,7 @@ class ActionWidget(QWidget):
 
         for geoprofile in geoprofiles:
 
-            for name, line3d in geoprofile.named_topoprofiles:
+            for name, line3d in geoprofile._named_grid_profiles:
 
                 statistics_elev = [get_statistics(p) for p in line3d.z_array()]
                 statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes()]
@@ -626,7 +627,7 @@ class ActionWidget(QWidget):
 
         return profile_params
 
-    def plot_single_profile(self):
+    def plot_grids_profile(self):
 
         if self.profile_track_source == TrackSource.UNDEFINED:
             warn(
@@ -635,12 +636,172 @@ class ActionWidget(QWidget):
             )
             return
 
-        success, result = try_prepare_single_topo_profiles(
+        success, result = try_prepare_grids_profile(
             profile_line=self.profile_line_list[0],
             track_source=self.profile_track_source,
             gpx_elevation_usage=self.gpx_choice,
-            selected_dems=self.selected_dems,
-            selected_dem_parameters=self.selected_dem_parameters,
+            selected_grids=self.selected_dems,
+            selected_grids_parameters=self.selected_dem_parameters,
+            gpx_track_name=self.gpx_track_name
+        )
+
+        if not success:
+            msg = result
+            error(
+                self.plugin_name,
+                msg
+            )
+            return
+
+        named_grids_profile = result
+
+        profiles_min_elevs = []
+        profiles_max_elevs = []
+        profiles_lengths = []
+
+        for _, line3d in named_grids_profile._named_grid_profiles:
+            profiles_min_elevs.append(line3d.z_min())
+            profiles_max_elevs.append(line3d.z_max())
+            profiles_lengths.append(line3d.length_2d())
+
+        surface_names = [name for name, _ in named_grids_profile._named_grid_profiles]
+
+        if self.input_geoprofiles_set.plot_params is None:
+            surface_colors = None
+        else:
+            surface_colors = self.input_geoprofiles_set.plot_params.get('elev_lyr_colors')
+
+        # pre-process input data to account for multi.profiles
+
+        profile_length = np.nanmax(profiles_lengths)
+        natural_elev_min = np.nanmin(profiles_min_elevs)
+        natural_elev_max = np.nanmax(profiles_max_elevs)
+
+        print(f"Profiles max length: {profile_length}")
+        print(f"Profiles min elevation: {natural_elev_min}")
+        print(f"Profiles max elevation: {natural_elev_max}")
+
+        if np.isnan(profile_length) or profile_length == 0.0:
+            error(
+                self.plugin_name,
+                f"Max profile length is {profile_length}.\nCheck profile trace."
+            )
+            return
+
+        if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
+            error(
+                self.plugin_name,
+                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s)."
+            )
+            return
+
+        if natural_elev_max <= natural_elev_min:
+            error(
+                self.plugin_name,
+                "Error: min elevation larger then max elevation"
+            )
+            return
+
+        dialog = PlotTopoProfileDialog(self.plugin_name,
+                                       profiles_lengths,
+                                       profiles_min_elevs,
+                                       profiles_max_elevs,
+                                       surface_names,
+                                       surface_colors)
+
+        if dialog.exec_():
+            plot_params = self.get_profile_plot_params(
+                dialog,
+                surface_names
+            )
+        else:
+            return
+
+        profiles_created = True
+
+        # plot profiles
+
+        profile_window = plot_gridsprofile(
+            named_grids_profile=named_grids_profile,
+            plot_params=plot_params
+        )
+
+        self.profile_windows.append(profile_window)
+
+    def define_parallel_profiles(self):
+
+        dialog = ParallelProfilesParametersDialog(
+            self.plugin_name
+        )
+
+        if dialog.exec_():
+
+            profiles_spacing = dialog.spacing_wdgt.value()
+            num_left_profiles = dialog.num_left_profiles_wdgt.value()
+            num_right_profiles = dialog.num_right_profiles_wdgt.value()
+
+        else:
+
+            warn(
+                self.plugin_name,
+                "No parameters defined for parallel profiles "
+            )
+            return
+
+        if profiles_spacing <= 0.0:
+            warn(
+                self.plugin_name,
+                "Spacing between parallel profiles cannot be zero"
+            )
+            return
+        elif num_left_profiles + num_right_profiles == 0:
+            warn(
+                self.plugin_name,
+                "Total number of parallel profiles cannot be zero"
+            )
+            return
+        elif num_left_profiles + num_right_profiles >= max_parallel_profiles_number:
+            warn(
+                self.plugin_name,
+                f"Total number of parallel profiles ({num_left_profiles + num_right_profiles}) cannot be greater than {max_parallel_profiles_number}"
+            )
+            return
+        else:
+            ok(
+                self.plugin_name,
+                "Parallel profiles parameters defined"
+            )
+
+            self.parallel_profiles_params = {
+                "spacing": profiles_spacing,
+                "num_left_profiles": num_left_profiles,
+                "num_right_profiles": num_right_profiles
+            }
+
+            print(self.parallel_profiles_params)
+
+    def plot_parallel_profiles(self):
+
+        if self.profile_track_source == TrackSource.UNDEFINED:
+            warn(
+                self.plugin_name,
+                "No profile track source defined"
+            )
+            return
+
+        if self.profile_track_source == TrackSource.GPX_FILE:
+            warn(
+                self.plugin_name,
+                "Parallel profiles are not implemented for GPX-derived profile source"
+            )
+            return
+
+        success, result = try_prepare_grids_profile(
+            profile_line=self.profile_line_list[0],
+            track_source=self.profile_track_source,
+            gpx_elevation_usage=self.gpx_choice,
+            selected_grids=self.selected_dems,
+            selected_grids_parameters=self.selected_dem_parameters,
             gpx_track_name=self.gpx_track_name
         )
 
@@ -658,12 +819,12 @@ class ActionWidget(QWidget):
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in geoprofile.named_topoprofiles:
+        for _, line3d in geoprofile._named_grid_profiles:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in geoprofile.named_topoprofiles]
+        surface_names = [name for name, _ in geoprofile._named_grid_profiles]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -744,64 +905,6 @@ class ActionWidget(QWidget):
 
         self.profile_windows.append(profile_window)
 
-    def define_parallel_profiles(self):
-
-        dialog = ParallelProfilesParametersDialog(
-            self.plugin_name
-        )
-
-        if dialog.exec_():
-
-            profiles_spacing = dialog.spacing_wdgt.value()
-            num_left_profiles = dialog.num_left_profiles_wdgt.value()
-            num_right_profiles = dialog.num_right_profiles_wdgt.value()
-
-        else:
-
-            warn(
-                self.plugin_name,
-                "No parameters defined for parallel profiles "
-            )
-            return
-
-        if profiles_spacing <= 0.0:
-            warn(
-                self.plugin_name,
-                "Spacing between parallel profiles cannot be zero"
-            )
-            return
-        elif num_left_profiles + num_right_profiles == 0:
-            warn(
-                self.plugin_name,
-                "Total number of parallel profiles cannot be zero"
-            )
-            return
-        elif num_left_profiles + num_right_profiles >= max_parallel_profiles_number:
-            warn(
-                self.plugin_name,
-                f"Total number of parallel profiles ({num_left_profiles + num_right_profiles}) cannot be greater than {max_parallel_profiles_number}"
-            )
-            return
-        else:
-            ok(
-                self.plugin_name,
-                "Parallel profiles parameters defined"
-            )
-
-            self.parallel_profiles_params = {
-                "spacing": profiles_spacing,
-                "num_left_profiles": num_left_profiles,
-                "num_right_profiles": num_right_profiles
-            }
-
-            print(self.parallel_profiles_params)
-
-    def plot_parallel_profiles(self):
-
-        info(
-            self.plugin_name,
-            "I'm here -> plot"
-        )
 
     def digitize_rubberband_line(self):
 
@@ -2416,7 +2519,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx).named_topoprofiles
+            profile_elevations = geoprofile_set.geoprofile(ndx)._named_grid_profiles
 
             profiles_stats = list(
                 zip(
@@ -2440,7 +2543,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            topo_profiles = geoprofile_set.geoprofile(ndx).named_topoprofiles
+            topo_profiles = geoprofile_set.geoprofile(ndx)._named_grid_profiles
             resampled_line_xs = topo_profiles.x_array
             resampled_line_ys = topo_profiles.y_array
 

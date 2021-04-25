@@ -236,7 +236,7 @@ class Fault(object):
 
         return self._slicks
 
-    def slick(self, ndx: int = 0) -> Slick:
+    def slick(self, ndx: numbers.Integral = 0) -> Slick:
         """
         Return the slickenline with the given index associated with the fault.
 
@@ -261,7 +261,7 @@ class Fault(object):
         else:
             return self._slicks[ndx]
 
-    def slickGeom(self, ndx: int = 0) -> Optional[Direct]:
+    def slickGeom(self, ndx: numbers.Integral=0) -> Optional[Direct]:
         """
         Return the geometric object (Direct or Axis) associated with slickenline.
 

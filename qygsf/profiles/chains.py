@@ -9,7 +9,7 @@ from ..utils.arrays import *
 
 class TopographicProfile:
     """
-
+    Represent a single topographic profile (i.e., a single z value for each s value).
     """
 
     def __init__(self,
@@ -45,10 +45,9 @@ class TopographicProfile:
 
     def z_arr(self) -> array:
         """
-        Return the z arrays.
+        Return the z array.
 
         :return: the z array.
-        :rtype: array.
         """
 
         return self._z
@@ -143,7 +142,7 @@ class TopographicProfile:
 
     def profile_length(self) -> numbers.Real:
         """
-        Returns the length of the profile.
+        Returns the geographic length of the profile.
 
         :return: length of profile.
         :rtype: numbers.Real.

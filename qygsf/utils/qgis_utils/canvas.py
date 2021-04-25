@@ -19,8 +19,6 @@ class MapDigitizeTool(QgsMapTool):
 
     def canvasMoveEvent(self, event):
 
-        #print(f"DEBUG: {event.pos().x()}, {event.pos().y()}")
-
         self.moved.emit({'x': event.pos().x(), 'y': event.pos().y()})
 
     def canvasReleaseEvent(self, event):

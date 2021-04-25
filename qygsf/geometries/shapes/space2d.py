@@ -2482,12 +2482,6 @@ def xytuple_l2_to_multiline2d(
     return MultiLine2D(lines_list)
 
 
-if __name__ == "__main__":
-
-    import doctest
-    doctest.testmod()
-
-
 def merge_line2d(
         line
 ) -> Line2D:
@@ -2539,3 +2533,11 @@ def merge_lines2d(
     line = MultiLine2D(line_list).to_line().remove_coincident_points()
 
     return line
+
+
+
+if __name__ == "__main__":
+
+    import doctest
+    doctest.testmod()
+

@@ -1,13 +1,13 @@
 
 from .qygsf.utils.qt_utils.actions import *
-from .qygsf.utils.qgis_utils.project import check_project_planar_crs
+from .qygsf.utils.qgis_utils.messages import *
 
 from .config.params import *
 
-from .qProf_widgets import *
+from .module_qprof.qProf_widgets import *
 
 
-class qProf_main(object):
+class Main(object):
 
     def __init__(self, interface):
 
@@ -32,7 +32,9 @@ class qProf_main(object):
 
     def unload(self):
 
-        self.interface.removePluginMenu(self.plugin_name, self.qactOpenMainWin)
+        self.interface.removePluginMenu(
+            self.plugin_name,
+            self.qactOpenMainWin)
 
     def open_main_widget(self):
 
@@ -40,19 +42,18 @@ class qProf_main(object):
 
         if not correct:
 
-            wrn(
-                None,
+            error(
                 self.plugin_name,
                 msg
             )
             return
 
-        self.qProf_QWidget = ActionWidget(
+        self.Module_qProf = ActionWidget(
             self.current_directory,
             self.plugin_name,
             self.canvas
         )
 
         # show dialog
-        self.qProf_QWidget.show()
+        self.Module_qProf.show()
 

@@ -33,10 +33,6 @@ class Azim(object):
           Azim(10.00°)
           >>> Azim(pi/2, unit='r')
           Azim(90.00°)
-          >>> Azim(np.nan)
-          Traceback (most recent call last):
-          ...
-          Exception: Input azimuth value must be finite but nan got
         """
 
         # unit check

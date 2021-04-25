@@ -23,13 +23,13 @@
 from __future__ import absolute_import
 
 
-from .qProf_main import qProf_main
+from .main import Main
 
 
 def classFactory(iface):
 
     # create qgSurf_gui class   
-    return qProf_main(iface)
+    return Main(iface)
 
 
 

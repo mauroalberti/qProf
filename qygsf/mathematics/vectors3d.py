@@ -29,11 +29,11 @@ class Vect3D(object):
           >>> Vect3D(1, np.nan, 1)
           Traceback (most recent call last):
           ...
-          Exception: Input values must be finite
+          Exception: Input values must be finite (#06)
           >>> Vect3D(1, 0, np.inf)
           Traceback (most recent call last):
           ...
-          Exception: Input values must be finite
+          Exception: Input values must be finite (#06)
           >>> Vect3D(0, 0, 0)
           Vect3D(0.0000, 0.0000, 0.0000)
           >>> Vect3D(2.2, -19.7)

@@ -921,15 +921,10 @@ def arrayTo3DPts(
     a list of 3D points.
 
     :param direction: considered intersection direction: 'i' (for i axis) or 'j' (for j axis).
-    :type direction: basestring.
     :param arr: array of along-direction (i- or j-) intra-cell segments [0 -> 1[.
-    :type arr: numpy ndarray.
     :param ij2xy_func: function to convert from array indices to x-y geographic coordinates.
-    :type ij2xy_func: function.
     :param xy2z_func: function that calculates z value given x and y coordinates.
-    :type xy2z_func: function.
     :return: list of 3D points.
-    :rtype: list of Points.
     :raise: Exception when direction is not 'i' or 'j'
     """
 

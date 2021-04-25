@@ -1,14 +1,14 @@
 
 from qgis.PyQt import uic
 
-from .qygsf.geometries.grids.statistics import *
-from .qygsf.io.profiles import *
-from .qygsf.utils.string_utils.utils_string import *
-from .qygsf.utils.qgis_utils.canvas import *
-from .qygsf.utils.qt_utils.filesystem import *
-from .qygsf.utils.qgis_utils.lines import *
-from .qygsf.utils.qgis_utils.messages import *
-from .qygsf.utils.qgis_utils.rasters import *
+from ..qygsf.geometries.grids.statistics import *
+from ..qygsf.io.profiles import *
+from ..qygsf.utils.string_utils.utils_string import *
+from ..qygsf.utils.qgis_utils.canvas import *
+from ..qygsf.utils.qt_utils.filesystem import *
+from ..qygsf.utils.qgis_utils.lines import *
+from ..qygsf.utils.qgis_utils.messages import *
+from ..qygsf.utils.qgis_utils.rasters import *
 
 from .qProf_plotting import *
 from .qProf_export import *

@@ -38,7 +38,10 @@ class PTBAxes(object):
         self._p_versor = b_vect.cross_product(self._t_versor).versor()
 
     @classmethod
-    def fromVects(cls, p_vector: Vect3D, t_vector: Vect3D) -> 'PTBAxes':
+    def fromVects(cls,
+        p_vector: Vect3D,
+        t_vector: Vect3D
+    ) -> 'PTBAxes':
         """
         Class method to create a PTBAxes instance from T and P axis vectors.
         Vectors are not required to be normalized but are required to be

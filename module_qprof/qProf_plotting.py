@@ -1,11 +1,11 @@
 
 import matplotlib as mpl
 
-from .qygsf.profiles.geoprofiles import *
-from .qygsf.utils.mpl_utils.mpl_widget import *
-from .qygsf.utils.qt_utils.colors import *
+from ..qygsf.profiles.geoprofiles import *
+from ..qygsf.utils.mpl_utils.mpl_widget import *
+from ..qygsf.utils.qt_utils.colors import *
 
-from .config.settings import *
+from ..config.settings import *
 
 
 def plot_structural_attitude(

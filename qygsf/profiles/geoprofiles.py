@@ -237,14 +237,14 @@ class GeoProfile:
     """
 
     def __init__(self,
-                 topo_profiles: Optional[TopographicProfile] = None,
+                 topo_profile: Optional[TopographicProfile] = None,
                  profile_attitudes: Optional[AttitudesProfile] = None,
                  lines_intersections: Optional[IntersectionsProfile] = None,
                  polygons_intersections: Optional[IntersectionsProfile] = None
                  ):
 
-        if topo_profiles:
-            check_type(topo_profiles, "Topographic profile", TopographicProfile)
+        if topo_profile:
+            check_type(topo_profile, "Topographic profile", TopographicProfile)
 
         if profile_attitudes:
             check_type(profile_attitudes, "Attitudes", AttitudesProfile)
@@ -255,33 +255,32 @@ class GeoProfile:
         if polygons_intersections:
             check_type(polygons_intersections, "Polygon intersections", IntersectionsProfile)
 
-        self._topo_profiles = topo_profiles
+        self._topo_profile = topo_profile
         self._profile_attitudes = profile_attitudes
         self._lines_intersections = lines_intersections
         self._polygons_intersections = polygons_intersections
 
     @property
-    def topo_profiles(self):
+    def topo_profile(self):
         """
 
         :return:
         """
 
-        return self._topo_profiles
+        return self._topo_profile
 
-    @topo_profiles.setter
-    def topo_profiles(self,
-                      scalars_inters: TopographicProfile):
+    @topo_profile.setter
+    def topo_profile(self,
+                     profile: TopographicProfile):
         """
 
-        :param scalars_inters: the scalar values profiles.
-        :type scalars_inters: TopographicProfile.
+        :param profile: the profile.
         :return:
 
         """
 
-        check_type(scalars_inters, "Topographic profile", TopographicProfile)
-        self._topo_profiles = scalars_inters
+        check_type(profile, "Topographic profile", TopographicProfile)
+        self._topo_profile = profile
 
     def clear_topo_profile(self):
         """
@@ -289,7 +288,7 @@ class GeoProfile:
         :return:
         """
 
-        self._topo_profiles = None
+        self._topo_profile = None
 
     @property
     def profile_attitudes(self):
@@ -471,7 +470,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profiles.s_min()
+        return self.topo_profile.s_min()
 
     def s_max(self):
         """
@@ -479,7 +478,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profiles.s_max()
+        return self.topo_profile.s_max()
 
     def z_min(self):
         """
@@ -487,7 +486,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profiles.z_min()
+        return self.topo_profile.z_min()
 
     def z_max(self):
         """
@@ -495,7 +494,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profiles.z_max()
+        return self.topo_profile.z_max()
 
     '''
     def add_intersections_pts(self, intersection_list):
@@ -527,7 +526,7 @@ class GeoProfile:
         :rtype: numbers.Real.
         """
 
-        return self._topo_profiles.profile_length()
+        return self._topo_profile.profile_length()
 
 
 class GeoProfileSet:
@@ -676,7 +675,7 @@ class GeoProfileSet:
         :rtype: numbers.Integral.
         """
 
-        return np.nanmax(map(lambda lst: len(lst) if lst else 0, self.parameters()))
+        return np.nanmax(list(map(lambda lst: len(lst) if lst else 0, self.parameters())))
 
     def extract_geoprofile(
             self,
@@ -696,7 +695,7 @@ class GeoProfileSet:
             raise Exception("Geoprofile set range is in 0-{} but {} got".format(self.num_profiles() - 1, ndx))
 
         return GeoProfile(
-            topo_profiles=self.topo_profiles_set[ndx] if self.topo_profiles_set and ndx < len(self.topo_profiles_set) else None,
+            topo_profile=self.topo_profiles_set[ndx] if self.topo_profiles_set and ndx < len(self.topo_profiles_set) else None,
             profile_attitudes=self.profile_attitudes[ndx] if self.profile_attitudes and ndx < len(self.profile_attitudes) else None,
             lines_intersections=self.lines_intersections_set[ndx] if self.lines_intersections_set and ndx < len(self.lines_intersections_set) else None,
             polygons_intersections=self.polygons_intersections_set[ndx] if self.polygons_intersections_set and ndx < len(self.polygons_intersections_set) else None

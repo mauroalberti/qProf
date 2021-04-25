@@ -131,13 +131,28 @@
     </property>
     <item>
      <property name="text">
-      <string>Single trace -&gt; single profile</string>
+      <string>Single trace  </string>
      </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Single trace -&gt; multiple parallel profiles</string>
-     </property>
+     <item>
+      <property name="text">
+       <string>single profile</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>multiple parallel profiles</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>parallel profiles parameters</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>profiles plot parameters</string>
+       </property>
+      </item>
+     </item>
     </item>
     <item>
      <property name="text">

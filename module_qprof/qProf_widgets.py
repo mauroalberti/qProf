@@ -13,6 +13,7 @@ from ..qygsf.utils.qgis_utils.rasters import *
 from .qProf_plotting import *
 from .qProf_export import *
 
+max_parallel_profiles_number = 20
 
 class ActionWidget(QWidget):
 
@@ -44,7 +45,9 @@ class ActionWidget(QWidget):
             "Read from GPX file track": self.define_track_source_from_gpx_file,
             "DEM sources": self.elevations_from_dems,
             "GPX source": self.elevations_from_gpx,
-            "Single trace -> single profile": self.plot_single_profile,
+            "single profile": self.plot_single_profile,
+            "parallel profiles parameters": self.define_parallel_profiles,
+            "profiles plot parameters": self.plot_parallel_profiles,
         }
 
         self.actions_qtreewidget.itemDoubleClicked.connect(self.activate_action_window)
@@ -62,6 +65,8 @@ class ActionWidget(QWidget):
         )
 
     def init_parameters(self):
+
+        self.parallel_profiles_params = None
 
         self.profile_track_source = TrackSource.UNDEFINED
         self.invert_line_profile = False
@@ -186,10 +191,12 @@ class ActionWidget(QWidget):
                 )
                 return
             line2d = result
+
         else:
+
             warn(
                 self.plugin_name,
-                "No defined line source"
+                "No defined text_window source"
             )
             return
 
@@ -199,7 +206,7 @@ class ActionWidget(QWidget):
             if npts < 2:
                 warn(
                     self.plugin_name,
-                    "Defined line source with less than two points"
+                    "Defined text-window source with less than two points"
                 )
                 return
 
@@ -207,13 +214,18 @@ class ActionWidget(QWidget):
 
             warn(
                 self.plugin_name,
-                "No defined line source"
+                "No defined text-window source"
             )
             return
 
         self.profile_name = "Text input"
         self.profile_line_list = [line2d]
         self.profile_track_source = TrackSource.POINT_LIST
+
+        ok(
+            self.plugin_name,
+            "Point list read"
+        )
 
     def define_track_source_from_gpx_file(self):
 
@@ -249,6 +261,11 @@ class ActionWidget(QWidget):
             self.profile_line_list = [line4d]
             self.gpx_track_name = name
             self.profile_track_source = TrackSource.GPX_FILE
+
+            ok(
+                self.plugin_name,
+                "GPX file read"
+            )
 
         else:
 
@@ -726,6 +743,65 @@ class ActionWidget(QWidget):
         )
 
         self.profile_windows.append(profile_window)
+
+    def define_parallel_profiles(self):
+
+        dialog = ParallelProfilesParametersDialog(
+            self.plugin_name
+        )
+
+        if dialog.exec_():
+
+            profiles_spacing = dialog.spacing_wdgt.value()
+            num_left_profiles = dialog.num_left_profiles_wdgt.value()
+            num_right_profiles = dialog.num_right_profiles_wdgt.value()
+
+        else:
+
+            warn(
+                self.plugin_name,
+                "No parameters defined for parallel profiles "
+            )
+            return
+
+        if profiles_spacing <= 0.0:
+            warn(
+                self.plugin_name,
+                "Spacing between parallel profiles cannot be zero"
+            )
+            return
+        elif num_left_profiles + num_right_profiles == 0:
+            warn(
+                self.plugin_name,
+                "Total number of parallel profiles cannot be zero"
+            )
+            return
+        elif num_left_profiles + num_right_profiles >= max_parallel_profiles_number:
+            warn(
+                self.plugin_name,
+                f"Total number of parallel profiles ({num_left_profiles + num_right_profiles}) cannot be greater than {max_parallel_profiles_number}"
+            )
+            return
+        else:
+            ok(
+                self.plugin_name,
+                "Parallel profiles parameters defined"
+            )
+
+            self.parallel_profiles_params = {
+                "spacing": profiles_spacing,
+                "num_left_profiles": num_left_profiles,
+                "num_right_profiles": num_right_profiles
+            }
+
+            print(self.parallel_profiles_params)
+
+    def plot_parallel_profiles(self):
+
+        info(
+            self.plugin_name,
+            "I'm here -> plot"
+        )
 
     def digitize_rubberband_line(self):
 
@@ -2731,6 +2807,66 @@ class GpxInputDialog(QDialog):
                                  self.settings_gpxdir_key,
                                  file_name)
             self.input_gpx_file_path.setText(file_name)
+
+
+class ParallelProfilesParametersDialog(QDialog):
+
+    def __init__(
+            self,
+            plugin_name,
+            parent=None
+    ):
+
+        super(ParallelProfilesParametersDialog, self).__init__(parent)
+
+        self.plugin_name = plugin_name
+
+        layout = QGridLayout()
+
+        layout.addWidget(QLabel("Profiles spacing"), 0, 0, 1, 1)
+
+        self.spacing_wdgt = QDoubleSpinBox()
+        self.spacing_wdgt.setValue(100.0)
+        self.spacing_wdgt.setMinimum(0.0)
+        self.spacing_wdgt.setMaximum(10000.0)
+        self.spacing_wdgt.setSingleStep(50.0)
+
+        layout.addWidget(self.spacing_wdgt, 0, 1, 1, 1)
+
+        layout.addWidget(QLabel("Num. left profiles"), 1, 0, 1, 1)
+
+        self.num_left_profiles_wdgt = QSpinBox()
+        self.num_left_profiles_wdgt.setValue(5)
+        self.num_left_profiles_wdgt.setMinimum(0)
+
+        layout.addWidget(self.num_left_profiles_wdgt, 1, 1, 1, 1)
+
+        layout.addWidget(QLabel("Num. right profiles"), 2, 0, 1, 1)
+
+        self.num_right_profiles_wdgt = QSpinBox()
+        self.num_right_profiles_wdgt.setValue(5)
+        self.num_right_profiles_wdgt.setMinimum(0)
+
+        layout.addWidget(self.num_right_profiles_wdgt, 2, 1, 1, 1)
+
+        okButton = QPushButton("&OK")
+        cancelButton = QPushButton("Cancel")
+        okButton.clicked.connect(self.accept)
+        cancelButton.clicked.connect(self.reject)
+
+        verticalSpacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        layout.addItem(verticalSpacer)
+
+        layout.addWidget(okButton,
+                         4, 0, 1, 1)
+        layout.addWidget(cancelButton,
+                         4, 1, 1, 1)
+
+        self.setLayout(layout)
+
+        self.setWindowTitle("Define parallel profiles parameters")
+        self.setMinimumSize(300, 150)
+
 
 
 

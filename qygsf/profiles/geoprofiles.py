@@ -1,59 +1,7 @@
-
 from .sets import *
 
 
 z_padding = 0.2
-
-
-class GridsProfile:
-    """
-    Class representing multiple grid profiles
-    derived from a single trace,
-    that may be a straight or a non-straight line.
-    """
-
-    def __init__(self):
-
-        self._named_grid_profiles = []  # list of name and Line3/4D
-
-    def clear_topo_profile(self):
-        """
-
-        :return:
-        """
-
-        self._named_grid_profiles = None
-
-    def set_named_topoprofiles(self,
-                               named_grid_profiles
-                               ):
-
-        self._named_grid_profiles = named_grid_profiles
-
-    @property
-    def topoprofiles(self):
-        """
-
-        :return:
-        """
-
-        return self._named_grid_profiles
-
-    def add_named_grid_profile(self, named_grid_profile):
-
-        self._named_grid_profiles += named_grid_profile
-
-    def s_max(self):
-
-        return np.nanmax([line.length_2d() for _, line in self._named_grid_profiles])
-
-    def z_min(self):
-
-        return np.nanmin([line.z_min() for _, line in self._named_grid_profiles])
-
-    def z_max(self):
-
-        return np.nanmax([line.z_max() for _, line in self._named_grid_profiles])
 
 
 class GeoProfilesSet_:
@@ -125,14 +73,14 @@ class GeoProfile:
     """
 
     def __init__(self,
-                 topoprofile: Optional[TopographicProfile] = None,
+                 topoprofile: Optional[GridProfile] = None,
                  profile_attitudes: Optional[AttitudesProfile] = None,
                  lines_intersections: Optional[IntersectionsProfile] = None,
                  polygons_intersections: Optional[IntersectionsProfile] = None
                  ):
 
         if topoprofile:
-            check_type(topoprofile, "Topographic profile", TopographicProfile)
+            check_type(topoprofile, "Topographic profile", GridProfile)
 
         if profile_attitudes:
             check_type(profile_attitudes, "Attitudes", AttitudesProfile)
@@ -159,7 +107,7 @@ class GeoProfile:
 
     @topo_profile.setter
     def topo_profile(self,
-                     profile: TopographicProfile):
+                     profile: GridProfile):
         """
 
         :param profile: the profile.
@@ -167,7 +115,7 @@ class GeoProfile:
 
         """
 
-        check_type(profile, "Topographic profile", TopographicProfile)
+        check_type(profile, "Topographic profile", GridProfile)
         self._topo_profile = profile
 
     def clear_topo_profile(self):

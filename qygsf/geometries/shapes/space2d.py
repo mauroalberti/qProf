@@ -842,15 +842,22 @@ class Segment2D(Shape2D):
             self.start_pt,
             end_pt)
 
-    def as_vector(self) -> Vect3D:
+    def as_vector(self) -> Vect2D:
         """
         Convert a segment to a vector.
         """
 
-        return Vect3D(
+        return Vect2D(
             x=self.delta_x(),
             y=self.delta_y()
         )
+
+    def as_versor(self) -> Vect2D:
+        """
+        Convert a segment to a versor.
+        """
+
+        return self.as_vector().versor()
 
     def densify2d_asLine(self, densify_distance) -> 'Line2D':
         """
@@ -863,8 +870,8 @@ class Segment2D(Shape2D):
 
         length2d = self.length()
 
-        vect = self.as_vector()
-        vers_2d = vect.versor_2d()
+        vers_2d = self.as_versor()
+
         generator_vector = vers_2d.scale(densify_distance)
 
         interpolated_line = Line2D(
@@ -1651,10 +1658,12 @@ class Line2D(Shape2D):
     """
 
     def area(self):
-        pass
+
+        return 0.0
 
     def length(self):
-        pass
+
+        return self.length_2d()
 
     def __init__(self,
         pts: Optional[List[Point2D]] = None
@@ -2013,10 +2022,10 @@ class Line2D(Shape2D):
         for line in densified_line_list:
             densifyied_points += line.pts()
 
-        densifyied_line = Line2D(densifyied_points)
-        densifyied_line_wo_coinc_pts = densifyied_line.remove_coincident_points()
+        densified_line = Line2D(densifyied_points)
+        densified_line_wo_coinc_pts = densified_line.remove_coincident_points()
 
-        return densifyied_line_wo_coinc_pts
+        return densified_line_wo_coinc_pts
 
     def join(self, another) -> 'Line2D':
         """

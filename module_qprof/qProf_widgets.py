@@ -69,7 +69,7 @@ class ActionWidget(QWidget):
 
         self.parallel_profiles_params = None
 
-        self.profile_track_source = TrackSource.UNDEFINED
+        self.profile_track_source_type = TrackSource.UNDEFINED
         self.invert_line_profile = False
         self.line_from_points_list = None
         self.input_gpx_file_path = None
@@ -146,7 +146,7 @@ class ActionWidget(QWidget):
 
         self.profile_name = line_qgsvectorlayer.sourceName()
         self.profile_line_list = result
-        self.profile_track_source = TrackSource.LINE_LAYER
+        self.profile_track_source_type = TrackSource.LINE_LAYER
 
         ok(
             self.plugin_name,
@@ -221,7 +221,7 @@ class ActionWidget(QWidget):
 
         self.profile_name = "Text input"
         self.profile_line_list = [line2d]
-        self.profile_track_source = TrackSource.POINT_LIST
+        self.profile_track_source_type = TrackSource.POINT_LIST
 
         ok(
             self.plugin_name,
@@ -261,7 +261,7 @@ class ActionWidget(QWidget):
             self.profile_name = os.path.basename(self.input_gpx_file_path)
             self.profile_line_list = [line4d]
             self.gpx_track_name = name
-            self.profile_track_source = TrackSource.GPX_FILE
+            self.profile_track_source_type = TrackSource.GPX_FILE
 
             ok(
                 self.plugin_name,
@@ -629,7 +629,7 @@ class ActionWidget(QWidget):
 
     def plot_grids_profile(self):
 
-        if self.profile_track_source == TrackSource.UNDEFINED:
+        if self.profile_track_source_type == TrackSource.UNDEFINED:
             warn(
                 self.plugin_name,
                 "No profile track source defined"
@@ -638,7 +638,7 @@ class ActionWidget(QWidget):
 
         success, result = try_prepare_grids_profile(
             profile_line=self.profile_line_list[0],
-            track_source=self.profile_track_source,
+            track_source=self.profile_track_source_type,
             gpx_elevation_usage=self.gpx_choice,
             selected_grids=self.selected_dems,
             selected_grids_parameters=self.selected_dem_parameters,
@@ -653,18 +653,20 @@ class ActionWidget(QWidget):
             )
             return
 
-        named_grids_profile = result
+        grids_profile = result
+
+        print(f"DEBUG: grids_profile: {grids_profile}")
 
         profiles_min_elevs = []
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in named_grids_profile._named_grid_profiles:
+        for _, line3d in grids_profile._named_grid_profiles:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in named_grids_profile._named_grid_profiles]
+        surface_names = [name for name, _ in grids_profile._named_grid_profiles]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -691,7 +693,7 @@ class ActionWidget(QWidget):
         if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
             error(
                 self.plugin_name,
-                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s)."
+                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s). [#1]"
             )
             return
 
@@ -722,7 +724,7 @@ class ActionWidget(QWidget):
         # plot profiles
 
         profile_window = plot_gridsprofile(
-            named_grids_profile=named_grids_profile,
+            named_grids_profile=grids_profile,
             plot_params=plot_params
         )
 
@@ -782,14 +784,14 @@ class ActionWidget(QWidget):
 
     def plot_parallel_profiles(self):
 
-        if self.profile_track_source == TrackSource.UNDEFINED:
+        if self.profile_track_source_type == TrackSource.UNDEFINED:
             warn(
                 self.plugin_name,
                 "No profile track source defined"
             )
             return
 
-        if self.profile_track_source == TrackSource.GPX_FILE:
+        if self.profile_track_source_type == TrackSource.GPX_FILE:
             warn(
                 self.plugin_name,
                 "Parallel profiles are not implemented for GPX-derived profile source"
@@ -798,7 +800,7 @@ class ActionWidget(QWidget):
 
         success, result = try_prepare_grids_profile(
             profile_line=self.profile_line_list[0],
-            track_source=self.profile_track_source,
+            track_source=self.profile_track_source_type,
             gpx_elevation_usage=self.gpx_choice,
             selected_grids=self.selected_dems,
             selected_grids_parameters=self.selected_dem_parameters,
@@ -851,7 +853,7 @@ class ActionWidget(QWidget):
         if np.isnan(natural_elev_min) or np.isnan(natural_elev_max):
             error(
                 self.plugin_name,
-                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s)."
+                f"Max elevation in profile(s) is {natural_elev_max} and min is {natural_elev_min}.\nCheck profile trace location vs. DEM(s). [#2]"
             )
             return
 
@@ -976,7 +978,7 @@ class ActionWidget(QWidget):
         self.line_from_digitation = raw_line
         self.profile_name = "Digitized line"
         self.profile_line_list = [raw_line]
-        self.profile_track_source = TrackSource.DIGITATION
+        self.profile_track_source_type = TrackSource.DIGITATION
 
     def restore_previous_map_tool(self):
 
@@ -993,7 +995,7 @@ class ActionWidget(QWidget):
 
     def clear_rubberband_line(self):
 
-        self.profile_track_source = TrackSource.UNDEFINED
+        self.profile_track_source_type = TrackSource.UNDEFINED
 
         self.profile_canvas_points = []
         self.line_from_digitation = None

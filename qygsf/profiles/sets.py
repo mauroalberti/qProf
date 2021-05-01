@@ -10,7 +10,7 @@ class TopographicProfileSet(list):
     Class storing a set of topographic profiles.
     """
 
-    def __init__(self, topo_profiles_set: List[TopographicProfile]):
+    def __init__(self, topo_profiles_set: List[GridProfile]):
         """
         Instantiates a topographic profile set.
 
@@ -20,7 +20,7 @@ class TopographicProfileSet(list):
 
         check_type(topo_profiles_set, "Topographic profiles set", List)
         for el in topo_profiles_set:
-            check_type(el, "Topographic profile", TopographicProfile)
+            check_type(el, "Topographic profile", GridProfile)
 
         super(TopographicProfileSet, self).__init__(topo_profiles_set)
 

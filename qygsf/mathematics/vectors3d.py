@@ -764,7 +764,6 @@ class Vect3D(object):
         x, y, z = arrToTuple(array3x3.dot(self.a))
         return Vect3D(x, y, z)
 
-    @property
     def azimuth_degr(self
         ) -> Optional[numbers.Real]:
         """
@@ -774,25 +773,25 @@ class Vect3D(object):
         :rtype: optional numbers.Real.
 
         Examples:
-          >>> Vect3D(0, 1, 0).azimuth_degr
+          >>> Vect3D(0, 1, 0).azimuth_degr()
           0.0
-          >>> Vect3D(1, 1, 0).azimuth_degr
+          >>> Vect3D(1, 1, 0).azimuth_degr()
           45.0
-          >>> Vect3D(1, 0, 0).azimuth_degr
+          >>> Vect3D(1, 0, 0).azimuth_degr()
           90.0
-          >>> Vect3D(1, -1, 0).azimuth_degr
+          >>> Vect3D(1, -1, 0).azimuth_degr()
           135.0
-          >>> Vect3D(0, -1, 0).azimuth_degr
+          >>> Vect3D(0, -1, 0).azimuth_degr()
           180.0
-          >>> Vect3D(-1, -1, 0).azimuth_degr
+          >>> Vect3D(-1, -1, 0).azimuth_degr()
           225.0
-          >>> Vect3D(-1, 0, 0).azimuth_degr
+          >>> Vect3D(-1, 0, 0).azimuth_degr()
           270.0
-          >>> Vect3D(-1, 1, 0).azimuth_degr
+          >>> Vect3D(-1, 1, 0).azimuth_degr()
           315.0
-          >>> Vect3D(0, 0, 1).azimuth_degr is None
+          >>> Vect3D(0, 0, 1).azimuth_degr() is None
           True
-          >>> Vect3D(0, 0, -1).azimuth_degr is None
+          >>> Vect3D(0, 0, -1).azimuth_degr() is None
           True
         """
 

@@ -445,7 +445,6 @@ class Vect2D(object):
 
         return self.scalar_projection(another) / self.length
 
-    '''
     def angle_as_degrees(self,
                          another: 'Vect2D',
                          unit='d'
@@ -455,10 +454,14 @@ class Vect2D(object):
         in 0° - 180° range (as degrees).
 
         Example:
-          >>> Vect2D(1, 0).angle_as_degrees(Vect2D(-1, 0))
-          180.0
-          >>> Vect2D(1, 1).angle_as_degrees(Vect2D(1, 1))
-          0.0
+          >>> areClose(Vect2D(1, 0).angle_as_degrees(Vect2D(-1, 0)), 180.0)
+          True
+          >>> areClose(Vect2D(1, 1).angle_as_degrees(Vect2D(-1, -1)), 180.0, atol=1e-5)
+          True
+          >>> areClose(Vect2D(1, 1).angle_as_degrees(Vect2D(10, 0)), 45.0)
+          True
+          >>> areClose(Vect2D(1, 1).angle_as_degrees(Vect2D(-1, 1)), 90.0)
+          True
         """
 
         if not isinstance(another, Vect2D):
@@ -474,7 +477,6 @@ class Vect2D(object):
             return angle_rad
         else:
             return None
-    '''
 
     '''
     def cross_product(self,
@@ -499,8 +501,6 @@ class Vect2D(object):
         return Vect2D(x, y)
     '''
 
-    '''
-    @property
     def azimuth_degr(self
         ) -> Optional[numbers.Real]:
         """
@@ -510,39 +510,26 @@ class Vect2D(object):
         :rtype: optional numbers.Real.
 
         Examples:
-          >>> Vect2D(0, 1).azimuth_degr
+          >>> Vect2D(0, 1).azimuth_degr()
           0.0
-          >>> Vect2D(1, 1).azimuth_degr
+          >>> Vect2D(1, 1).azimuth_degr()
           45.0
-          >>> Vect2D(1, 0).azimuth_degr
+          >>> Vect2D(1, 0).azimuth_degr()
           90.0
-          >>> Vect2D(1, -1).azimuth_degr
+          >>> Vect2D(1, -1).azimuth_degr()
           135.0
-          >>> Vect2D(0, -1).azimuth_degr
+          >>> Vect2D(0, -1).azimuth_degr()
           180.0
-          >>> Vect2D(-1, -1).azimuth_degr
+          >>> Vect2D(-1, -1).azimuth_degr()
           225.0
-          >>> Vect2D(-1, 0).azimuth_degr
+          >>> Vect2D(-1, 0).azimuth_degr()
           270.0
-          >>> Vect2D(-1, 1).azimuth_degr
+          >>> Vect2D(-1, 1).azimuth_degr()
           315.0
         """
 
-        y_axis = Vect2D(0, 1)
-        vector_2d = self.versor()
+        return (90.0 - math.degrees(math.atan2(self.y, self.x))) % 360.0
 
-        if not vector_2d:
-            return None
-
-        angle = vector_2d.angle_as_degrees(y_axis)
-
-        z_comp = y_axis.cross_product(vector_2d).z
-
-        if z_comp <= 0.0:
-            return angle
-        else:
-            return 360.0 - angle
-    '''
 
 if __name__ == "__main__":
 

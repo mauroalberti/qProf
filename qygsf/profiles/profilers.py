@@ -419,7 +419,7 @@ class LinearProfiler:
 
     def profile_grid(
             self,
-            geoarray: GeoArray) -> TopographicProfile:
+            geoarray: GeoArray) -> GridProfile:
         """
         Create profile from one geoarray.
 
@@ -432,13 +432,13 @@ class LinearProfiler:
 
         check_type(geoarray, "GeoArray", GeoArray)
 
-        return TopographicProfile(
+        return GridProfile(
             s_array=self.densified_2d_steps(),
             z_array=self.sample_grid(geoarray))
 
     def profile_grids(self,
         *grids: Iterable[GeoArray]
-    ) -> List[TopographicProfile]:
+    ) -> List[GridProfile]:
         """
         Create profiles of one or more grids.
 
@@ -459,7 +459,7 @@ class LinearProfiler:
         for grid in grids:
 
             topo_profiles.append(
-                TopographicProfile(
+                GridProfile(
                     s_array=self.densified_2d_steps(),
                     z_array=self.sample_grid(grid)
                 )

@@ -3,11 +3,14 @@ from typing import Optional
 
 from array import array
 
+import numpy
+
 from .elements import *
 from ..utils.arrays import *
+from ..geometries.shapes.space4d import *
 
 
-class TopographicProfile:
+class GridProfile:
     """
     Represent a single topographic profile (i.e., a single z value for each s value).
     """
@@ -64,7 +67,7 @@ class TopographicProfile:
         :rtype: str.
         """
 
-        return f"TopographicProfile with {len(self.s_arr())} points\ns = {self.s_arr()},\nz = {self.z_arr()}"
+        return f"GridsProfile with {len(self.s_arr())} vertices\ns = {self.s_arr()},\nz = {self.z_arr()}"
 
     def z(self,
         ndx: numbers.Integral
@@ -166,7 +169,7 @@ class TopographicProfile:
         :rtype: Optional[numbers.Integral]
 
         Examples:
-          >>> p = TopographicProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p = GridProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
           >>> p.s_upper_index(-1) is None
           True
           >>> p.s_upper_index(5) is None
@@ -206,7 +209,7 @@ class TopographicProfile:
         :return: the optional interpolated z value
 
         Examples:
-          >>> p = TopographicProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p = GridProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
           >>> p.z_for_s(-1) is None
           True
           >>> p.z_for_s(5) is None
@@ -272,7 +275,7 @@ class TopographicProfile:
         :rtype: array
 
         Examples:
-          >>> p = TopographicProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p = GridProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
           >>> p.s_subset(1.0)
           array('d', [1.0])
           >>> p.s_subset(0.0)
@@ -348,7 +351,7 @@ class TopographicProfile:
         :rtype: array
 
         Examples:
-          >>> p = TopographicProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p = GridProfile(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
           >>> p.zs_from_s_range(1.0)
           array('d', [20.0])
           >>> p.zs_from_s_range(0.0)
@@ -413,3 +416,61 @@ class IntersectionsProfile(list):
         super(IntersectionsProfile, self).__init__(intersections)
 
 
+class GridsProfile:
+    """
+    Class representing multiple grid profiles
+    derived from a single trace,
+    that may be a straight or a non-straight line.
+    """
+
+    def __init__(self,
+                 grid_profiles: Optional[List[Tuple[str, Union[Line3D, Line4D]]]] = None):
+
+        if grid_profiles is None:
+            self._named_grid_profiles = []  # list of name and Line3/4D
+        else:
+            self._named_grid_profiles = grid_profiles
+
+    def __repr__(self):
+
+        return f"""GridsProfiles with {len(self._named_grid_profiles)} Line(s):
+        {self._named_grid_profiles}
+        """
+    def clear_topo_profile(self):
+        """
+
+        :return:
+        """
+
+        self._named_grid_profiles = None
+
+    def set_named_topoprofiles(self,
+                               named_grid_profiles
+                               ):
+
+        self._named_grid_profiles = named_grid_profiles
+
+    @property
+    def topoprofiles(self):
+        """
+
+        :return:
+        """
+
+        return self._named_grid_profiles
+
+    def add_named_grid_profile(self, named_grid_profile):
+
+        self._named_grid_profiles += named_grid_profile
+
+    def s_max(self):
+
+        return np.nanmax([line.length_2d() for _, line in self._named_grid_profiles])
+
+    def z_min(self):
+
+        return np.nanmin([line.z_min() for _, line in self._named_grid_profiles])
+
+    def z_max(self):
+
+        return np.nanmax([line.z_max() for _, line in self._named_grid_profiles])

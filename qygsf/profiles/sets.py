@@ -1,6 +1,5 @@
-import numpy
-
 from .chains import *
+from ..geometries.shapes.space2d import XYArrayPair
 from ..georeferenced.geoshapes3d import GeoPointSegmentCollections3D
 
 
@@ -10,7 +9,7 @@ class TopographicProfileSet(list):
     Class storing a set of topographic profiles.
     """
 
-    def __init__(self, topo_profiles_set: List[GridProfile]):
+    def __init__(self, topo_profiles_set: List[XYArrayPair]):
         """
         Instantiates a topographic profile set.
 
@@ -20,7 +19,7 @@ class TopographicProfileSet(list):
 
         check_type(topo_profiles_set, "Topographic profiles set", List)
         for el in topo_profiles_set:
-            check_type(el, "Topographic profile", GridProfile)
+            check_type(el, "Topographic profile", XYArrayPair)
 
         super(TopographicProfileSet, self).__init__(topo_profiles_set)
 
@@ -32,7 +31,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return np.nanmin([prof.s_min() for prof in self])
+        return np.nanmin([prof.x_min() for prof in self])
 
     def s_max(self) -> Optional[numbers.Real]:
         """
@@ -42,7 +41,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return np.nanmax([prof.s_max() for prof in self])
+        return np.nanmax([prof.x_max() for prof in self])
 
     def z_min(self) -> Optional[numbers.Real]:
         """
@@ -52,7 +51,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return np.nanmin([prof.z_min() for prof in self])
+        return np.nanmin([prof.y_min() for prof in self])
 
     def z_max(self) -> Optional[numbers.Real]:
         """
@@ -62,7 +61,7 @@ class TopographicProfileSet(list):
         :rtype: optional numbers.Real.
         """
 
-        return np.nanmax([prof.z_max() for prof in self])
+        return np.nanmax([prof.y_max() for prof in self])
 
     def natural_elev_range(self) -> Tuple[numbers.Real, numbers.Real]:
         """

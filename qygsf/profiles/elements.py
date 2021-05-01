@@ -107,7 +107,7 @@ class ProfileAttitude:
         return structural_segment_s, structural_segment_z
 
 
-class PlaneAttitude(object):
+class PlaneAttitude:
 
     def __init__(self,
                  rec_id,

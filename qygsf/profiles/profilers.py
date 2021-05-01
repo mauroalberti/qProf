@@ -8,7 +8,7 @@ from ..geology.base import *
 
 from .sets import *
 from ..orientations.orientations import Axis
-from ..geometries.shapes.space2d import PointSegmentCollection2D
+from ..geometries.shapes.space2d import PointSegmentCollection2D, XYArrayPair
 
 
 def georef_attitudes_3d_from_grid(
@@ -419,7 +419,7 @@ class LinearProfiler:
 
     def profile_grid(
             self,
-            geoarray: GeoArray) -> GridProfile:
+            geoarray: GeoArray) -> XYArrayPair:
         """
         Create profile from one geoarray.
 
@@ -432,13 +432,13 @@ class LinearProfiler:
 
         check_type(geoarray, "GeoArray", GeoArray)
 
-        return GridProfile(
-            s_array=self.densified_2d_steps(),
-            z_array=self.sample_grid(geoarray))
+        return XYArrayPair(
+            x_array=self.densified_2d_steps(),
+            y_array=self.sample_grid(geoarray))
 
     def profile_grids(self,
         *grids: Iterable[GeoArray]
-    ) -> List[GridProfile]:
+    ) -> List[XYArrayPair]:
         """
         Create profiles of one or more grids.
 
@@ -459,9 +459,9 @@ class LinearProfiler:
         for grid in grids:
 
             topo_profiles.append(
-                GridProfile(
-                    s_array=self.densified_2d_steps(),
-                    z_array=self.sample_grid(grid)
+                XYArrayPair(
+                    x_array=self.densified_2d_steps(),
+                    y_array=self.sample_grid(grid)
                 )
             )
 

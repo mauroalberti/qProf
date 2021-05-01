@@ -736,7 +736,7 @@ def write_intersection_line_csv(
             f.write(sep.join(header_list) + '\n')
             for classification, line3d, s_list in parsed_results:
                 for pt, s in zip(line3d.pts, s_list):
-                    out_values = [classification, s, pt.x, pt.y, pt.z]
+                    out_values = [classification, s, pt.x, pt.y, pt.y]
                     out_val_strings = [str(val) for val in out_values]
                     f.write(sep.join(out_val_strings) + '\n')
         return True, "done"
@@ -842,8 +842,8 @@ def write_intersection_polygon_lnshp(
             rec_a = line3d.pts[ndx]
             rec_b = line3d.pts[ndx + 1]
 
-            x0, y0, z0 = rec_a.x, rec_a.y, rec_a.z
-            x1, y1, z1 = rec_b.x, rec_b.y, rec_b.z
+            x0, y0, z0 = rec_a.x, rec_a.y, rec_a.y
+            x1, y1, z1 = rec_b.x, rec_b.y, rec_b.y
             s = s_list[ndx + 1]
 
             ln_feature = ogr.Feature(featureDefn)

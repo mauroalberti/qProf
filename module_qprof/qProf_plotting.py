@@ -18,7 +18,7 @@ def plot_structural_attitude(
 ):
 
     # TODO:  manage case for possible nan z values
-    projected_z = [structural_attitude.pt_3d.z for structural_attitude in structural_attitude_list if
+    projected_z = [structural_attitude.pt_3d.y for structural_attitude in structural_attitude_list if
                    0.0 <= structural_attitude.sign_hor_dist <= section_length]
 
     # TODO:  manage case for possible nan z values
@@ -77,9 +77,9 @@ def plot_profile_lines_intersection_points(
 ):
 
     for s, pt3d, intersection_id, color in profile_lines_intersection_points:
-        axes.plot(s, pt3d.z, 'o', color=color)
+        axes.plot(s, pt3d.y, 'o', color=color)
         if str(intersection_id).upper() != "NULL" or str(intersection_id) != '':
-            axes.annotate(str(intersection_id), (s + 25, pt3d.z + 25))
+            axes.annotate(str(intersection_id), (s + 25, pt3d.y + 25))
 
 
 def plot_profile_polygon_intersection_line(
@@ -89,7 +89,7 @@ def plot_profile_polygon_intersection_line(
 ):
 
     classification, line3d, s_list = intersection_line_value
-    z_list = [pt3d.z for pt3d in line3d.pts]
+    z_list = [pt3d.y for pt3d in line3d.pts]
 
     if plot_addit_params["polygon_class_colors"] is None:
         color = "red"
@@ -120,7 +120,7 @@ def create_axes(
 
 
 def plot_topo_profile_lines(
-    geoprofile,
+    grids_profile: NamedLines,
     plot_params,
     profile_window,
     grid_spec,
@@ -131,7 +131,8 @@ def plot_topo_profile_lines(
     filled_choice
 ):
 
-    topo_profiles = [line3d for _, line3d in geoprofile._named_grid_profiles]
+    print(f"DEBUG: type(grids_profile): {type(grids_profile)}")
+    topo_profiles = [line3d for _, line3d in grids_profile._named_lines]
     topoline_colors = plot_params['elev_lyr_colors']
     topoline_visibilities = plot_params['visible_elev_lyrs']
 
@@ -185,7 +186,7 @@ def plot_topo_profile_lines(
 
 
 def plot_gridsprofile(
-    named_grids_profile: GridsProfile,
+    named_grids_profile: NamedLines,
     plot_params
 ):
 
@@ -322,16 +323,9 @@ def plot_geoprofile(
 
     if plot_height_choice:
         ndx_subplot += 1
-        axes_elevation = plot_topo_profile_lines(
+        axes_elevation = plot_gridsprofile(
             geoprofile,
-            plot_params,
-            profile_window,
-            grid_spec,
-            ndx_subplot,
-            'elevation',
-            (plot_s_min, plot_s_max),
-            (plot_z_min, plot_z_max),
-            plot_params['filled_height'])
+            plot_params)
         if set_vertical_exaggeration:
             axes_elevation.set_aspect(vertical_exaggeration)
         axes_elevation.set_anchor('W')  # align left
@@ -340,16 +334,9 @@ def plot_geoprofile(
 
     if plot_slope_choice:
         ndx_subplot += 1
-        axes_slopes = plot_topo_profile_lines(
+        axes_slopes = plot_gridsprofile(
             geoprofile,
-            plot_params,
-            profile_window,
-            grid_spec,
-            ndx_subplot,
-            'slope',
-            (plot_s_min, plot_s_max),
-            (plot_slope_min, plot_slope_max),
-            plot_params['filled_slope'])
+            plot_params)
         axes_slopes.set_anchor('W')  # align left
 
     # plot geological outcrop intersections
@@ -429,7 +416,7 @@ def plot_geoprofiles(
     for ndx in range(input_geoprofiles_set.geoprofiles_num):
 
         geoprofile = input_geoprofiles_set.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile._named_grid_profiles.profile_length()
+        plot_s_min, plot_s_max = 0, geoprofile._named_lines.x_length()
         #print(f"B: plot_s_min, plot_s_max")
 
         # if slopes to be calculated and plotted

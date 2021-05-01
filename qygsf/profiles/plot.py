@@ -75,7 +75,7 @@ def _(
     Plot a single geological profile.
 
     :param geoprofile: the geoprofile to plot
-    :type geoprofile: GridsProfile
+    :type geoprofile: qygsf.geometries.shapes.collections.NamedLines
     :return: the figure.
     :rtype: Figure
     """
@@ -134,8 +134,8 @@ def _(
             topo_color = colors_addit[-1]
 
         ax.plot(
-            geoprofile.topo_profile.s_arr(),
-            geoprofile.topo_profile.z_arr(),
+            geoprofile.topo_profile.x_arr(),
+            geoprofile.topo_profile.y_arr(),
             color=topo_color
         )
 
@@ -226,12 +226,12 @@ def _(
                     s_end = s_range[1] if len(s_range) > 1 else None
                     plot_symbol = '-o' if len(s_range) > 1 else 'o'
 
-                    s_vals = geoprofile.topo_profile.s_subset(
+                    s_vals = geoprofile.topo_profile.x_subset(
                         s_start,
                         s_end
                     )
 
-                    z_vals = geoprofile.topo_profile.zs_from_s_range(
+                    z_vals = geoprofile.topo_profile.ys_from_x_range(
                         s_start,
                         s_end
                     )
@@ -268,12 +268,12 @@ def _(
                     s_end = s_range[1] if len(s_range) > 1 else None
                     plot_symbol = '-' if len(s_range) > 1 else 'o'
 
-                    s_vals = geoprofile.topo_profile.s_subset(
+                    s_vals = geoprofile.topo_profile.x_subset(
                         s_start,
                         s_end
                     )
 
-                    z_vals = geoprofile.topo_profile.zs_from_s_range(
+                    z_vals = geoprofile.topo_profile.ys_from_x_range(
                         s_start,
                         s_end
                     )

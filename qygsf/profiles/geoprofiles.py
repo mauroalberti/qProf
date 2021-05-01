@@ -1,5 +1,6 @@
 from .sets import *
-
+from ..geometries.shapes.collections import NamedLines
+from ..geometries.shapes.space2d import XYArrayPair
 
 z_padding = 0.2
 
@@ -73,14 +74,14 @@ class GeoProfile:
     """
 
     def __init__(self,
-                 topoprofile: Optional[GridProfile] = None,
+                 topoprofile: Optional[XYArrayPair] = None,
                  profile_attitudes: Optional[AttitudesProfile] = None,
                  lines_intersections: Optional[IntersectionsProfile] = None,
                  polygons_intersections: Optional[IntersectionsProfile] = None
                  ):
 
         if topoprofile:
-            check_type(topoprofile, "Topographic profile", GridProfile)
+            check_type(topoprofile, "Topographic profile", XYArrayPair)
 
         if profile_attitudes:
             check_type(profile_attitudes, "Attitudes", AttitudesProfile)
@@ -107,7 +108,7 @@ class GeoProfile:
 
     @topo_profile.setter
     def topo_profile(self,
-                     profile: GridProfile):
+                     profile: XYArrayPair):
         """
 
         :param profile: the profile.
@@ -115,7 +116,7 @@ class GeoProfile:
 
         """
 
-        check_type(profile, "Topographic profile", GridProfile)
+        check_type(profile, "Topographic profile", XYArrayPair)
         self._topo_profile = profile
 
     def clear_topo_profile(self):
@@ -306,7 +307,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profile.s_min()
+        return self.topo_profile.x_min()
 
     def s_max(self):
         """
@@ -314,7 +315,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profile.s_max()
+        return self.topo_profile.x_max()
 
     def z_min(self):
         """
@@ -322,7 +323,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profile.z_min()
+        return self.topo_profile.y_min()
 
     def z_max(self):
         """
@@ -330,7 +331,7 @@ class GeoProfile:
         :return:
         """
 
-        return self.topo_profile.z_max()
+        return self.topo_profile.y_max()
 
     '''
     def add_intersections_pts(self, intersection_list):
@@ -362,7 +363,7 @@ class GeoProfile:
         :rtype: numbers.Real.
         """
 
-        return self._topo_profile.profile_length()
+        return self._topo_profile.x_length()
 
 
 class GeoProfileSet:
@@ -516,7 +517,7 @@ class GeoProfileSet:
     def extract_geoprofile(
             self,
             ndx: numbers.Integral
-    ) -> GridsProfile:
+    ) -> NamedLines:
         """
         Returns a geoprofile referencing slices of stored data.
 

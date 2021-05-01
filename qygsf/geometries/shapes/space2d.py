@@ -2544,6 +2544,374 @@ def merge_lines2d(
     return line
 
 
+class XYArrayPair:
+    """
+    Represent an x-y array pair (i.e., a single y value for each x value).
+    """
+
+    def __init__(self,
+                 x_array: Union[array, np.ndarray],
+                 y_array: Union[array, np.ndarray],
+                 id: Optional[Union[str, numbers.Integral]] = None
+                 ):
+
+        '''
+        check_type(x_array, "Distances array", array)
+        if x_array.typecode != 'd':
+            raise Exception("X array must be of type double")
+        '''
+
+        if id is not None:
+            check_type(id, "Pair code", (str, numbers.Integral))
+
+        num_steps = len(x_array)
+
+        '''
+        check_type(y_array, "Scalar values array", array)
+        if y_array.typecode != 'd':
+            raise Exception("Y array must be of type double")
+        '''
+
+        if len(y_array) != num_steps:
+            raise Exception("Y array must have the same length as x array")
+
+        self._num_steps = num_steps
+        self._x = array('d', x_array)
+        self._y = array('d', y_array)
+
+    def x_arr(self) -> array:
+        """
+        Return the x array.
+
+        :return: the x array.
+        :rtype: array.
+        """
+
+        return self._x
+
+    def y_arr(self) -> array:
+        """
+        Return the y array.
+
+        :return: the y array.
+        """
+
+        return self._y
+
+    def __repr__(self) -> str:
+        """
+        Representation of a topographic profile instance.
+
+        :return: the textual representation of the instance.
+        :rtype: str.
+        """
+
+        return f"XYArrayPair with {len(self.x_arr())} nodes\nx = {self.x_arr()},\ny = {self.y_arr()}"
+
+    def y(self,
+          ndx: numbers.Integral
+          ) -> numbers.Real:
+        """
+        Returns the y value with the index ndx.
+
+        :param ndx: the index in the y array
+        :return: the y value corresponding to the ndx index
+        """
+
+        return self.y_arr()[ndx]
+
+    def x(self,
+          ndx: numbers.Integral
+          ) -> numbers.Real:
+        """
+        Returns the x value with the index ndx.
+
+        :param ndx: the index in the x array
+        :return: the s value corresponding to the ndx index
+        """
+
+        return self.x_arr()[ndx]
+
+    def x_min(self) -> numbers.Real:
+        """
+        Returns the minimum x value.
+
+        :return: the minimum x value.
+        """
+
+        return np.nanmin(self._x)
+
+    def x_max(self) -> numbers.Real:
+        """
+        Returns the maximum x value.
+
+        :return: the maximum x value.
+        """
+
+        return np.nanmax(self._x)
+
+    def y_min(self) -> numbers.Real:
+        """
+        Returns the minimum y value.
+
+        :return: the minimum y value.
+        """
+
+        return np.nanmin(self._y)
+
+    def y_max(self) -> numbers.Real:
+        """
+        Returns the maximum y value.
+
+        :return: the maximum y value.
+        :rtype: numbers.Real.
+        """
+
+        return np.nanmax(self._y)
+
+    def num_steps(self) -> numbers.Integral:
+        """
+        Return the number of steps in the array pair.
+
+        :return: number of steps in the array pair.
+        """
+
+        return self._num_steps
+
+    def x_length(self) -> numbers.Real:
+        """
+        Returns the geographic length of the profile.
+
+        :return: length of profile.
+        :rtype: numbers.Real.
+        """
+
+        return self.x_arr()[-1]
+
+    def x_upper_ndx(self,
+                    x_val: numbers.Real
+                    ) -> Optional[numbers.Integral]:
+        """
+        Returns the optional index in the x array of the provided value.
+
+        :param x_val: the value to search the index for in the x array
+        :return: the optional index in the s array of the provided value
+
+        Examples:
+          >>> p = XYArrayPair(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p.x_upper_ndx(-1) is None
+          True
+          >>> p.x_upper_ndx(5) is None
+          True
+          >>> p.x_upper_ndx(0.5)
+          1
+          >>> p.x_upper_ndx(0.75)
+          1
+          >>> p.x_upper_ndx(1.0)
+          1
+          >>> p.x_upper_ndx(2.0)
+          2
+          >>> p.x_upper_ndx(2.5)
+          3
+          >>> p.x_upper_ndx(3.11)
+          4
+          >>> p.x_upper_ndx(3.14)
+          4
+          >>> p.x_upper_ndx(0.0)
+          0
+        """
+
+        check_type(x_val, "Input value", numbers.Real)
+
+        if x_val < self.x_min() or x_val > self.x_max():
+            return None
+
+        return np.searchsorted(self.x_arr(), x_val)
+
+    def y_linear_interpol(self,
+                          x_val: numbers.Real
+                          ) -> Optional[numbers.Real]:
+        """
+        Returns the optional interpolated z value in the z array of the provided s value.
+
+        :param x_val: the value to search the index for in the s array
+        :return: the optional interpolated z value
+
+        Examples:
+          >>> p = XYArrayPair(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p.y_linear_interpol(-1) is None
+          True
+          >>> p.y_linear_interpol(5) is None
+          True
+          >>> p.y_linear_interpol(0.5)
+          15.0
+          >>> p.y_linear_interpol(0.75)
+          17.5
+          >>> p.y_linear_interpol(2.5)
+          7.25
+          >>> p.y_linear_interpol(3.14)
+          17.9
+          >>> p.y_linear_interpol(0.0)
+          10.0
+          >>> p.y_linear_interpol(1.0)
+          20.0
+        """
+
+        check_type(x_val, "Input value", numbers.Real)
+
+        ndx = self.x_upper_ndx(x_val)
+
+        if ndx is not None:
+
+            if ndx == 0:
+                return self.y(0)
+
+            val_y_i = self.y(ndx - 1)
+            val_y_i_next = self.y(ndx)
+            delta_val_y = val_y_i_next - val_y_i
+
+            if delta_val_y == 0.0:
+                return val_y_i
+
+            val_x_i = self.x(ndx - 1)
+            val_x_i_next = self.x(ndx)
+            delta_val_x = val_x_i_next - val_x_i
+
+            if delta_val_x == 0.0:
+                return val_y_i
+
+            d_x = x_val - val_x_i
+
+            return val_y_i + d_x * delta_val_y / delta_val_x
+
+        else:
+
+            return None
+
+    def x_subset(self,
+                 x_start: numbers.Real,
+                 x_end: Optional[numbers.Real] = None
+                 ) -> array:
+        """
+        Return the x array values defined by the provided x range (extremes included).
+        When the end value is not provided, a single-valued array is returned.
+
+        :param x_start: the start x value (distance along the profile)
+        :param x_end: the optional end x value (distance along the profile)
+        :return: the s array subset, possibly with just a value
+
+        Examples:
+          >>> p = XYArrayPair(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p.x_subset(1.0)
+          array('d', [1.0])
+          >>> p.x_subset(0.0)
+          array('d', [0.0])
+          >>> p.x_subset(0.75)
+          array('d', [0.75])
+          >>> p.x_subset(3.14)
+          array('d', [3.14])
+          >>> p.x_subset(1.0, 2.0)
+          array('d', [1.0, 2.0])
+          >>> p.x_subset(0.75, 2.0)
+          array('d', [0.75, 1.0, 2.0])
+          >>> p.x_subset(0.75, 2.5)
+          array('d', [0.75, 1.0, 2.0, 2.5])
+          >>> p.x_subset(0.75, 3.0)
+          array('d', [0.75, 1.0, 2.0, 3.0])
+          >>> p.x_subset(0.75, 0.5)
+          NotImplemented
+          >>> p.x_subset(-1, 1)
+          NotImplemented
+          >>> p.x_subset(-1)
+          NotImplemented
+          >>> p.x_subset(0.0, 10)
+          NotImplemented
+          >>> p.x_subset(0.0, 10)
+          NotImplemented
+          >>> p.x_subset(0.0, 3.14)
+          array('d', [0.0,  1.0,  2.0,  3.0, 3.14])
+        """
+
+        if not x_end and not self.x_min() <= x_start <= self.x_max():
+
+            return NotImplemented
+
+        if x_end and not self.x_min() <= x_start <= x_end <= self.x_max():
+
+            return NotImplemented
+
+        if x_end is None or x_end == x_start:
+
+            return array('d', [x_start])
+
+        result = array('d', [])
+
+        s_start_upper_index_value = self.x_upper_ndx(x_start)
+
+        if x_start < self.x(s_start_upper_index_value):
+            result.append(x_start)
+
+        s_end_upper_index_value = self.x_upper_ndx(x_end)
+
+        for ndx in range(s_start_upper_index_value, s_end_upper_index_value):
+            result.append(self.x(ndx))
+
+        if x_end > self.x(s_end_upper_index_value - 1):
+            result.append(x_end)
+
+        return result
+
+    def ys_from_x_range(self,
+                        x_start: numbers.Real,
+                        x_end: Optional[numbers.Real] = None
+                        ) -> array:
+        """
+        Return the y array values defined by the provided x range (extremes included).
+        When the end value is not provided, a single-valued array is returned.
+
+        :param x_start: the start x value (distance along the profile)
+        :param x_end: the optional end x value (distance along the profile)
+        :return: the y array, possibly with just a value
+
+        Examples:
+          >>> p = XYArrayPair(array('d', [ 0.0,  1.0,  2.0,  3.0, 3.14]), array('d', [10.0, 20.0, 0.0, 14.5, 17.9]))
+          >>> p.ys_from_x_range(1.0)
+          array('d', [20.0])
+          >>> p.ys_from_x_range(0.0)
+          array('d', [10.0])
+          >>> p.ys_from_x_range(0.75)
+          array('d', [17.5])
+          >>> p.ys_from_x_range(3.14)
+          array('d', [17.9])
+          >>> p.ys_from_x_range(1.0, 2.0)
+          array('d', [20.0, 0.0])
+          >>> p.ys_from_x_range(0.75, 2.0)
+          array('d', [17.5, 20.0, 0.0])
+          >>> p.ys_from_x_range(0.75, 2.5)
+          array('d', [17.5, 20.0, 0.0, 7.25])
+          >>> p.ys_from_x_range(0.75, 3.0)
+          array('d', [17.5, 20.0, 0.0, 14.5])
+          >>> p.ys_from_x_range(0.75, 0.5)
+          NotImplemented
+          >>> p.ys_from_x_range(-1, 1)
+          NotImplemented
+          >>> p.ys_from_x_range(-1)
+          NotImplemented
+          >>> p.ys_from_x_range(0.0, 10)
+          NotImplemented
+          >>> p.ys_from_x_range(0.0, 10)
+          NotImplemented
+          >>> p.ys_from_x_range(0.0, 3.14)
+          array('d', [10.0, 20.0, 0.0, 14.5, 17.9])
+        """
+
+        s_subset = self.x_subset(x_start, x_end)
+
+        if s_subset is NotImplemented:
+            return NotImplemented
+
+        return array('d', map(self.y_linear_interpol, s_subset))
+
 
 if __name__ == "__main__":
 

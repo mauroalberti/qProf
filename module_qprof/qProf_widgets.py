@@ -375,7 +375,7 @@ class ActionWidget(QWidget):
     def check_pre_profile(self):
 
         for geoprofile in self.input_geoprofiles_set.geoprofiles:
-            if not geoprofile._named_grid_profiles.statistics_calculated:
+            if not geoprofile._named_lines.statistics_calculated:
                 warn(
                     self.plugin_name,
                     "Profile statistics not yet calculated"
@@ -390,7 +390,7 @@ class ActionWidget(QWidget):
 
         for geoprofile in geoprofiles:
 
-            for name, line3d in geoprofile._named_grid_profiles:
+            for name, line3d in geoprofile._named_lines:
 
                 statistics_elev = [get_statistics(p) for p in line3d.z_array()]
                 statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes()]
@@ -661,12 +661,12 @@ class ActionWidget(QWidget):
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in grids_profile._named_grid_profiles:
+        for _, line3d in grids_profile._named_lines:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in grids_profile._named_grid_profiles]
+        surface_names = [name for name, _ in grids_profile._named_lines]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -815,18 +815,18 @@ class ActionWidget(QWidget):
             )
             return
 
-        geoprofile = result
+        grids_profile = result
 
         profiles_min_elevs = []
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in geoprofile._named_grid_profiles:
+        for _, line3d in grids_profile._named_lines:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in geoprofile._named_grid_profiles]
+        surface_names = [name for name, _ in grids_profile._named_lines]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -839,9 +839,9 @@ class ActionWidget(QWidget):
         natural_elev_min = np.nanmin(profiles_min_elevs)
         natural_elev_max = np.nanmax(profiles_max_elevs)
 
-        print(f"Profiles max length: {profile_length}")
-        print(f"Profiles min elevation: {natural_elev_min}")
-        print(f"Profiles max elevation: {natural_elev_max}")
+        print(f"DEBUG: Profiles max length: {profile_length}")
+        print(f"DEBUG: Profiles min elevation: {natural_elev_min}")
+        print(f"DEBUG: Profiles max elevation: {natural_elev_max}")
 
         if np.isnan(profile_length) or profile_length == 0.0:
             error(
@@ -899,14 +899,21 @@ class ActionWidget(QWidget):
         grid_spec = gridspec.GridSpec(num_subplots, 1)
         """
 
-        profile_window = plot_geoprofile(
-            geoprofile=geoprofile,
-            plot_params=plot_params,
-            plot_addit_params=plot_addit_params
+        geoprofile = GeoProfile()
+        if grids_profile.num_lines() == 1:
+            sz_profile = grids_profile.to_sz_arrays(0)
+        else:
+            raise Exception("Currently doesn't manage the plot of multiple grids in a geological profile")
+
+        print(f"DEBUG: sz_profile min z: {sz_profile.y_min()}")
+        print(f"DEBUG: sz_profile max z: {sz_profile.y_max()}")
+        geoprofile.topo_profile = sz_profile
+        profile_window = plot_gridsprofile(
+            named_grids_profile=grids_profile,
+            plot_params=plot_params
         )
 
         self.profile_windows.append(profile_window)
-
 
     def digitize_rubberband_line(self):
 
@@ -2521,7 +2528,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx)._named_grid_profiles
+            profile_elevations = geoprofile_set.geoprofile(ndx)._named_lines
 
             profiles_stats = list(
                 zip(
@@ -2537,7 +2544,7 @@ class StatisticsDialog(QDialog):
             )
 
             stat_report += f"\nStatistics for profile # {ndx+1}"
-            stat_report += f"\n\tLength: {profile_elevations.profile_length}"
+            stat_report += f"\n\tLength: {profile_elevations.x_length}"
             stat_report += "\n\tTopographic elevations"
             stat_report += f"\n\t - min: {profile_elevations.natural_elev_range[0]}"
             stat_report += f"\n\t - max: {profile_elevations.natural_elev_range[1]}"
@@ -2545,7 +2552,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            topo_profiles = geoprofile_set.geoprofile(ndx)._named_grid_profiles
+            topo_profiles = geoprofile_set.geoprofile(ndx)._named_lines
             resampled_line_xs = topo_profiles.x_array
             resampled_line_ys = topo_profiles.y_array
 

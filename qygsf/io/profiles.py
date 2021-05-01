@@ -10,7 +10,7 @@ from qgis.core import QgsRasterLayer
 
 import numpy as np
 
-from ..profiles.chains import GridsProfile
+from ..geometries.shapes.collections import NamedLines
 from ..profiles.sets import ProfileElevations
 
 from ..geometries.shapes.space2d import Line2D
@@ -257,7 +257,7 @@ def try_prepare_grids_profile(
     selected_grids: List,
     selected_grids_parameters: List,
     gpx_track_name: str
-    ) -> Tuple[bool, Union[str, GridsProfile]]:
+    ) -> Tuple[bool, Union[str, NamedLines]]:
 
     pt_num_threshold = 1e4
 
@@ -326,9 +326,9 @@ def try_prepare_grids_profile(
         if named_3dlines is None:
             return False, "Unable to create profiles"
 
-        grids_profile = GridsProfile()
+        grids_profile = NamedLines()
         grids_profile.original_line = profile_line
-        grids_profile.set_named_topoprofiles(named_3dlines)
+        grids_profile.set_named_lines(named_3dlines)
 
         return True, grids_profile
 

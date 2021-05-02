@@ -839,10 +839,6 @@ class ActionWidget(QWidget):
         natural_elev_min = np.nanmin(profiles_min_elevs)
         natural_elev_max = np.nanmax(profiles_max_elevs)
 
-        print(f"DEBUG: Profiles max length: {profile_length}")
-        print(f"DEBUG: Profiles min elevation: {natural_elev_min}")
-        print(f"DEBUG: Profiles max elevation: {natural_elev_max}")
-
         if np.isnan(profile_length) or profile_length == 0.0:
             error(
                 self.plugin_name,
@@ -903,10 +899,11 @@ class ActionWidget(QWidget):
         if grids_profile.num_lines() == 1:
             sz_profile = grids_profile.to_sz_arrays(0)
         else:
-            raise Exception("Currently doesn't manage the plot of multiple grids in a geological profile")
+            warn(
+                self.plugin_name,
+                "Multiple grid profiles cannot be plotted in a geological profile")
+            return
 
-        print(f"DEBUG: sz_profile min z: {sz_profile.y_min()}")
-        print(f"DEBUG: sz_profile max z: {sz_profile.y_max()}")
         geoprofile.topo_profile = sz_profile
         profile_window = plot_gridsprofile(
             named_grids_profile=grids_profile,

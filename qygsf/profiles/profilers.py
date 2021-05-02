@@ -1,11 +1,10 @@
 
-from typing import List, Iterable
+from typing import Iterable
 from operator import attrgetter
 
 from ..georeferenced.geoshapes2d import *
 from ..georeferenced.rasters import *
 from ..geology.base import *
-
 from .sets import *
 from ..orientations.orientations import Axis
 from ..geometries.shapes.space2d import PointSegmentCollection2D, XYArrayPair
@@ -19,11 +18,8 @@ def georef_attitudes_3d_from_grid(
     Create a set of 3D georeferenced attitudes, extracting heights from a grid.
 
     :param structural_data: the set of georeferenced attitudes
-    :type structural_data: List[GeorefAttitude]
     :param height_source: the elevation source
-    :type height_source: GeoArray
     :return: list of GeorefAttitude values
-    :rtype: List[GeorefAttitude]
     :raise: Exception.
     """
 
@@ -55,7 +51,7 @@ def georef_attitudes_3d_from_grid(
     return attitudes_3d
 
 
-class LinearProfiler:
+class SegmentProfiler:
     """
     Class storing a linear (straight) profile.
     It intends to represent a vertical profile.
@@ -81,11 +77,6 @@ class LinearProfiler:
         check_type(start_pt, "Input start point", (Point2D, Point3D))
 
         check_type(end_pt, "Input end point", (Point2D, Point3D))
-
-        '''
-        if start_pt.georeferenced != end_pt.georeferenced:
-            raise Exception("Both points must have same CRS")
-        '''
 
         if start_pt.distance(end_pt) == 0.0:
             raise Exception("Input segment length cannot be zero")
@@ -117,7 +108,6 @@ class LinearProfiler:
         Returns a copy of the segment start point.
 
         :return: start point copy.
-        :rtype: Point.
         """
 
         return self._start_pt.clone()
@@ -127,7 +117,6 @@ class LinearProfiler:
         Returns a copy of the segment end point.
 
         :return: end point copy.
-        :rtype: Point.
         """
 
         return self._end_pt.clone()
@@ -150,7 +139,6 @@ class LinearProfiler:
         Returns the densify distance of the profiler.
 
         :return: the densify distance of the profiler.
-        :rtype: numbers.Real.
         """
 
         return self._densify_dist
@@ -160,14 +148,9 @@ class LinearProfiler:
         Representation of a profile instance.
 
         :return: the textual representation of the instance.
-        :rtype: str.
         """
 
-        return "LinearProfiler(\n\tstart_pt = {},\n\tend_pt = {},\n\tdensify_distance = {})".format(
-            self.start_pt(),
-            self.end_pt(),
-            self.densify_dist()
-        )
+        return f"SegmentProfiler(\n\tstart_pt = {self.start_pt()},\n\tend_pt = {self.end_pt()},\n\tdensify_distance = {self.densify_dist()})"
 
     @property
     def crs(self) -> Crs:
@@ -190,7 +173,7 @@ class LinearProfiler:
 
         return self.crs.epsg_code
 
-    def clone(self) -> 'LinearProfiler':
+    def clone(self) -> 'SegmentProfiler':
         """
         Returns a deep copy of the current linear profiler.
 
@@ -198,7 +181,7 @@ class LinearProfiler:
         :rtype: LinearProfiler.
         """
 
-        return LinearProfiler(
+        return SegmentProfiler(
             start_pt=self.start_pt().clone(),
             end_pt=self.end_pt().clone(),
             densify_distance=self.densify_dist(),
@@ -306,8 +289,8 @@ class LinearProfiler:
         """
 
         return Vect2D(
-            x= - self.versor().y,
-            y= self.versor().x
+            x=-self.versor().y,
+            y=self.versor().x
         )
 
     def right_norm_vers(self) -> Vect2D:
@@ -318,13 +301,13 @@ class LinearProfiler:
         """
 
         return Vect2D(
-            x= self.versor().y,
-            y= - self.versor().x
+            x=self.versor().y,
+            y=-self.versor().x
         )
 
     def vector_offset(self,
                       vect: Vect2D
-                      ) -> 'LinearProfiler':
+                      ) -> 'SegmentProfiler':
         """
         Returns a new LinearProfiler instance, horizontally offset by the
         provided vector horizontal components.
@@ -342,7 +325,7 @@ class LinearProfiler:
             sy=dy
         )
 
-        return LinearProfiler(
+        return SegmentProfiler(
             start_pt=shifted_start_pt,
             end_pt=shifted_end_pt,
             densify_distance=self.densify_dist(),
@@ -350,7 +333,8 @@ class LinearProfiler:
         )
 
     def right_parallel_offset(self,
-                              offset: numbers.Real) -> 'LinearProfiler':
+                              offset: numbers.Real
+                              ) -> 'SegmentProfiler':
         """
         Returns a copy of the current linear profiler, offset to the right by the provided offset distance.
 
@@ -361,7 +345,8 @@ class LinearProfiler:
         return self.vector_offset(vect=self.right_norm_vers().scale(offset))
 
     def left_parallel_offset(self,
-                             offset: numbers.Real) -> 'LinearProfiler':
+                             offset: numbers.Real
+                             ) -> 'SegmentProfiler':
         """
         Returns a copy of the current linear profiler, offset to the left by the provided offset distance.
 
@@ -377,7 +362,7 @@ class LinearProfiler:
 
         :param pt: the point to check.
         :return: whether the point lie in the profiler plane.
-        :raise; Exception.
+        :raise: Exception.
         """
 
         check_type(pt, 'Point2D', Point2D)
@@ -388,24 +373,21 @@ class LinearProfiler:
         Calculates the point distance from the profiler plane.
 
         :param pt: the point to check.
-        :type pt: Point.
         :return: the point distance from the profiler plane.
-        :rtype: numbers.Real.
-        :raise; Exception.
+        :raise: Exception.
         """
 
         return self.vertical_plane().pointDistance(pt)
 
     def sample_grid(
             self,
-            grid: GeoArray) -> array:
+            grid: GeoArray
+    ) -> array:
         """
         Sample grid values along the profiler points.
 
         :param grid: the input grid
-        :type grid: GeoArray.
         :return: array storing the z values sampled from the grid,
-        :rtype: array.
         :raise: Exception
         """
 
@@ -419,14 +401,13 @@ class LinearProfiler:
 
     def profile_grid(
             self,
-            geoarray: GeoArray) -> XYArrayPair:
+            geoarray: GeoArray)\
+            -> XYArrayPair:
         """
         Create profile from one geoarray.
 
         :param geoarray: the source geoarray.
-        :type geoarray: GeoArray.
         :return: the profile of the scalar variable stored in the geoarray.
-        :rtype: TopographicProfile.
         :raise: Exception.
         """
 
@@ -475,24 +456,20 @@ class LinearProfiler:
         Note: the intersections are intended flat (in a 2D plane, not 3D).
 
         :param mline: the line/multiline to intersect profile with
-        :type mline: Union[Line, GeoMultiLine]
         :return: the possible intersections
-        :rtype: PointSegmentCollection2D
         """
 
         return mline.intersectSegment(self.segment())
 
     def intersect_lines(self,
         mlines: Iterable[Union[Line2D, GeoMultiLine2D]],
-) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
+        ) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
         """
         Calculates the intersection with a set of lines/multilines.
         Note: the intersections are intended flat (in a 2D plane, not 3D).
 
         :param mlines: an iterable of Lines or MultiLines to intersect profile with
-        :type mlines: Iterable[Union[Line, GeoMultiLine]]
         :return: the possible intersections
-        :rtype: List[List[Optional[Point, Segment]]]
         """
 
         results = [self.intersect_line(mline) for mline in mlines]
@@ -508,9 +485,7 @@ class LinearProfiler:
         Note: the intersections are considered flat, i.e., in a 2D plane, not 3D.
 
         :param mpolygon: the shapely polygon/multipolygon to intersect profile with
-        :type mpolygon: qygsf.spatial.vectorial.polygons.MGeoPolygon
         :return: the possible intersections
-        :rtype: GeoLines3D
         """
 
         check_type(
@@ -530,9 +505,7 @@ class LinearProfiler:
         Note: the intersections are intended flat (in a 2D plane, not 3D).
 
         :param mpolygons: the shapely set of polygon/multipolygon to intersect profile with
-        :type mpolygons: List[GeoMPolygon]
         :return: the possible intersections
-        :rtype: List[GeoLines]
         """
 
         results = []
@@ -621,9 +594,7 @@ class LinearProfiler:
         for a profile-laying vector.
 
         :param intersection_vector: the profile-plane lying vector.
-        :type intersection_vector: Vect,
         :return: the slope (in radians) and the downward sense.
-        :rtype: Tuple[numbers.Real, str].
         :raise: Exception.
         """
 
@@ -648,15 +619,14 @@ class LinearProfiler:
 
     def calculate_axis_intersection(self,
                                     map_axis: Axis,
-                                    structural_pt: Point2D) -> Optional[Point3D]:
+                                    structural_pt: Point2D
+                                    ) -> Optional[Point3D]:
         """
         Calculates the optional intersection point between an axis passing through a point
         and the profiler plane.
 
         :param map_axis: the projection axis.
-        :type map_axis: Axis.
         :param structural_pt: the point through which the axis passes.
-        :type structural_pt: Point.
         :return: the optional intersection point.
         :raise: Exception.
         """
@@ -678,15 +648,14 @@ class LinearProfiler:
     def calculate_intersection_versor(
             self,
             attitude_plane: Plane,
-            attitude_pt: Point3D) -> Optional[Vect3D]:
+            attitude_pt: Point3D
+    ) -> Optional[Vect3D]:
         """
         Calculate the intersection versor between the plane profiler and
         a geological plane with location defined by a Point.
 
         :param attitude_plane:
-        :type attitude_plane: Plane,
         :param attitude_pt: the attitude point.
-        :type attitude_pt: Point.
         :return:
         """
 
@@ -695,11 +664,6 @@ class LinearProfiler:
 
         if not isinstance(attitude_pt, Point3D):
             raise Exception("Attitude point should be Point3D but is {}".format(type(attitude_pt)))
-
-        '''
-        if self.crs != attitude_pt.crs:
-            raise Exception("Attitude point should has EPSG {} but has {}".format(self.epsg_code, attitude_pt.epsg_code))
-        '''
 
         putative_inters_versor = self.vertical_plane().intersVersor(
             CPlane3D.from_geological_plane(attitude_plane, attitude_pt))
@@ -711,14 +675,13 @@ class LinearProfiler:
 
     def nearest_attitude_projection(
             self,
-            georef_attitude: GeorefAttitude) -> Point3D:
+            georef_attitude: GeorefAttitude
+    ) -> Point3D:
         """
         Calculates the nearest projection of a given attitude on a vertical plane.
 
         :param georef_attitude: geological attitude.
-        :type georef_attitude: GeorefAttitude
         :return: the nearest projected point on the vertical section.
-        :rtype: qygsf.spatial.vectorial.geometries.Point.
         :raise: Exception.
         """
 
@@ -758,22 +721,13 @@ class LinearProfiler:
         Project a georeferenced attitude to the section.
 
         :param georef_attitude: the georeferenced attitude.
-        :type georef_attitude: GeorefAttitude.
         :param map_axis: the map axis.
-        :type map_axis: Optional[Axis].
         :param max_profile_distance: the maximum projection distance between the attitude and the profile
-        :type max_profile_distance: Optional[numbers.Real]
         :return: the optional planar attitude on the profiler vertical plane.
-        :rtype: Optional[PlanarAttitude].
         """
 
         if not isinstance(georef_attitude, GeorefAttitude):
             raise Exception("Georef attitude should be GeorefAttitude but is {}".format(type(georef_attitude)))
-
-        """
-        if self.crs != georef_attitude.posit.crs:
-            raise Exception("Attitude point should has EPSG {} but has {}".format(self.epsg_code, georef_attitude.posit.epsg_code))
-        """
 
         if map_axis:
             if not isinstance(map_axis, Axis):
@@ -840,13 +794,9 @@ class LinearProfiler:
         Projects a set of georeferenced space3d attitudes onto the section profile.
 
         :param attitudes_3d: the set of georeferenced space3d attitudes to plot on the section.
-        :type attitudes_3d: List[GeorefAttitude]
         :param mapping_method: the method to map the attitudes to the section.
-        ;type mapping_method; Dict.
         :param max_profile_distance: the maximum projection distance between the attitude and the profile
-        :type max_profile_distance: Optional[numbers.Real]
         :return: sorted list of ProfileAttitude values.
-        :rtype: Optional[List[Attitude]]
         :raise: Exception.
         """
 
@@ -908,89 +858,63 @@ class LinearProfiler:
         return IntersectionsProfile(parsed_intersections)
 
 
-class ParallelProfiler(list):
+class ParallelProfilers(list):
     """
-    Parallel linear profiler.
+    Parallel segment profilers.
     """
 
     def __init__(self,
-                 parallel_profiler: List[LinearProfiler]):
-        """
-        :param parallel_profiler: a set of parallel profilers
-        :return:
-        """
-
-        check_type(parallel_profiler, "Profilers", List)
-        for el in parallel_profiler:
-            check_type(el, "Profiler", LinearProfiler)
-        template_profile = parallel_profiler[0]
-        for el in parallel_profiler[1:]:
-            check_crs(
-                template_element=template_profile,
-                checked_element=el
-            )
-
-        super(ParallelProfiler, self).__init__(parallel_profiler)
-
-        self._crs = Crs(template_profile.epsg_code)
-
-    @classmethod
-    def fromBaseProfiler(cls,
-                         base_profiler: LinearProfiler,
-                         profs_num: numbers.Integral,
-                         profs_offset: numbers.Real,
-                         profs_arr: str = "central",  # one of: "left", "central", "right"
-                         ):
+                 base_profiler: SegmentProfiler,
+                 num_profiles: numbers.Integral,
+                 offset: numbers.Real,
+                 profs_arr: str = "central",  # one of: "left", "central", "right"
+                 ):
         """
         Initialize the parallel linear profilers.
 
         :param base_profiler: the base profiler.
-        :type base_profiler: LinearProfiler.
-        :param profs_num: the number of profilers to create.
-        :type profs_num: numbers.Integral.
-        :param profs_offset: the lateral offset between profilers.
-        :type profs_offset: numbers.Real.
+        :param num_profiles: the number of profilers to create.
+        :param offset: the lateral offset between profilers.
         :param profs_arr: profiles arrangement: one of "left", "central", "right".
-        :type: str.
         :return: the parallel linear profilers.
-        :type: ParallelProfilers.
         :raise: Exception.
-
         """
 
-        check_type(base_profiler, "Base profiler", LinearProfiler)
+        check_type(base_profiler, "Base profiler", SegmentProfiler)
 
-        check_type(profs_num, "Profilers number", numbers.Integral)
-        if profs_num < 2:
+        check_type(num_profiles, "Profilers number", numbers.Integral)
+
+        if num_profiles < 2:
             raise Exception("Profilers number must be >= 2")
 
         check_type(profs_arr, "Profilers arrangement", str)
+
         if profs_arr not in ["central", "left", "right"]:
             raise Exception("Profilers arrangement must be 'left', 'central' (default) or 'right'")
 
-        if profs_arr == "central" and profs_num % 2 != 1:
+        if profs_arr == "central" and num_profiles % 2 != 1:
             raise Exception("When profilers arrangement is 'central' profilers number must be odd")
 
         if profs_arr == "central":
 
-            side_profs_num = profs_num // 2
+            side_profs_num = num_profiles // 2
             num_left_profs = num_right_profs = side_profs_num
 
         elif profs_arr == "left":
 
-            num_left_profs = profs_num -1
+            num_left_profs = num_profiles - 1
             num_right_profs = 0
 
         else:
 
-            num_right_profs = profs_num -1
+            num_right_profs = num_profiles - 1
             num_left_profs = 0
 
         profilers = []
 
         for i in range(num_left_profs, 0, -1):
 
-            current_offset = profs_offset * i
+            current_offset = offset * i
 
             profilers.append(base_profiler.left_parallel_offset(offset=current_offset))
 
@@ -998,18 +922,19 @@ class ParallelProfiler(list):
 
         for i in range(1, num_right_profs + 1):
 
-            current_offset = profs_offset * i
+            current_offset = offset * i
 
             profilers.append(base_profiler.right_parallel_offset(offset=current_offset))
 
-        return cls(profilers)
+        super(ParallelProfilers, self).__init__(profilers)
+
+        self._crs = Crs(base_profiler.epsg_code)
 
     def __repr__(self) -> str:
         """
         Represents a parallel linear profilers set.
 
         :return: the textual representation of the parallel linear profiler set.
-        :rtype: str.
         """
 
         inner_profilers = "\n".join([repr(profiler) for profiler in self])
@@ -1021,7 +946,6 @@ class ParallelProfiler(list):
         Returns the CRS of the profiles.
 
         :return: the CRS of the profiles.
-        :rtype: Crs.
         """
 
         return self._crs
@@ -1032,21 +956,19 @@ class ParallelProfiler(list):
         Returns the EPSG code of the profiles.
 
         :return: the EPSG code of the profiles.
-        :rtype: numbers.Real.
         """
 
         return self.crs.epsg_code
 
     def profile_grid(
             self,
-            geoarray: GeoArray) -> TopographicProfileSet:
+            geoarray: GeoArray
+    ) -> TopographicProfileSet:
         """
         Create profile from one geoarray.
 
         :param geoarray: the source geoarray.
-        :type geoarray: GeoArray.
         :return: list of profiles of the scalar variable stored in the geoarray.
-        :rtype: TopographicProfileSet.
         :raise: Exception.
         """
 
@@ -1070,13 +992,9 @@ class ParallelProfiler(list):
         Projects a set of georeferenced space3d attitudes onto the section profile,
 
         :param attitudes_3d: the set of georeferenced space3d attitudes to plot on the section.
-        :type attitudes_3d: List[GeorefAttitude]
         :param mapping_method: the method to map the attitudes to the section.
-        ;type mapping_method; Dict.
         :param max_profile_distance: the maximum projection distance between the attitude and the profile
-        :type max_profile_distance: Optional[numbers.Real]
         :return: an attitudes set
-        :rtype: AttitudesSet
         :raise: Exception.
         """
 
@@ -1092,6 +1010,38 @@ class ParallelProfiler(list):
 
             attitudes_set.append(profile_attitudes)
 
-        #print(attitudes_set)
-
         return attitudes_set
+
+
+class LineProfiler(list):
+    """
+    Line profiler.
+    """
+
+    def __init__(self,
+                 src_line: Union[Line2D, Line3D, Line4D],
+                 densify_distance: numbers.Real,
+                 epsg_code: Optional[numbers.Integral] = -1
+                 ):
+        """
+        Initialize the parallel linear profilers.
+
+        :param src_line: the source line for profiler creation
+        :param densify_distance: the distance for densifying the individual segments
+        :param epsg_code: the EPSG code of the source line
+        """
+
+        profilers = []
+
+        for segment in src_line:
+            profilers.append(
+                SegmentProfiler(
+                    start_pt=segment.start_pt,
+                    end_pt=segment.end_pt,
+                    densify_distance=densify_distance,
+                    epsg_cd=epsg_code)
+            )
+
+        super(LineProfiler, self).__init__(profilers)
+
+        self._crs = Crs(epsg_code)

@@ -311,9 +311,6 @@ def try_prepare_grids_profile(
 
             gpx_named_3dlines = None
 
-        print(f"DEBUG: profile line: {profile_line}")
-        print(f"DEBUG: profile line num points: {profile_line.num_pts}")
-
         if dem_named_3dlines is None and gpx_named_3dlines is None:
             named_3dlines = None
         elif dem_named_3dlines is None:

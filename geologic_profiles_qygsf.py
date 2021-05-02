@@ -11,12 +11,12 @@ from qygsf.io.plot import plot_grid
 from qygsf.io.gdal.vector import read_linestring_geometries
 from qygsf.io.plot import plot_line
 from qygsf.profiles.geoprofiles import GeoProfile
-from qygsf.profiles.profilers import LinearProfiler
+from qygsf.profiles.profilers import SegmentProfiler
 from qygsf.profiles.plot import plot
 from qygsf.io.geology import try_extract_flat_georeferenced_attitudes
 from qygsf.profiles.profilers import georef_attitudes_3d_from_grid
 from qygsf.io.gdal.raster import try_read_raster_band
-from qygsf.profiles.profilers import ParallelProfiler
+from qygsf.profiles.profilers import ParallelProfilers
 from qygsf.io.gdal.vector import reading_line_shapefile
 
 
@@ -76,7 +76,7 @@ geoprofile = GeoProfile()
 
 
 
-profiler = LinearProfiler(
+profiler = SegmentProfiler(
     start_pt=line.start_pt(),
     end_pt=line.end_pt(),
     densify_distance=5,  # meters sampling distance along profile
@@ -183,7 +183,7 @@ plot_line(fig, line)
 
 geoprofiles = GeoProfileSet()
 
-base_profiler = LinearProfiler(
+base_profiler = SegmentProfiler(
     start_pt=line.start_pt(),
     end_pt=line.end_pt(),
     densify_distance=5,
@@ -195,7 +195,7 @@ base_profiler
 base_profiler.num_pts()
 
 
-multiple_profilers = ParallelProfiler.fromBaseProfiler(
+multiple_profilers = ParallelProfilers.fromBaseProfiler(
     base_profiler=base_profiler,
     profs_num=15,
     profs_offset=500,

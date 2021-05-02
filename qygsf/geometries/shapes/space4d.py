@@ -283,6 +283,215 @@ class Point4D(object):
             return np.nan
 
 
+class Segment4D(object):
+    """
+    Segment is a geometric object defined by a straight line between
+    two points.
+    """
+
+    def __init__(self, start_pt, end_pt):
+
+        self._start_pt = start_pt
+        self._end_pt = end_pt
+
+    @property
+    def start_pt(self):
+
+        return self._start_pt
+
+    @property
+    def end_pt(self):
+
+        return self._end_pt
+
+    def clone(self):
+
+        return Segment4D(self.start_pt, self.end_pt)
+
+    def increasing_x(self):
+
+        if self.end_pt.x < self.start_pt.x:
+            return Segment4D(self.end_pt, self.start_pt)
+        else:
+            return self.clone()
+
+    @property
+    def x_range(self):
+
+        if self.start_pt.x < self.end_pt.x:
+            return self.start_pt.x, self.end_pt.x
+        else:
+            return self.end_pt.x, self.start_pt.x
+
+    @property
+    def y_range(self):
+
+        if self.start_pt.y < self.end_pt.y:
+            return self.start_pt.y, self.end_pt.y
+        else:
+            return self.end_pt.y, self.start_pt.y
+
+    @property
+    def z_range(self):
+
+        if self.start_pt.z < self.end_pt.z:
+            return self.start_pt.z, self.end_pt.z
+        else:
+            return self.end_pt.z, self.start_pt.z
+
+    @property
+    def delta_x(self):
+
+        return self.end_pt.x - self.start_pt.x
+
+    @property
+    def delta_y(self):
+
+        return self.end_pt.y - self.start_pt.y
+
+    @property
+    def delta_z(self):
+
+        return self.end_pt.z - self.start_pt.z
+
+    @property
+    def length_2d(self):
+
+        return self.start_pt.dist_2d(self.end_pt)
+
+    @property
+    def length_3d(self):
+
+        return self.start_pt.distance(self.end_pt)
+
+    def vector(self):
+
+        return Vect3D(self.delta_x,
+                      self.delta_y,
+                      self.delta_z
+                      )
+
+    """
+    def segment_2d_m(self):
+
+        return (self.end_pt.y - self.start_pt.y) / (self.end_pt.x - self.start_pt.x)
+
+    def segment_2d_p(self):
+
+        return self.start_pt.y - self.segment_2d_m() * self.start_pt.x
+
+    def intersection_2d_pt(self, another):
+
+        assert self.length_2d > 0.0
+        assert another.length_2d > 0.0
+
+        if self.start_pt.x == self.end_pt.x:  # self segment parallel to y axis
+            x0 = self.start_pt.x
+            try:
+                m1, p1 = another.segment_2d_m(), another.segment_2d_p()
+            except:
+                return None
+            y0 = m1 * x0 + p1
+        elif another.start_pt.x == another.end_pt.x:  # another segment parallel to y axis
+            x0 = another.start_pt.x
+            try:
+                m1, p1 = self.segment_2d_m(), self.segment_2d_p()
+            except:
+                return None
+            y0 = m1 * x0 + p1
+        else:  # no segment parallel to y axis
+            m0, p0 = self.segment_2d_m(), self.segment_2d_p()
+            m1, p1 = another.segment_2d_m(), another.segment_2d_p()
+            x0 = (p1 - p0) / (m0 - m1)
+            y0 = m0 * x0 + p0
+
+        return Point4D(x0, y0)
+
+    def contains_2d_pt(self, pt2d):
+
+        segment_length2d = self.length_2d
+        segmentstart_pt2d_distance = self.start_pt.dist_2d(pt2d)
+        segmentend_pt2d_distance = self.end_pt.dist_2d(pt2d)
+
+        if segmentstart_pt2d_distance > segment_length2d or \
+           segmentend_pt2d_distance > segment_length2d:
+            return False
+        else:
+            return True
+
+    def fast_2d_contains_pt(self, pt2d):
+        '''
+        to work properly, this function requires that the pt lies on the line defined by the segment
+        '''
+
+        range_x = self.x_range
+        range_y = self.y_range
+
+        if range_x[0] <= pt2d.x <= range_x[1] or \
+           range_y[0] <= pt2d.y <= range_y[1]:
+            return True
+        else:
+            return False
+    """
+
+    def scale(self, scale_factor):
+        """
+        Scale a segment by the given scale_factor.
+        Start point does not change.
+
+        :param scale_factor: float
+        :return: Segment instance
+        """
+
+        delta_x = self.delta_x * scale_factor
+        delta_y = self.delta_y * scale_factor
+        delta_z = self.delta_z * scale_factor
+
+        end_pt = Point4D(self.start_pt.x + delta_x,
+                         self.start_pt.y + delta_y,
+                         self.start_pt.z + delta_z)
+
+        return Segment4D(self.start_pt,
+                         end_pt)
+
+    '''
+    def densify_2d_segment(self, densify_distance):
+        """
+        Densify a segment by adding additional points
+        separated a distance equal to densify_distance.
+        The result is no longer a Segment instance, instead it is a Line instance.
+
+        :param densify_distance: float
+        :return: Line
+        """
+
+        assert densify_distance > 0.0
+
+        length2d = self.length_2d
+
+        assert length2d > 0.0
+
+        vect = self.vector()
+        vers_2d = vect.versor_2d()
+        generator_vector = vers_2d.scale(densify_distance)
+
+        assert generator_vector.len_2d > 0.0
+
+        interpolated_line = Line4D([self.start_pt])
+        n = 0
+        while True:
+            n += 1
+            new_pt = self.start_pt.vect_offset(generator_vector.scale(n))
+            distance = self.start_pt.dist_2d(new_pt)
+            if distance >= length2d:
+                break
+            interpolated_line.add_pt(new_pt)
+        interpolated_line.add_pt(self.end_pt)
+
+        return interpolated_line
+    '''
+
+
 class Line4D(object):
     """
     A list of Point objects.
@@ -539,214 +748,35 @@ class Line4D(object):
         return Line4D(points)
     '''
 
-
-class Segment4D(object):
-    """
-    Segment is a geometric object defined by a straight line between
-    two points.
-    """
-
-    def __init__(self, start_pt, end_pt):
-
-        self._start_pt = start_pt
-        self._end_pt = end_pt
-
-    @property
-    def start_pt(self):
-
-        return self._start_pt
-
-    @property
-    def end_pt(self):
-
-        return self._end_pt
-
-    def clone(self):
-
-        return Segment4D(self.start_pt, self.end_pt)
-
-    def increasing_x(self):
-
-        if self.end_pt.x < self.start_pt.x:
-            return Segment4D(self.end_pt, self.start_pt)
-        else:
-            return self.clone()
-
-    @property
-    def x_range(self):
-
-        if self.start_pt.x < self.end_pt.x:
-            return self.start_pt.x, self.end_pt.x
-        else:
-            return self.end_pt.x, self.start_pt.x
-
-    @property
-    def y_range(self):
-
-        if self.start_pt.y < self.end_pt.y:
-            return self.start_pt.y, self.end_pt.y
-        else:
-            return self.end_pt.y, self.start_pt.y
-
-    @property
-    def z_range(self):
-
-        if self.start_pt.z < self.end_pt.z:
-            return self.start_pt.z, self.end_pt.z
-        else:
-            return self.end_pt.z, self.start_pt.z
-
-    @property
-    def delta_x(self):
-
-        return self.end_pt.x - self.start_pt.x
-
-    @property
-    def delta_y(self):
-
-        return self.end_pt.y - self.start_pt.y
-
-    @property
-    def delta_z(self):
-
-        return self.end_pt.z - self.start_pt.z
-
-    @property
-    def length_2d(self):
-
-        return self.start_pt.dist_2d(self.end_pt)
-
-    @property
-    def length_3d(self):
-
-        return self.start_pt.distance(self.end_pt)
-
-    def vector(self):
-
-        return Vect3D(self.delta_x,
-                      self.delta_y,
-                      self.delta_z
-                      )
-
-    """
-    def segment_2d_m(self):
-
-        return (self.end_pt.y - self.start_pt.y) / (self.end_pt.x - self.start_pt.x)
-
-    def segment_2d_p(self):
-
-        return self.start_pt.y - self.segment_2d_m() * self.start_pt.x
-
-    def intersection_2d_pt(self, another):
-
-        assert self.length_2d > 0.0
-        assert another.length_2d > 0.0
-
-        if self.start_pt.x == self.end_pt.x:  # self segment parallel to y axis
-            x0 = self.start_pt.x
-            try:
-                m1, p1 = another.segment_2d_m(), another.segment_2d_p()
-            except:
-                return None
-            y0 = m1 * x0 + p1
-        elif another.start_pt.x == another.end_pt.x:  # another segment parallel to y axis
-            x0 = another.start_pt.x
-            try:
-                m1, p1 = self.segment_2d_m(), self.segment_2d_p()
-            except:
-                return None
-            y0 = m1 * x0 + p1
-        else:  # no segment parallel to y axis
-            m0, p0 = self.segment_2d_m(), self.segment_2d_p()
-            m1, p1 = another.segment_2d_m(), another.segment_2d_p()
-            x0 = (p1 - p0) / (m0 - m1)
-            y0 = m0 * x0 + p0
-
-        return Point4D(x0, y0)
-
-    def contains_2d_pt(self, pt2d):
-
-        segment_length2d = self.length_2d
-        segmentstart_pt2d_distance = self.start_pt.dist_2d(pt2d)
-        segmentend_pt2d_distance = self.end_pt.dist_2d(pt2d)
-
-        if segmentstart_pt2d_distance > segment_length2d or \
-           segmentend_pt2d_distance > segment_length2d:
-            return False
-        else:
-            return True
-
-    def fast_2d_contains_pt(self, pt2d):
-        '''
-        to work properly, this function requires that the pt lies on the line defined by the segment
-        '''
-
-        range_x = self.x_range
-        range_y = self.y_range
-
-        if range_x[0] <= pt2d.x <= range_x[1] or \
-           range_y[0] <= pt2d.y <= range_y[1]:
-            return True
-        else:
-            return False
-    """
-
-    def scale(self, scale_factor):
+    def segment(self,
+        ndx: numbers.Integral
+    ) -> Optional[Segment4D]:
         """
-        Scale a segment by the given scale_factor.
-        Start point does not change.
+        Returns the optional segment at index ndx.
 
-        :param scale_factor: float
-        :return: Segment instance
+        :param ndx: the segment index.
+        :type ndx: numbers.Integral
+        :return: the optional segment
+        :rtype: Optional[Segment]
         """
 
-        delta_x = self.delta_x * scale_factor
-        delta_y = self.delta_y * scale_factor
-        delta_z = self.delta_z * scale_factor
+        start_pt = self.pt(ndx)
+        end_pt = self.pt(ndx + 1)
 
-        end_pt = Point4D(self.start_pt.x + delta_x,
-                         self.start_pt.y + delta_y,
-                         self.start_pt.z + delta_z)
+        if start_pt.is_coincident(end_pt):
+            return None
+        else:
+            return Segment4D(
+                start_pt=self.pt(ndx),
+                end_pt=self.pt(ndx + 1)
+            )
 
-        return Segment4D(self.start_pt,
-                         end_pt)
-
-    '''
-    def densify_2d_segment(self, densify_distance):
+    def __iter__(self):
         """
-        Densify a segment by adding additional points
-        separated a distance equal to densify_distance.
-        The result is no longer a Segment instance, instead it is a Line instance.
-
-        :param densify_distance: float
-        :return: Line
+        Return each element of a Line4D, i.e., its segments.
         """
 
-        assert densify_distance > 0.0
-
-        length2d = self.length_2d
-
-        assert length2d > 0.0
-
-        vect = self.vector()
-        vers_2d = vect.versor_2d()
-        generator_vector = vers_2d.scale(densify_distance)
-
-        assert generator_vector.len_2d > 0.0
-
-        interpolated_line = Line4D([self.start_pt])
-        n = 0
-        while True:
-            n += 1
-            new_pt = self.start_pt.vect_offset(generator_vector.scale(n))
-            distance = self.start_pt.dist_2d(new_pt)
-            if distance >= length2d:
-                break
-            interpolated_line.add_pt(new_pt)
-        interpolated_line.add_pt(self.end_pt)
-
-        return interpolated_line
-    '''
+        return (self.segment(i) for i in range(self.num_pts()-1))
 
 
 class MultiLine4D(object):

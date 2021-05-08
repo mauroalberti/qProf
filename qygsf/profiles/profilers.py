@@ -1,4 +1,4 @@
-
+import numbers
 from typing import Iterable
 from operator import attrgetter
 
@@ -60,25 +60,22 @@ class SegmentProfiler:
     """
 
     def __init__(self,
-                 start_pt: Union[Point2D, Point3D],
-                 end_pt: Union[Point2D, Point3D],
+                 segment2d: Segment2D,
                  densify_distance: numbers.Real,
                  epsg_cd: numbers.Integral
                  ):
         """
-        Instantiates a 2D linear profile object.
-        It is represented by two 2D points and by a densify distance.
+        Instantiates a 2D segment profile object.
+        It is represented by two points and by a densify distance.
 
-        :param start_pt: the profile start point.
-        :param end_pt: the profile end point.
+        :param segment2d: the profile segment.
         :param densify_distance: the distance with which to densify the segment profile.
+        :param epsg_cd: the EPSG code of the segment.
         """
 
-        check_type(start_pt, "Input start point", (Point2D, Point3D))
+        check_type(segment2d, "Input segment", Segment2D)
 
-        check_type(end_pt, "Input end point", (Point2D, Point3D))
-
-        if start_pt.distance(end_pt) == 0.0:
+        if segment2d.length == 0.0:
             raise Exception("Input segment length cannot be zero")
 
         check_type(densify_distance, "Input densify distance", numbers.Real)
@@ -89,19 +86,55 @@ class SegmentProfiler:
         if densify_distance <= 0.0:
             raise Exception("Input densify distance must be positive")
 
-        self._start_pt = Point2D(
+        self._densify_dist = float(densify_distance)
+        self._crs = Crs(epsg_cd)
+        self._segment = segment2d
+
+    @classmethod
+    def from_points(cls,
+                 start_pt: Union[Point2D, Point3D, Point4D],
+                 end_pt: Union[Point2D, Point3D, Point4D],
+                 densify_distance: numbers.Real,
+                 epsg_cd: numbers.Integral
+                 ):
+        """
+        Instantiates a 2D segment profile object.
+        It is represented by two points and by a densify distance.
+
+        :param start_pt: the profile start point.
+        :param end_pt: the profile end point.
+        :param densify_distance: the distance with which to densify the segment profile.
+        """
+
+        check_type(start_pt, "Input start point", (Point2D, Point3D, Point4D))
+
+        check_type(end_pt, "Input end point", (Point2D, Point3D, Point4D))
+
+        _start_pt = Point2D(
             x=start_pt.x,
             y=start_pt.y
         )
 
-        self._end_pt = Point2D(
+        _end_pt = Point2D(
             x=end_pt.x,
             y=end_pt.y
         )
 
-        self._crs = Crs(epsg_cd)
+        return cls(
+            Segment2D(_start_pt, _end_pt),
+            densify_distance,
+            epsg_cd
+        )
 
-        self._densify_dist = float(densify_distance)
+    def segment(self) -> Segment2D:
+        """
+        Returns the horizontal segment representing the profile.
+
+        :return: segment representing the profile.
+        :rtype: Segment.
+        """
+
+        return self._segment.clone()
 
     def start_pt(self) -> Point2D:
         """
@@ -110,7 +143,7 @@ class SegmentProfiler:
         :return: start point copy.
         """
 
-        return self._start_pt.clone()
+        return self.segment()._start_pt.clone()
 
     def end_pt(self) -> Point2D:
         """
@@ -119,7 +152,7 @@ class SegmentProfiler:
         :return: end point copy.
         """
 
-        return self._end_pt.clone()
+        return self.segment()._end_pt.clone()
 
     def to_line(self) -> Line2D:
         """
@@ -182,23 +215,9 @@ class SegmentProfiler:
         """
 
         return SegmentProfiler(
-            start_pt=self.start_pt().clone(),
-            end_pt=self.end_pt().clone(),
+            segment2d=self.segment(),
             densify_distance=self.densify_dist(),
             epsg_cd=self.epsg_code
-        )
-
-    def segment(self) -> Segment2D:
-        """
-        Returns the horizontal segment representing the profile.
-
-        :return: segment representing the profile.
-        :rtype: Segment.
-        """
-
-        return Segment2D(
-            start_pt=self._start_pt,
-            end_pt=self._end_pt
         )
 
     def length(self) -> numbers.Real:
@@ -305,6 +324,21 @@ class SegmentProfiler:
             y=-self.versor().x
         )
 
+    def shift(self,
+              dx: numbers.Real,
+              dy: numbers.Real
+    ) -> 'SegmentProfiler':
+        """
+        Returns a new LinearProfiler instance, horizontally offset by the
+        provided horizontal components.
+        """
+
+        return SegmentProfiler(
+            segment2d=self.segment().shift(dx, dy),
+            densify_distance=self.densify_dist(),
+            epsg_cd=self.epsg_code
+        )
+
     def vector_offset(self,
                       vect: Vect2D
                       ) -> 'SegmentProfiler':
@@ -313,21 +347,8 @@ class SegmentProfiler:
         provided vector horizontal components.
         """
 
-        dx, dy = vect.x, vect.y
-
-        shifted_start_pt = self.start_pt().shift(
-            sx=dx,
-            sy=dy
-        )
-
-        shifted_end_pt = self.end_pt().shift(
-            sx=dx,
-            sy=dy
-        )
-
         return SegmentProfiler(
-            start_pt=shifted_start_pt,
-            end_pt=shifted_end_pt,
+            segment2d=self.segment().shift(vect.x, vect.y),
             densify_distance=self.densify_dist(),
             epsg_cd=self.epsg_code
         )

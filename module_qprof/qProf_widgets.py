@@ -43,9 +43,9 @@ class ActionWidget(QWidget):
             "clear trace": self.clear_rubberband_line,
             "save trace": self.save_rubberband_line,
             "Define in text window": self.define_track_source_from_text_window,
-            "Read from GPX file": self.define_track_source_from_gpx_file,
-            "From DEMs/grids": self.elevations_from_dems,
-            "From GPX file": self.elevations_from_gpx,
+            "Read GPX file": self.define_track_source_from_gpx_file,
+            "DEM/grid sources": self.elevations_from_dems,
+            #"From GPX file": self.elevations_from_gpx,
             "create single profile": self.plot_grids_profile,
             "define parallel profiles parameters": self.define_parallel_profiles,
             "plot profiles": self.plot_parallel_profiles,
@@ -77,7 +77,7 @@ class ActionWidget(QWidget):
         self.gpx_track_name = None
 
         self.profile_name = None
-        self.profile_line_list = None  # list of Lines, in the project CRS, undensified
+        self.profile_line_list = []  # list of Lines, in the project CRS, undensified
         self.input_geoprofiles_set = GeoProfilesSet_()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
         self.selected_dems = None
@@ -119,7 +119,7 @@ class ActionWidget(QWidget):
         )
 
         if dialog.exec_():
-            line_qgsvectorlayer, invert_profile, order_field_ndx = self.line_layer_params(dialog)
+            line_qgsvectorlayer, order_field_ndx, name_field_ndx, multiple_profiles, invert_profile = self.line_layer_params(dialog)
         else:
             warn(
                 self.plugin_name,
@@ -128,11 +128,13 @@ class ActionWidget(QWidget):
             return
 
         line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
+        line_name_fld_ndx = int(name_field_ndx) - 1 if name_field_ndx else None
 
         success, result = try_load_line_layer(
             line_layer=line_qgsvectorlayer,
             project_crs=projectCrs(),
             line_order_fld_ndx=line_order_fld_ndx,
+            line_name_fld_ndx=line_name_fld_ndx,
             invert_direction=invert_profile
         )
 
@@ -357,10 +359,13 @@ class ActionWidget(QWidget):
             dialog):
 
         line_layer = dialog.line_shape
-        invert_profile = dialog.qcbxInvertProfile.isChecked()
-        order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
 
-        return line_layer, invert_profile, order_field_ndx
+        order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
+        name_field_ndx = dialog.Trace2D_name_field_comboBox.currentIndex()
+        multiple_profiles = dialog.qcbxMultipleProfiles.isChecked()
+        invert_profile = dialog.qcbxInvertProfile.isChecked()
+
+        return line_layer, order_field_ndx, name_field_ndx, multiple_profiles, invert_profile
 
     def init_topo_labels(self):
         """
@@ -633,6 +638,20 @@ class ActionWidget(QWidget):
             warn(
                 self.plugin_name,
                 "No profile track source defined"
+            )
+            return
+
+        if not self.profile_line_list:
+            warn(
+                self.plugin_name,
+                "No profile source defined"
+            )
+            return
+
+        if not self.selected_dems:
+            warn(
+                self.plugin_name,
+                "No DEM elevation source defined"
             )
             return
 
@@ -1313,13 +1332,25 @@ class SourceLineLayerDialog(QDialog):
         self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_label_field_combobox)
         '''
 
-        self.qcbxInvertProfile = QCheckBox("Invert orientation")
-        layout.addWidget(
-            self.qcbxInvertProfile,
-            1, 0, 1, 1)
+        # Lines name field
 
         layout.addWidget(
-            QLabel(self.tr("Line order field:")),
+            QLabel(self.tr("Lines name field:")),
+            1, 0, 1, 1)
+
+        self.Trace2D_name_field_comboBox = QComboBox()
+        layout.addWidget(
+            self.Trace2D_name_field_comboBox,
+            1, 1, 1, 3)
+
+        self.refresh_name_field_combobox()
+
+        self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_name_field_combobox)
+
+        # Lines order field
+
+        layout.addWidget(
+            QLabel(self.tr("Lines order field:")),
             2, 0, 1, 1)
 
         self.Trace2D_order_field_comboBox = QComboBox()
@@ -1331,6 +1362,22 @@ class SourceLineLayerDialog(QDialog):
 
         self.LineLayers_comboBox.currentIndexChanged[int].connect(self.refresh_order_field_combobox)
 
+        # Multiple profiles
+
+        self.qcbxMultipleProfiles = QCheckBox("Multiple profiles")
+        layout.addWidget(
+            self.qcbxMultipleProfiles,
+            3, 0, 1, 1)
+
+        # Line(s) orientation inversion
+
+        self.qcbxInvertProfile = QCheckBox("Invert orientation(s)")
+        layout.addWidget(
+            self.qcbxInvertProfile,
+            3, 1, 1, 1)
+
+        # Ok/Cancel choices
+
         okButton = QPushButton("&OK")
         cancelButton = QPushButton("Cancel")
 
@@ -1341,7 +1388,7 @@ class SourceLineLayerDialog(QDialog):
 
         layout.addLayout(
             buttonLayout,
-            3, 0, 1, 3)
+            4, 0, 1, 3)
 
         self.setLayout(layout)
 
@@ -1371,6 +1418,18 @@ class SourceLineLayerDialog(QDialog):
         line_layer_field_list = self.line_shape.dataProvider().fields().toList()
         for field in line_layer_field_list:
             self.Trace2D_order_field_comboBox.addItem(field.name())
+
+    def refresh_name_field_combobox(self):
+
+        self.Trace2D_name_field_comboBox.clear()
+        self.Trace2D_name_field_comboBox.addItem('--optional--')
+
+        shape_qgis_ndx = self.LineLayers_comboBox.currentIndex()
+        self.line_shape = self.current_line_layers[shape_qgis_ndx]
+
+        line_layer_field_list = self.line_shape.dataProvider().fields().toList()
+        for field in line_layer_field_list:
+            self.Trace2D_name_field_comboBox.addItem(field.name())
 
     def refresh_label_field_combobox(self):
 

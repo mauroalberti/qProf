@@ -440,7 +440,10 @@ class Segment2D(Shape2D):
     two vertices.
     """
 
-    def __init__(self, start_pt: Point2D, end_pt: Point2D):
+    def __init__(self,
+                 start_pt: Point2D,
+                 end_pt: Point2D
+                 ):
         """
         Creates a segment instance provided the two points have the same CRS code.
 
@@ -560,6 +563,19 @@ class Segment2D(Shape2D):
 
         return self.start_pt.y - s2d_m * self.start_pt.x
 
+    def shift(self,
+              dx: numbers.Real,
+              dy: numbers.Real
+    ) -> 'Segment2D':
+        """
+        Shift a segment by dx and dy
+        """
+
+        return Segment2D(
+            self.start_pt.shift(dx, dy),
+            self.end_pt.shift(dx, dy)
+        )
+
     def intersection_2d_pt(self,
                            another: 'Segment2D'
                            ) -> Optional[Point2D]:
@@ -570,8 +586,6 @@ class Segment2D(Shape2D):
         """
 
         check_type(another, "Second segment", Segment2D)
-
-        #check_crs(self, another)
 
         s_len2d = self.length()
         a_len2d = another.length()

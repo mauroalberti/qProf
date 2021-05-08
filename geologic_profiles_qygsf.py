@@ -1,11 +1,9 @@
 
-import sys
 from pprint import pprint
 
 import geopandas
 
 from qygsf.profiles.geoprofiles import GeoProfileSet
-from qygsf.io.gdal.raster import *
 from qygsf.georeferenced.rasters import *
 from qygsf.io.plot import plot_grid
 from qygsf.io.gdal.vector import read_linestring_geometries
@@ -22,13 +20,11 @@ from qygsf.io.gdal.vector import reading_line_shapefile
 
 # Geologic profiles with qygsf
 
-## 1-  Mount Alpi (Lucania, Southern Italy)
+## 1 - Mount Alpi (Lucania, Southern Italy)
 
 ### DEM input
 
 source_data = "/home/mauro/Documents/projects/gsf/example_data/mt_alpi/malpi_aster_w4u3.tif"
-
-
 
 success, result = try_read_raster_band(raster_source=source_data)
 
@@ -36,11 +32,8 @@ print(success)
 
 geotransform, projection, band_params, data = result
 
-
 for info in (geotransform, projection, band_params, data):
     print(f"info type: {type(info)}:\n\n{info}\n\n")
-
-
 
 geo_array = GeoArray(
     inGeotransform=geotransform,
@@ -48,37 +41,29 @@ geo_array = GeoArray(
     inLevels=[data]
 )
 
-
-
 fig = plot_grid(geo_array)
 
 ### Source profile
-
-
 
 src_profile_shapefile_pth = "/home/mauro/Documents/projects/gsf/example_data/mt_alpi/profile.shp"
 profiles = read_linestring_geometries(src_profile_shapefile_pth)
 
 print(profiles)
 
-
-
 line = profiles.line()
 plot_line(fig, line)
 
 ### Initializing a geoprofile
 
-
-
 geoprofile = GeoProfile()
 
 ### Creating a linear profiler
 
-
-
 profiler = SegmentProfiler(
-    start_pt=line.start_pt(),
-    end_pt=line.end_pt(),
+    segment2d=Segment2D(
+        line.start_pt(),
+        line.end_pt()
+    ),
     densify_distance=5,  # meters sampling distance along profile
     epsg_cd=32633
 )

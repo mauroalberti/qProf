@@ -26,7 +26,7 @@ def try_get_line_traces(
 
     try:
 
-        success, result = try_line_geoms_with_order_infos(
+        success, result = try_line_geoms_with_field_infos(
             line_shape,
             order_field_ndx
         )
@@ -67,6 +67,7 @@ def try_load_line_layer(
     line_layer: QgsVectorLayer,
     project_crs,
     line_order_fld_ndx: Optional[numbers.Integral],
+    line_name_fld_ndx: Optional[numbers.Integral],
     invert_direction: bool
 ) -> Tuple[bool, Union[str, List[Line2D]]]:
 
@@ -122,7 +123,7 @@ def try_load_line_layer(
         return False, str(e)
 
 
-def try_line_geoms_with_order_infos(
+def try_line_geoms_with_field_infos(
     line_layer,
     order_field_ndx: Optional[numbers.Integral] = None
 ) -> Tuple[bool, Union[str, Tuple[List, List]]]:

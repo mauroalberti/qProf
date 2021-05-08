@@ -54,7 +54,7 @@
    </column>
    <item>
     <property name="text">
-     <string>Profile trace definition</string>
+     <string>Profile traces</string>
     </property>
     <property name="font">
      <font>
@@ -64,43 +64,58 @@
     </property>
     <item>
      <property name="text">
-      <string>Load from line layer</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Digitize in canvas</string>
+      <string>Add trace</string>
      </property>
      <item>
       <property name="text">
-       <string>digitize trace</string>
+       <string>Load from line layer</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>clear trace</string>
+       <string>Digitize in canvas</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>digitize trace</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>clear trace</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>save trace</string>
+       </property>
+      </item>
+     </item>
+     <item>
+      <property name="text">
+       <string>Define in text window</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>save trace</string>
+       <string>Read GPX file</string>
       </property>
      </item>
     </item>
     <item>
      <property name="text">
-      <string>Define in text window</string>
+      <string>Manage traces</string>
      </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>Read from GPX file</string>
-     </property>
+     <item>
+      <property name="text">
+       <string>Clear all</string>
+      </property>
+     </item>
     </item>
    </item>
    <item>
     <property name="text">
-     <string>Elevations sources</string>
+     <string>DEM/grid sources</string>
     </property>
     <property name="font">
      <font>
@@ -108,16 +123,6 @@
       <bold>true</bold>
      </font>
     </property>
-    <item>
-     <property name="text">
-      <string>From DEMs/grids</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>From  GPX file</string>
-     </property>
-    </item>
    </item>
    <item>
     <property name="text">

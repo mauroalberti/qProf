@@ -92,11 +92,11 @@ class SegmentProfiler:
 
     @classmethod
     def from_points(cls,
-                 start_pt: Union[Point2D, Point3D, Point4D],
-                 end_pt: Union[Point2D, Point3D, Point4D],
-                 densify_distance: numbers.Real,
-                 epsg_cd: numbers.Integral
-                 ):
+                    start_pt: Union[Point2D, Point3D, Point4D],
+                    end_pt: Union[Point2D, Point3D, Point4D],
+                    densify_distance: numbers.Real,
+                    epsg_cd: numbers.Integral
+                    ):
         """
         Instantiates a 2D segment profile object.
         It is represented by two points and by a densify distance.
@@ -483,8 +483,8 @@ class SegmentProfiler:
         return mline.intersectSegment(self.segment())
 
     def intersect_lines(self,
-        mlines: Iterable[Union[Line2D, GeoMultiLine2D]],
-        ) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
+                        mlines: Iterable[Union[Line2D, GeoMultiLine2D]],
+                        ) -> List[List[Optional[Union[Point2D, Segment2D]]]]:
         """
         Calculates the intersection with a set of lines/multilines.
         Note: the intersections are intended flat (in a 2D plane, not 3D).

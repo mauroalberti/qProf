@@ -12,6 +12,7 @@ from copy import copy
 import numbers
 from array import array
 
+from .abstract import Point, Segment, Line
 from .space2d import Point2D, Segment2D
 from ...orientations.orientations import *
 from ...mathematics.statistics import *
@@ -19,25 +20,7 @@ from ...mathematics.quaternions import *
 from ...utils.types import check_type
 
 
-
-class Shape3D(object, metaclass=abc.ABCMeta):
-
-    @abc.abstractmethod
-    def area(self):
-        """Calculate shape area"""
-
-    @abc.abstractmethod
-    def length(self):
-        """Calculate shape area"""
-
-    '''
-    @abc.abstractmethod
-    def clone(self):
-        """Create a clone of the shape"""
-    '''
-
-
-class Point3D:
+class Point3D(Point):
     """
     Cartesian point.
     Dimensions: 3D
@@ -737,7 +720,7 @@ def pack_to_points(
     return pts
 
 
-class Segment3D:
+class Segment3D(Segment):
     """
     Segment is a geometric object defined by the straight line between
     two vertices.
@@ -785,7 +768,7 @@ class Segment3D:
 
     @classmethod
     def from2D(cls,
-        segment: Segment2D):
+               segment: Segment2D):
 
         check_type(segment, "Input segment", Segment2D)
 
@@ -1774,7 +1757,7 @@ class PointSegmentCollection3D(list):
         self.append(spatial_element)
 
 
-class Line3D:
+class Line3D(Line):
     """
     A line.
     """
@@ -1865,7 +1848,7 @@ class Line3D:
         :param ndx: the segment index.
         :type ndx: numbers.Integral
         :return: the optional segment
-        :rtype: Optional[Segment]
+        :rtype: Optional[Segment2D]
         """
 
         start_pt = self.pt(ndx)
@@ -2881,7 +2864,7 @@ class CPlane3D:
         :param another: the second cartesian plane
         :type another: CPlane3D
         :return: the optional instersection point
-        :rtype: Optional[Point]
+        :rtype: Optional[Point2D]
         :raise: Exception
 
         Examples:

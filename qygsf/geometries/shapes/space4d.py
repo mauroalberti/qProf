@@ -2,11 +2,13 @@
 from math import sqrt
 import datetime
 
+
+from .abstract import Point, Segment, Line
 from ...mathematics.vectors3d import *
 from .space2d import Point2D, Line2D
 
 
-class Point4D(object):
+class Point4D(Point):
     """
     Cartesian point.
     Dimensions: 3D + time
@@ -283,7 +285,7 @@ class Point4D(object):
             return np.nan
 
 
-class Segment4D(object):
+class Segment4D(Segment):
     """
     Segment is a geometric object defined by a straight line between
     two points.
@@ -492,7 +494,7 @@ class Segment4D(object):
     '''
 
 
-class Line4D(object):
+class Line4D(Line):
     """
     A list of Point objects.
     """
@@ -680,6 +682,13 @@ class Line4D(object):
 
         return Line4D(self.pts() + another.pts())
 
+    def length_2d(self):
+
+        length = 0.0
+        for ndx in range(self.num_pts() - 1):
+            length += self.pts()[ndx].dist_2d(self.pts()[ndx + 1])
+        return length
+
     def length_3d(self):
 
         length = 0.0
@@ -687,12 +696,9 @@ class Line4D(object):
             length += self.pts()[ndx].distance(self.pts()[ndx + 1])
         return length
 
-    def length_2d(self):
+    def length(self):
 
-        length = 0.0
-        for ndx in range(self.num_pts() - 1):
-            length += self.pts()[ndx].dist_2d(self.pts()[ndx + 1])
-        return length
+        return self.length_3d()
 
     def incremental_length_3d(self):
 

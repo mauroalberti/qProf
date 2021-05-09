@@ -11,29 +11,12 @@ from math import fabs
 import random
 from array import array
 
-from ...mathematics.vectors3d import *
+from .abstract import Shape, Point, Line, Segment, Polygon
 from ...mathematics.vectors2d import *
 from ...utils.types import *
 
 
-class Shape2D(object, metaclass=abc.ABCMeta):
-
-    @abc.abstractmethod
-    def area(self):
-        """Calculate shape area"""
-        
-    @abc.abstractmethod
-    def length(self):
-        """Calculate shape area"""
-
-    '''
-    @abc.abstractmethod
-    def clone(self):
-        """Create a clone of the shape"""
-    '''
-
-
-class Point2D(Shape2D):
+class Point2D(Point):
     """
     Cartesian point.
     Dimensions: 2D
@@ -62,12 +45,6 @@ class Point2D(Shape2D):
 
         self._x = float(x)
         self._y = float(y)
-
-    def area(self):
-        return 0.0
-
-    def length(self):
-        return 0.0
 
     @property
     def x(self) -> numbers.Real:
@@ -434,7 +411,7 @@ class Point2D(Shape2D):
         return cls(*vals)
 
 
-class Segment2D(Shape2D):
+class Segment2D(Segment):
     """
     Segment2D is a geometric object defined by the straight line between
     two vertices.
@@ -501,9 +478,6 @@ class Segment2D(Shape2D):
         """
 
         return self.start_pt.distance(self.end_pt)
-
-    def area(self):
-        return 0.0
 
     def __iter__(self):
         """
@@ -1666,18 +1640,11 @@ def intersect_segments2d(
     return inters_pt
 
 
-class Line2D(Shape2D):
+class Line2D(Line):
     """
     A list of Point objects.
     """
 
-    def area(self):
-
-        return 0.0
-
-    def length(self):
-
-        return self.length_2d()
 
     def __init__(self,
         pts: Optional[List[Point2D]] = None
@@ -1796,6 +1763,10 @@ class Line2D(Shape2D):
 
         return [Point2D(*self.values_at(ndx)) for ndx in range(self.num_pts())]
 
+    def length(self):
+
+        return self.length_2d()
+
     def segment(self,
         ndx: numbers.Integral
     ) -> Optional[Segment2D]:
@@ -1805,7 +1776,7 @@ class Line2D(Shape2D):
         :param ndx: the segment index.
         :type ndx: numbers.Integral
         :return: the optional segment
-        :rtype: Optional[Segment]
+        :rtype: Optional[Segment2D]
         """
 
         start_pt = self.pt(ndx)
@@ -2287,16 +2258,7 @@ class MultiLine2D(object):
         return MultiLine2D(cleaned_lines)
 
 
-class Ellipse2D(Shape2D):
-
-    def area(self):
-        pass
-
-    def length(self):
-        pass
-
-
-class Circle2D(Ellipse2D):
+class Circle2D(Shape):
 
     def __init__(self,
                  x: numbers.Real,
@@ -2354,20 +2316,7 @@ class Circle2D(Ellipse2D):
         return Circle2D(self._x, self._y, self._r)
 
 
-class Polygon2D(Shape2D, metaclass=abc.ABCMeta):
-
-    @abc.abstractmethod
-    def num_side(self):
-        """Return numer of sides"""
-
-    def area(self):
-        pass
-
-    def length(self):
-        pass
-
-
-class Triangle2D(Polygon2D):
+class Triangle2D(Polygon):
 
     def area(self):
         pass
@@ -2382,7 +2331,7 @@ class Triangle2D(Polygon2D):
         return 3
 
 
-class Quadrilateral2D(Polygon2D, metaclass=abc.ABCMeta):
+class Quadrilateral2D(Polygon, metaclass=abc.ABCMeta):
 
     def area(self):
         pass
@@ -2427,7 +2376,7 @@ class Square2D(Quadrilateral2D):
 
 @functools.singledispatch
 def center(
-        shape: Shape2D
+        shape: Shape
 ) -> Point2D:
     """
     The 2D shape center as a point (2D)
@@ -2526,6 +2475,36 @@ def merge_line2d(
     result = path_line.remove_coincident_points()
 
     return result
+
+
+def merge_lines(
+        lines: List[Line2D],
+        progress_ids
+):
+    """
+    lines: a list of list of (x,y,z) tuples for multilines
+    """
+
+    sorted_line_list = [line for (_, line) in sorted(zip(progress_ids, lines))]
+
+    line_list = []
+    for line in sorted_line_list:
+
+        line_type, line_geometry = line
+
+        if line_type == 'multiline':
+            path_line = xytuple_l2_to_multiline2d(line_geometry).to_line()
+        elif line_type == 'line':
+            path_line = xytuple_list_to_line2d(line_geometry)
+        else:
+            continue
+        line_list.append(path_line)  # now a list of Lines
+
+    # now the list of Lines is transformed into a single Line with coincident points removed
+
+    line = MultiLine2D(line_list).to_line().remove_coincident_points()
+
+    return line
 
 
 def merge_lines2d(

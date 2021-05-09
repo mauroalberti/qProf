@@ -94,8 +94,8 @@ def reading_line_shapefile(
             Point = Point3D
             Line = Line3D
         else:
-            Point = Point2D
-            Line = Line2D
+            Point = Point
+            Line = Line
 
         # check input path
 

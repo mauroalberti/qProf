@@ -1,7 +1,8 @@
 
-from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem,QgsPointXY
+from operator import itemgetter
 
-from ..qgis_utils.points import project_point, project_qgs_point
+from ..qgis_utils.points import *
+from ..qgis_utils.vectors import *
 from ...geometries.shapes.space2d import *
 
 
@@ -69,7 +70,7 @@ def try_load_line_layer(
     line_order_fld_ndx: Optional[numbers.Integral],
     line_name_fld_ndx: Optional[numbers.Integral],
     invert_direction: bool
-) -> Tuple[bool, Union[str, List[Line2D]]]:
+) -> Tuple[bool, Union[str, List[Tuple[Line, Union[str, numbers.Integral]]]]]:
 
     try:
 
@@ -87,25 +88,29 @@ def try_load_line_layer(
 
         profile_orig_lines, order_values = result
 
-        processed_lines = []
+        success, result = try_extract_lines_infos(
+            layer=line_layer,
+            field_indices=[line_order_fld_ndx, line_name_fld_ndx]
+        )
+
+        if not success:
+            msg = result
+            return False, msg
+
+        lines_infos = result
 
         if areLinesToReorder:
 
-            processed_lines.append(merge_lines2d(profile_orig_lines, order_values))
-
-        else:
-
-            for orig_line in profile_orig_lines:
-                processed_lines.append(merge_line2d(orig_line))
+            lines_infos.sort(key=itemgetter(1))
 
         # process input line layer
 
         projected_lines = []
-        for ndx, processed_line in enumerate(processed_lines):
+        for ndx, (line, _, name) in enumerate(lines_infos):
 
             projected_lines.append(
                 project_line2d(
-                    processed_line,
+                    line,
                     line_layer.crs(),
                     project_crs
                 )
@@ -116,7 +121,9 @@ def try_load_line_layer(
         if invert_direction:
             profiles = [line.invert_direction() for line in profiles]
 
-        return True, profiles
+        names = [name for _, _, name in lines_infos]
+
+        return True, zip(profiles, names)
 
     except Exception as e:
 
@@ -180,6 +187,9 @@ def line_geoms_attrs(
     line_layer,
     field_list=None
 ):
+    """
+    Deprecated: use 'try_line_geoms_attrs'
+    """
 
     if field_list is None:
         field_list = []
@@ -222,4 +232,44 @@ def project_xy_list(
         pt_list_dest_crs = pt_list_dest_crs.append([destPt.x(), destPt.y()])
 
     return pt_list_dest_crs
+
+
+def try_extract_line(
+        line: QgsLineString
+) -> Tuple[bool, Union[str, Line]]:
+
+    try:
+
+        pts = []
+        dim = set()
+
+        for point in line:
+            x = point.x()
+            y = point.y()
+            z = point.z()
+
+            if z is None:
+                pt = Point2D(x, y)
+                dim.add(2)
+            else:
+                pt = Point3D(x, y, z)
+                dim.add(3)
+
+            pts.append(pt)
+
+        if len(dim) != 1:
+            return False, f"Dim is {len(dim)}"
+
+        dim = dim[0]
+
+        if dim == 2:
+            return True, Line2D(pts)
+        elif dim == 3:
+            return True, Line3D(pts)
+        else:
+            return False, f"Got a dim of {dim}"
+
+    except Exception as e:
+
+        return False, str(e)
 

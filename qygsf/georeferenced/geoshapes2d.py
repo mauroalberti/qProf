@@ -399,9 +399,9 @@ class GeoMultiLine2D(object):
     """
 
     def __init__(self,
-        lines: Optional[List[Line2D]] = None,
-        epsg_cd: numbers.Integral = -1
-        ):
+                 lines: Optional[List[Line2D]] = None,
+                 epsg_cd: numbers.Integral = -1
+                 ):
 
         if lines is None:
             lines = []

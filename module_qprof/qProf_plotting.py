@@ -132,7 +132,7 @@ def plot_topo_profile_lines(
 ):
 
     print(f"DEBUG: type(grids_profile): {type(grids_profile)}")
-    topo_profiles = [line3d for _, line3d in grids_profile._named_lines]
+    topo_profiles = [line3d for _, line3d in grids_profile]
     topoline_colors = plot_params['elev_lyr_colors']
     topoline_visibilities = plot_params['visible_elev_lyrs']
 
@@ -416,7 +416,7 @@ def plot_geoprofiles(
     for ndx in range(input_geoprofiles_set.geoprofiles_num):
 
         geoprofile = input_geoprofiles_set.geoprofile(ndx)
-        plot_s_min, plot_s_max = 0, geoprofile._named_lines.x_length()
+        plot_s_min, plot_s_max = 0, geoprofile.x_length()
         #print(f"B: plot_s_min, plot_s_max")
 
         # if slopes to be calculated and plotted

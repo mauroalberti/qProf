@@ -38,7 +38,7 @@ class ActionWidget(QWidget):
         self.actions_qtreewidget = self.actionsTreeWidget
 
         self.profile_operations = {
-            "Load from line layer": self.define_profile_lines_from_line_layer,
+            "Load from line layer": self.profile_lines_from_line_layer,
             "digitize trace": self.digitize_rubberband_line,
             "clear trace": self.clear_rubberband_line,
             "save trace": self.save_rubberband_line,
@@ -77,7 +77,7 @@ class ActionWidget(QWidget):
         self.gpx_track_name = None
 
         self.profile_name = None
-        self.profile_line_list = []  # list of Lines, in the project CRS, undensified
+        self.profile_lines = []  # list of Lines, in the project CRS, undensified
         self.input_geoprofiles_set = GeoProfilesSet_()  # main instance for the geoprofiles
         self.profile_windows = []  # used to maintain alive the plots, i.e. to avoid the C++ objects being destroyed
         self.selected_dems = None
@@ -93,8 +93,8 @@ class ActionWidget(QWidget):
         if operation is not None:
             operation()
 
-    def define_profile_lines_from_line_layer(self
-                                             ):
+    def profile_lines_from_line_layer(self
+                                      ):
         """
         Should define:
          - source type -> self.profile_track_source = TrackSource.LINE_LAYER
@@ -127,8 +127,11 @@ class ActionWidget(QWidget):
             )
             return
 
-        line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx else None
-        line_name_fld_ndx = int(name_field_ndx) - 1 if name_field_ndx else None
+        print(f"DEBUG: order_field_ndx -> {order_field_ndx}")
+        print(f"DEBUG: name_field_ndx -> {name_field_ndx}")
+
+        line_order_fld_ndx = int(order_field_ndx) - 1 if order_field_ndx >= 0 else None
+        line_name_fld_ndx = int(name_field_ndx) - 1 if name_field_ndx >= 0 else None
 
         success, result = try_load_line_layer(
             line_layer=line_qgsvectorlayer,
@@ -147,7 +150,7 @@ class ActionWidget(QWidget):
             return
 
         self.profile_name = line_qgsvectorlayer.sourceName()
-        self.profile_line_list = result
+        self.profile_lines = result
         self.profile_track_source_type = TrackSource.LINE_LAYER
 
         ok(
@@ -222,7 +225,7 @@ class ActionWidget(QWidget):
             return
 
         self.profile_name = "Text input"
-        self.profile_line_list = [line2d]
+        self.profile_lines = [line2d]
         self.profile_track_source_type = TrackSource.POINT_LIST
 
         ok(
@@ -261,7 +264,7 @@ class ActionWidget(QWidget):
             name, line4d = results
 
             self.profile_name = os.path.basename(self.input_gpx_file_path)
-            self.profile_line_list = [line4d]
+            self.profile_lines = [line4d]
             self.gpx_track_name = name
             self.profile_track_source_type = TrackSource.GPX_FILE
 
@@ -360,8 +363,8 @@ class ActionWidget(QWidget):
 
         line_layer = dialog.line_shape
 
-        order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex()
-        name_field_ndx = dialog.Trace2D_name_field_comboBox.currentIndex()
+        order_field_ndx = dialog.Trace2D_order_field_comboBox.currentIndex() - 1
+        name_field_ndx = dialog.Trace2D_name_field_comboBox.currentIndex() - 1
         multiple_profiles = dialog.qcbxMultipleProfiles.isChecked()
         invert_profile = dialog.qcbxInvertProfile.isChecked()
 
@@ -380,7 +383,7 @@ class ActionWidget(QWidget):
     def check_pre_profile(self):
 
         for geoprofile in self.input_geoprofiles_set.geoprofiles:
-            if not geoprofile._named_lines.statistics_calculated:
+            if not geoprofile.statistics_calculated:
                 warn(
                     self.plugin_name,
                     "Profile statistics not yet calculated"
@@ -395,7 +398,7 @@ class ActionWidget(QWidget):
 
         for geoprofile in geoprofiles:
 
-            for name, line3d in geoprofile._named_lines:
+            for name, line3d in geoprofile:
 
                 statistics_elev = [get_statistics(p) for p in line3d.z_array()]
                 statistics_dirslopes = [get_statistics(p) for p in line3d.dir_slopes()]
@@ -641,7 +644,7 @@ class ActionWidget(QWidget):
             )
             return
 
-        if not self.profile_line_list:
+        if not self.profile_lines:
             warn(
                 self.plugin_name,
                 "No profile source defined"
@@ -656,7 +659,7 @@ class ActionWidget(QWidget):
             return
 
         success, result = try_prepare_grids_profile(
-            profile_line=self.profile_line_list[0],
+            profile_line=self.profile_lines[0],
             track_source=self.profile_track_source_type,
             gpx_elevation_usage=self.gpx_choice,
             selected_grids=self.selected_dems,
@@ -680,12 +683,12 @@ class ActionWidget(QWidget):
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in grids_profile._named_lines:
+        for _, line3d in grids_profile:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in grids_profile._named_lines]
+        surface_names = [name for name, _ in grids_profile]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -818,7 +821,7 @@ class ActionWidget(QWidget):
             return
 
         success, result = try_prepare_grids_profile(
-            profile_line=self.profile_line_list[0],
+            profile_line=self.profile_lines[0],
             track_source=self.profile_track_source_type,
             gpx_elevation_usage=self.gpx_choice,
             selected_grids=self.selected_dems,
@@ -840,12 +843,12 @@ class ActionWidget(QWidget):
         profiles_max_elevs = []
         profiles_lengths = []
 
-        for _, line3d in grids_profile._named_lines:
+        for _, line3d in grids_profile:
             profiles_min_elevs.append(line3d.z_min())
             profiles_max_elevs.append(line3d.z_max())
             profiles_lengths.append(line3d.length_2d())
 
-        surface_names = [name for name, _ in grids_profile._named_lines]
+        surface_names = [name for name, _ in grids_profile]
 
         if self.input_geoprofiles_set.plot_params is None:
             surface_colors = None
@@ -1000,7 +1003,7 @@ class ActionWidget(QWidget):
 
         self.line_from_digitation = raw_line
         self.profile_name = "Digitized line"
-        self.profile_line_list = [raw_line]
+        self.profile_lines = [raw_line]
         self.profile_track_source_type = TrackSource.DIGITATION
 
     def restore_previous_map_tool(self):
@@ -2584,7 +2587,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            profile_elevations = geoprofile_set.geoprofile(ndx)._named_lines
+            profile_elevations = geoprofile_set.geoprofile(ndx)
 
             profiles_stats = list(
                 zip(
@@ -2608,7 +2611,7 @@ class StatisticsDialog(QDialog):
 
         for ndx in range(num_profiles):
 
-            topo_profiles = geoprofile_set.geoprofile(ndx)._named_lines
+            topo_profiles = geoprofile_set.geoprofile(ndx)
             resampled_line_xs = topo_profiles.x_array
             resampled_line_ys = topo_profiles.y_array
 

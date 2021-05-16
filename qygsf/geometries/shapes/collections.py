@@ -1,14 +1,14 @@
 import numbers
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple
 
 import numpy as np
 
+from ...utils.types import *
+from .abstract import *
 from .space2d import XYArrayPair
-from .space3d import Line3D
-from .space4d import Line4D
 
 
-class NamedLines:
+class NamedLines(list):
     """
     Class representing multiple grid profiles
     derived from a single trace,
@@ -16,17 +16,24 @@ class NamedLines:
     """
 
     def __init__(self,
-                 named_lines: Optional[List[Tuple[str, Union[Line3D, Line4D]]]] = None):
+                 named_lines: Optional[List[Tuple[str, Line]]] = None):
 
         if named_lines is None:
-            self._named_lines = []  # list of name and Line3/4D
+            named_lines = []  # list of name and Line
         else:
-            self._named_lines = named_lines
+            print(f"DEBUG: type(named_lines) -> {type(named_lines)}")
+            check_type(named_lines, "Named lines", List)
+            for name, line in named_lines:
+                check_type(name, "Name", (str, numbers.Integral))
+                check_type(line, "Line", Line)
+
+        print(f"DEBUG: intializing NamedLines with {named_lines}")
+        super(NamedLines, self).__init__(named_lines)
 
     def __repr__(self):
 
-        return f"""NamedLines with {len(self._named_lines)} Line(s):
-        {self._named_lines}
+        return f"""NamedLines with {len(self)} Line(s):
+        {self}
         """
 
     def num_lines(self) -> numbers.Integral:
@@ -34,42 +41,39 @@ class NamedLines:
         Returns the number of lines present in the collection.
         """
 
-        return len(self._named_lines)
+        return len(self)
 
+    """
     def clear_lines(self):
 
-        self._named_lines = None
+        self = []
+    """
 
+    """
     def set_named_lines(self,
                         named_grid_profiles
                         ):
 
-        self._named_lines = named_grid_profiles
+        self = named_grid_profiles
+    """
 
-    @property
-    def named_lines(self):
-        """
-
-        :return:
-        """
-
-        return self._named_lines
-
+    """
     def add_named_lines(self, named_line):
 
-        self._named_lines += named_line
+        self += named_line
+    """
 
     def s_max(self):
 
-        return np.nanmax([line.length_2d() for _, line in self._named_lines])
+        return np.nanmax([line.length_2d() for _, line in self])
 
     def z_min(self):
 
-        return np.nanmin([line.z_min() for _, line in self._named_lines])
+        return np.nanmin([line.z_min() for _, line in self])
 
     def z_max(self):
 
-        return np.nanmax([line.z_max() for _, line in self._named_lines])
+        return np.nanmax([line.z_max() for _, line in self])
 
     def to_sz_arrays(self,
                      ndx: numbers.Integral) -> XYArrayPair:
@@ -78,7 +82,7 @@ class NamedLines:
         (distance and z along the line profile).
         """
 
-        name, line = self._named_lines[ndx]
+        name, line = self[ndx]
         s_array = line.incremental_length_2d()
         z_array = line.z_array()
 

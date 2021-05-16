@@ -1700,27 +1700,6 @@ class PointSegmentCollection3D(list):
             for geom in geoms:
                 check_type(geom, "Spatial element", (Point3D, Segment3D))
 
-        """
-        if epsg_code is not None:
-            check_type(
-                var=epsg_code,
-                name="EPSG code",
-                expected_types=numbers.Integral
-            )
-
-        if geoms is not None and epsg_code is not None:
-
-            for geom in geoms:
-                check_epsg(
-                    spatial_element=geom,
-                    epsg_code=epsg_code
-                )
-
-        elif geoms is not None and len(geoms) > 0:
-
-            epsg_code = geoms[0].epsg_code()
-        """
-
         if geoms is not None and len(geoms) > 0:
 
             super(PointSegmentCollection3D, self).__init__(geoms)
@@ -1728,8 +1707,6 @@ class PointSegmentCollection3D(list):
         else:
 
             super(PointSegmentCollection3D, self).__init__()
-
-        # self.epsg_code = epsg_code
 
     def append(self,
                spatial_element: Union[Point3D, Segment3D]

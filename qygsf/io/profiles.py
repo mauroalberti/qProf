@@ -10,7 +10,7 @@ from qgis.core import QgsRasterLayer
 
 import numpy as np
 
-from ..geometries.shapes.collections import NamedLines
+from ..geometries.shapes.collections import *
 from ..profiles.sets import ProfileElevations
 
 from ..geometries.shapes.space2d import Line2D
@@ -324,8 +324,8 @@ def try_prepare_grids_profile(
             return False, "Unable to create profiles"
 
         grids_profile = NamedLines()
-        grids_profile.original_line = profile_line
-        grids_profile.set_named_lines(named_3dlines)
+        #grids_profile.original_line = profile_line
+        grids_profile = named_3dlines
 
         return True, grids_profile
 

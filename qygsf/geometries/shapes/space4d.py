@@ -761,9 +761,7 @@ class Line4D(Line):
         Returns the optional segment at index ndx.
 
         :param ndx: the segment index.
-        :type ndx: numbers.Integral
         :return: the optional segment
-        :rtype: Optional[Segment]
         """
 
         start_pt = self.pt(ndx)

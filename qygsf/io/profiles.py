@@ -323,8 +323,6 @@ def try_prepare_grids_profile(
         if named_3dlines is None:
             return False, "Unable to create profiles"
 
-        grids_profile = NamedLines()
-        #grids_profile.original_line = profile_line
         grids_profile = named_3dlines
 
         return True, grids_profile
@@ -348,12 +346,7 @@ def lines3dnamed_from_dems(
     else:
         template_line2d = source_profile_line
 
-    print(f"DEBUG: length of source_profile_line: {source_profile_line.length()}")
-    print(f"DEBUG: sample_distance: {sample_distance}")
     resampled_line = template_line2d.densify_2d_line(sample_distance)  # line resampled by sample distance
-
-
-    print(f"resampled_line: {resampled_line}")
 
     # calculate 3D profiles from DEMs
 
